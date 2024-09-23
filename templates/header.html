@@ -1,0 +1,31 @@
+
+<nav class="navbar navbar-expand-lg bg-body-tertiary">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="#">
+        <img src="{{ url_for('static', filename='creatives/Logo.svg') }}" alt="Your Logo" width="auto" height="200">
+      </a>
+      <div class="collapse navbar-collapse " id="navbarNav">
+        <ul class="navbar-nav">
+          <li class="nav-item">
+            <a class="nav-link active" aria-current="page" href="{{ url_for('home') }}">Home</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('about') }}">About Us</a>
+          </li>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            Social Media
+            </a>
+            <ul class="dropdown-menu">
+              <li><a class="dropdown-item" href="https://www.instagram.com/cf_autocare_/">Instagram</a></li>
+              <li><a class="dropdown-item" href="https://www.facebook.com/people/Central-Florida-Auto-Detailing/61559806436654/">Facebook</a></li>
+              <li><a class="dropdown-item" href="https://g.co/kgs/TcgMDdV">Google</a></li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+    </div>
+  </nav>
