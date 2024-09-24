@@ -4,3 +4,5 @@ gunicorn==23.0.0
 packaging==24.1
 platformdirs==4.3.2
 virtualenv==20.26.4
+Flask==3.0.3
+
