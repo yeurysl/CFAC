@@ -20,6 +20,7 @@ def home():
 @app.route('/aboutus')
 def about():
     return render_template('/aboutus.html')
+
 @app.route('/careers')
 def career():
     return render_template('/careers.html')
