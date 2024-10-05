@@ -4,4 +4,13 @@
 
 {% block content %}
     <h1>Welcome to the Careers Page</h1>
+    <div style="text-align: center; margin: 20px 0;">
+        <a href="{{ url_for('employeepage') }}" 
+           style="display: inline-block; padding: 10px 20px; 
+                  font-size: 16px; text-decoration: none; 
+                  background-color: #007BFF; color: white; 
+                  border-radius: 5px; border: none;">
+            Go to Employee Page
+        </a>
+    </div>
 {% endblock %}
