@@ -38,7 +38,7 @@
         </div>
     </div>
     <div class="container mt-5 text-center">
-        <h1>Serviced Areas</h1>
+        <h1>Where we service</h1>
         <hr class="custom-hr">
     </div>
     <div class="container-fluid p-0">
@@ -49,7 +49,11 @@
             <img src="{{ url_for('static', filename='creatives/smallmap.svg') }}" alt="smallmap" class="img-fluid full-width-image">
         </picture>
     </div>
-    
+
+    <div class="container mt-5 text-center">
+        <h1>What we do</h1>
+        <hr class="custom-hr">
+    </div>
 
 
     <div class="container mt-4">
@@ -57,11 +61,11 @@
             <!-- Accordion Item 1 -->
             <div class="card">
                 <div class="card-header" id="headingOne">
-                    <h2 class="mb-0">
-                        <button class="btn btn-block text-left collapsed" type="button" data-toggle="collapse" data-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
+                    <h2 class="mb-0 d-flex justify-content-between align-items-center">
+                        <button class="btn collapsed" type="button" data-toggle="collapse" data-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
                             <i class="fas fa-chevron-down"></i>
                         </button>
-                        
+                        <span class="header-text">Full Detailing</span> 
                     </h2>
                 </div>
                 <div id="collapseOne" class="collapse" aria-labelledby="headingOne" data-parent="#infoAccordion">
@@ -71,6 +75,7 @@
                 </div>
             </div>
             
+            
             <!-- Accordion Item 2 -->
             <div class="card">
                 <div class="card-header" id="headingTwo">
@@ -78,7 +83,7 @@
                         <button class="btn btn-block text-left collapsed" type="button" data-toggle="collapse" data-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
                             <i class="fas fa-chevron-down"></i>
                         </button>
-                        
+                        <span class="header-text">Oil Changes</span> <!-- Additional text -->
                     </h2>
                 </div>
                 <div id="collapseTwo" class="collapse" aria-labelledby="headingTwo" data-parent="#infoAccordion">
@@ -87,7 +92,36 @@
                     </div>
                 </div>
             </div>
-            <!-- Add more accordion items as needed -->
+            <div class="card">
+                <div class="card-header" id="headingThree">
+                    <h2 class="mb-0">
+                        <button class="btn btn-block text-left collapsed" type="button" data-toggle="collapse" data-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <span class="header-text">Break/Rotor Changes</span> <!-- Additional text -->
+                    </h2>
+                </div>
+                <div id="collapseTwo" class="collapse" aria-labelledby="headingTwo" data-parent="#infoAccordion">
+                    <div class="card-body">
+                        Content for information section 3 goes here.
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header" id="headingFour">
+                    <h2 class="mb-0">
+                        <button class="btn btn-block text-left collapsed" type="button" data-toggle="collapse" data-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <span class="header-text">Full Maintnence</span> <!-- Additional text -->
+                    </h2>
+                </div>
+                <div id="collapseTwo" class="collapse" aria-labelledby="headingTwo" data-parent="#infoAccordion">
+                    <div class="card-body">
+                        Content for information section 3 goes here.
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -131,6 +165,36 @@
          background-color: #07173d; 
          border: 1px solid #07173d; 
         }
+        .card-header .btn {
+        display: block;
+        text-align: left;
+        width: auto; /* Adjust width as needed */
+        position: absolute;
+        right: 0; /* Align to the right */
+        top: 50%; /* Center vertically in the card header */
+        transform: translateY(-50%);
+        }   
+        .card, .card-header {
+        border-radius: 2px; /* Reduces the rounding for a sharper look */
+        }
+
+/* Optional: Sharpen border radius of collapse components */
+        .collapse {
+        border-radius: 2px;
+        }
+
+        #infoAccordion {
+        max-width: 75%; /* Adjust the percentage to make it narrower */
+        margin: auto; /* This centers the accordion in its container */
+        }
+        .card-header, .card-body {
+        padding: 13px; /* Reduces padding for a more compact look */
+        }
+        .card-header h2, .card-body {
+        font-size: 20px; /* Reduces the font size */
+        }
+
+        
         
     </style>
     
