@@ -5,9 +5,7 @@
 {% block content %}
 
     
-    <div class="container mt-5">
-        <p class="text-center">Website Underconstruction</p>
-    </div>
+    
     <div class="container mt-5">
          {% with messages = get_flashed_messages(with_categories=true) %}
               {% if messages %}
@@ -20,20 +18,24 @@
                {% endif %}
          {% endwith %}
 
-        <form method="POST" action="/submit">
-            <div class="mb-3">
-                <input type="text" class="form-control" id="name" name="name" placeholder="Enter Your Full Name" required>
+         <div class="container mt-5">
+            <div class="form-wrapper mx-auto">
+                <form method="POST" action="/submit">
+                    <div class="mb-3">
+                        <input type="text" class="form-control" id="name" name="name" placeholder="Enter Your Full Name" required>
+                    </div>
+                    <div class="mb-3">
+                        <input type="text" class="form-control" id="address" name="address" placeholder="Enter Your Street Address" required>
+                    </div>
+                    <div class="mb-3">
+                        <input type="tel" class="form-control" id="phone" name="phone" placeholder="Enter Your Phone Number" required>
+                    </div>
+                    <div class="text-center">
+                        <button type="submit" class="btn btn-primary">Give Me a Call</button>
+                    </div>
+                </form>
             </div>
-            <div class="mb-3">
-                <input type="text" class="form-control" id="address" name="address" placeholder="Enter Your Street Address" required>
-            </div>
-            <div class="mb-3">
-                <input type="tel" class="form-control" id="phone" name="phone" placeholder="Enter Your Phone Number" required>
-            </div>
-            <div class="text-center">
-                <button type="submit" class="btn btn-primary">Give Me a Call</button>
-            </div>
-        </form>
+        </div>
     </div>
     <div class="container mt-5 text-center">
         <h1>Serviced Areas</h1>
@@ -48,6 +50,49 @@
         </picture>
     </div>
     
+
+
+    <div class="container mt-4">
+        <div class="accordion" id="infoAccordion">
+            <!-- Accordion Item 1 -->
+            <div class="card">
+                <div class="card-header" id="headingOne">
+                    <h2 class="mb-0">
+                        <button class="btn btn-block text-left collapsed" type="button" data-toggle="collapse" data-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        
+                    </h2>
+                </div>
+                <div id="collapseOne" class="collapse" aria-labelledby="headingOne" data-parent="#infoAccordion">
+                    <div class="card-body">
+                        Content for information section 1 goes here.
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Accordion Item 2 -->
+            <div class="card">
+                <div class="card-header" id="headingTwo">
+                    <h2 class="mb-0">
+                        <button class="btn btn-block text-left collapsed" type="button" data-toggle="collapse" data-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        
+                    </h2>
+                </div>
+                <div id="collapseTwo" class="collapse" aria-labelledby="headingTwo" data-parent="#infoAccordion">
+                    <div class="card-body">
+                        Content for information section 2 goes here.
+                    </div>
+                </div>
+            </div>
+            <!-- Add more accordion items as needed -->
+        </div>
+    </div>
+
+
+
     
     <style>
         .container-fluid {
@@ -71,7 +116,21 @@
              width: 50%; /* Adjust the width as needed */
              margin: 20px auto; /* Centers the line and adds vertical spacing */
         }
-        
+        .form-wrapper {
+        max-width: 500px; /* Adjust this value to control the width of the form */
+        padding: 18px; /* Optional: Add padding around the form */
+        border: 1px solid #ffffff; /* Optional: Add a border to visually separate the form */
+        border-radius: 8px; /* Optional: Rounded corners for a nicer look */
+        background-color: #ffffff; /* Optional: Add a light background color */
+        }
+        .form-control {
+        border-radius: 1%;
+        }
+        .btn-primary {
+         border-radius: 3%;
+         background-color: #07173d; 
+         border: 1px solid #07173d; 
+        }
         
     </style>
     
