@@ -35,11 +35,17 @@
             </div>
         </form>
     </div>
-
+    <div class="container mt-5 text-center">
+        <h1>Serviced Areas</h1>
+        <hr class="custom-hr">
+    </div>
     <div class="container-fluid p-0">
-        <div class="full-width-image-container">
-            <img src="{{ url_for('static', filename='creatives/smallmap.svg') }}" alt="smallmap" class="full-width-image">
-        </div>
+        <picture>
+            <!-- Image for screens wider than 768px -->
+            <source media="(min-width: 768px)" srcset="{{ url_for('static', filename='creatives/largemap.svg') }}">
+            <!-- Image for screens narrower than 768px -->
+            <img src="{{ url_for('static', filename='creatives/smallmap-mobile.svg') }}" alt="smallmap" class="img-fluid full-width-image">
+        </picture>
     </div>
     
     
@@ -58,6 +64,15 @@
             -webkit-mask-image: linear-gradient(to bottom, transparent, black 20%, black 80%, transparent);
             mask-image: linear-gradient(to bottom, transparent, black 20%, black 80%, transparent);
         }
+        .custom-hr {
+             border: none;
+             height: 2px; /* Adjust the thickness */
+             background-color: #ffffff; /* Change to your preferred color */
+             width: 50%; /* Adjust the width as needed */
+             margin: 20px auto; /* Centers the line and adds vertical spacing */
+        }
+        
+        
     </style>
     
     
