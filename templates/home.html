@@ -3,6 +3,7 @@
 {% block title %}Home Page{% endblock %}
 
 {% block content %}
+
     
     <div class="container mt-5">
         <p class="text-center">Website Underconstruction</p>
@@ -34,5 +35,30 @@
             </div>
         </form>
     </div>
+
+    <div class="container-fluid p-0">
+        <div class="full-width-image-container">
+            <img src="{{ url_for('static', filename='creatives/smallmap.svg') }}" alt="smallmap" class="full-width-image">
+        </div>
+    </div>
+    
+    
+    <style>
+        .container-fluid {
+            margin: 0;
+            width: 100%;
+        }
+    
+        .full-width-image {
+            width: 100%;
+            height: auto;
+            display: block;
+    
+            /* Apply the mask for fading top and bottom edges */
+            -webkit-mask-image: linear-gradient(to bottom, transparent, black 20%, black 80%, transparent);
+            mask-image: linear-gradient(to bottom, transparent, black 20%, black 80%, transparent);
+        }
+    </style>
+    
     
 {% endblock %}
