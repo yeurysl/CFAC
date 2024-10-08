@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from pymongo import MongoClient
 from flask_bcrypt import Bcrypt
 from functools import wraps
+from flask_mail import Mail, Message
 from datetime import datetime
 import os
 
@@ -11,12 +12,19 @@ app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
 bcrypt = Bcrypt(app)
-
+#Mongo DB SETUP
 client = MongoClient("mongodb+srv://yeurys:ZvTt25OmDOp24yCW@cfac.8ba8p.mongodb.net/cfacdb?retryWrites=true&w=majority&appName=cfac", tls=True, tlsAllowInvalidCertificates=True)
-
 db = client["cfacdb"]
 users_collection = db["users"]  
 estimaterequests_collection = db["estimaterequests"]  
+
+# Flask-Mail SETUP
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = os.getenv('EMAIL_USER')  # Get email username from environment
+app.config['MAIL_PASSWORD'] = os.getenv('EMAIL_PASSWORD')  # Get email password from environment
+mail = Mail(app)
 
 @app.route('/base')
 def base():
@@ -53,6 +61,22 @@ def submit():
         estimaterequests_collection.insert_one(data)
         print("Data inserted successfully.")
         flash('Your information has been successfully submitted!', 'success')
+
+          # Send an email notification to you
+        msg = Message(
+            "New Estimate Request Submission",
+            sender="yeurys@cfautocare.biz", 
+            recipients=["yeurys@cfautocare.biz"]
+        )
+        msg.body = (
+            f"New Estimate Request:\n\n"
+            f"Name: {name}\n"
+            f"Address: {address}\n"
+            f"Phone: {phone}\n"
+            f"Date Requested: {timestamp.strftime('%Y-%m-%d %H:%M:%S')}"
+        )
+        mail.send(msg)
+        print("Notification email sent successfully.")
     except Exception as e:
         print("An error occurred while inserting data:", e)
         flash('An error occurred while submitting your information. Please try again.', 'danger')
