@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from pymongo import MongoClient
 from flask_bcrypt import Bcrypt
 from functools import wraps
+from datetime import datetime
 import os
 
 
@@ -34,6 +35,8 @@ def submit():
     name = request.form.get('name')
     address = request.form.get('address')
     phone = request.form.get('phone')
+    # Get the current date and time
+    timestamp = datetime.now()
 
     if not name or not address or not phone:
         flash('Please fill out all fields.', 'warning')
@@ -42,7 +45,8 @@ def submit():
     data = {
         'name': name,
         'address': address,
-        'phone': phone
+        'phone': phone,
+         "date_requested": timestamp 
     }
 
     try:
@@ -125,9 +129,11 @@ def add_user(username, password):  # Updated function to add a user
 @app.route('/employeepage')
 @login_required
 def employeepage():
-    return render_template('/employeepage.html')
-
-
+       # Fetch all documents from the estimaterequests collection
+    requests = estimaterequests_collection.find()  # Retrieve all estimate requests
+    
+    # Pass the data to the employee page template
+    return render_template('employeepage.html', requests=requests)
 
 
 # Use this function to add new users

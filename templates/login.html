@@ -1,17 +1,35 @@
 
-
 {% extends 'base.html' %}
 
 {% block title %}Login{% endblock %}
 
 {% block content %}
-    <h1>Login</h1>
-    <form method="post" action="{{ url_for('login') }}">
-        <label for="username">Username:</label>
-        <input type="text" name="username" required><br>
-        <label for="password">Password:</label>
-        <input type="password" name="password" required><br>
-        <input type="submit" value="Login">
-    </form>
-    <a href="{{ url_for('home') }}">Home</a>
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-6 col-lg-4">
+                <h1 class="text-center mb-4">Login</h1>
+                <form method="post" action="{{ url_for('login') }}" class="text-center">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Username:</label>
+                        <input type="text" class="form-control" name="username" id="username" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password:</label>
+                        <input type="password" class="form-control" name="password" id="password" required>
+                    </div>
+                    <input type="submit" value="Login" class="btn btn-primary mt-3">
+                </form>
+                
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .btn-primary {
+        border-radius: 3%;
+        background-color: #07173d; 
+        border: 1px solid #07173d; 
+       }
+
+   </style>
 {% endblock %}
