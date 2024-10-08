@@ -66,7 +66,7 @@ def submit():
         msg = Message(
             "New Estimate Request Submission",
             sender="yeurys@cfautocare.biz", 
-            recipients=["yeurys@cfautocare.biz"]
+            recipients=["yeurysl17@gmail.com"]
         )
         msg.body = (
             f"New Estimate Request:\n\n"
