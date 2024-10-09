@@ -11,3 +11,38 @@
 .custom-navbar .navbar-toggler-icon {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath stroke='rgba%28255, 255, 255, 1%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M1 2h14M1 8h14M1 14h14'/%3E%3C/svg%3E") !important;
 }
+.btn-product-view-details {
+  /* Your custom styles here */
+  background-color: #07173d; /* Example: Custom background color */
+  border-color: #07173d;      /* Example: Custom border color */
+  color: #ffffff;             /* Example: Custom text color */
+  border-radius: 2px;
+}
+
+.btn-add-to-cart {
+  background-color: #0b5f2a; /* Example: Custom background color */
+  border-color: #0b5f2a;      /* Example: Custom border color */
+  color: #ffffff;             /* Example: Custom text color */
+  border-radius: 2px;
+
+}
+.btn-add-to-cart:hover {
+  background-color: #89988b;  /* Darker green on hover */
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2); /* Slight shadow for hover effect */
+}
+
+.btn-product-view-details:hover {
+  color: #ffffff;  
+  background-color: #4e5f8a; /* Example: Darker shade on hover */
+  border-color: #0a1d4f;
+}
+.product-buttons {
+  display: flex;
+  justify-content: center; /* Centers the buttons */
+  gap: 10px; /* Adds space between buttons */
+}
+
+.product-buttons .btn {
+  /* Optional: Set consistent button widths */
+  min-width: 120px;
+}

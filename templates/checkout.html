@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+
+{% block title %}Checkout{% endblock %}
+
+{% block content %}
+<h1>Checkout</h1>
+<ul>
+    {% for product in products %}
+        <li>{{ product.name }} - ${{ product.price }}</li>
+    {% endfor %}
+</ul>
+<p>Total: ${{ total }}</p>
+
+<form method="post">
+    <!-- Payment fields (e.g., credit card info) would go here -->
+    <!-- For this example, we'll simulate payment -->
+    <button type="submit">Place Order</button>
+</form>
+{% endblock %}

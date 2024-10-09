@@ -3,6 +3,7 @@ from pymongo import MongoClient
 from flask_bcrypt import Bcrypt
 from functools import wraps
 from flask_mail import Mail, Message
+from bson.objectid import ObjectId
 from datetime import datetime
 import os
 
@@ -17,6 +18,8 @@ client = MongoClient("mongodb+srv://yeurys:ZvTt25OmDOp24yCW@cfac.8ba8p.mongodb.n
 db = client["cfacdb"]
 users_collection = db["users"]  
 estimaterequests_collection = db["estimaterequests"]  
+products_collection = db["products"]
+
 
 # Flask-Mail SETUP
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
@@ -27,7 +30,7 @@ app.config['MAIL_PASSWORD'] = os.getenv('EMAIL_PASSWORD')  # Get email password 
 mail = Mail(app)
 
 
-#DEFS
+#SINGLE DEFS
 
 def login_required(f):
     @wraps(f)
@@ -57,6 +60,9 @@ def employee_required(f):
     return decorated_function
 
 
+def calculate_cart_total(products):
+    total = sum(product['price'] for product in products)
+    return total
 
 
 
@@ -72,7 +78,9 @@ def base():
 
 @app.route('/')
 def home():
-    return render_template('/home.html')
+    products = list(products_collection.find())  # Assuming you have products in your DB
+    return render_template('home.html', products=products)
+
 
 
 
@@ -121,10 +129,6 @@ def submit():
         flash('An error occurred while submitting your information. Please try again.', 'danger')
 
     return redirect(url_for('home'))
-
-
-
-
 
 
 
@@ -179,8 +183,6 @@ def login():
 
 
 
-
-
 @app.route('/logout')
 def logout():
     session.pop('username', None)
@@ -217,6 +219,66 @@ def employeepage():
     return render_template('/employeepage.html')
 
 
+
+
+
+
+@app.route('/add_to_cart/<product_id>')
+def add_to_cart(product_id):
+    if 'cart' not in session:
+        session['cart'] = []
+
+    session['cart'].append(product_id)
+    flash('Product added to cart!', 'success')
+    return redirect(url_for('cart'))
+
+
+
+@app.route('/cart')
+def cart():
+    if 'cart' not in session or not session['cart']:
+        flash('Your cart is empty.', 'info')
+        return render_template('cart.html', products=[])
+
+    product_ids = [ObjectId(id) for id in session['cart']]
+    products_in_cart = list(products_collection.find({'_id': {'$in': product_ids}}))
+    total = calculate_cart_total(products_in_cart)
+    return render_template('cart.html', products=products_in_cart, total=total)
+
+
+
+
+@app.route('/checkout', methods=['GET', 'POST'])
+def checkout():
+    if 'cart' not in session or not session['cart']:
+        flash('Your cart is empty.', 'info')
+        return redirect(url_for('products'))
+
+    product_ids = [ObjectId(id) for id in session['cart']]
+    products_in_cart = list(products_collection.find({'_id': {'$in': product_ids}}))
+    total = calculate_cart_total(products_in_cart)
+
+    if request.method == 'POST':
+        # Placeholder for payment processing
+        # In a real application, integrate with a payment gateway like Stripe
+
+        # Create an order
+        order = {
+            'user': session.get('username', 'Guest'),
+            'products': session['cart'],
+            'total': total,
+            'date': datetime.now()
+        }
+        orders_collection = db['orders']
+        orders_collection.insert_one(order)
+
+        # Clear the cart
+        session.pop('cart', None)
+
+        flash('Your order has been placed successfully!', 'success')
+        return redirect(url_for('products'))
+
+    return render_template('checkout.html', products=products_in_cart, total=total)
 
 
 

@@ -20,5 +20,20 @@
         <!-- Content from child templates will be injected here -->
         {% endblock %}
     </div>
+
+
+    <script>
+       document.addEventListener('DOMContentLoaded', function() {
+    var detailButtons = document.querySelectorAll('.btn-product-view-details');
+    detailButtons.forEach(function(button) {
+        button.addEventListener('click', function() {
+            var expanded = this.getAttribute('aria-expanded') === 'true';
+            this.textContent = expanded ? 'View Details' : 'Hide Details';
+        });
+    });
+});
+
+    </script>
+    
 </body>
 </html>
