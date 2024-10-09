@@ -3,14 +3,31 @@
 {% block title %}About Us{% endblock %}
 
 {% block content %}
+{% include 'header.html' %}
     <h1>Welcome to the Careers Page</h1>
     <div style="text-align: center; margin: 20px 0;">
-        <a href="{{ url_for('employeepage') }}" 
-           style="display: inline-block; padding: 10px 20px; 
-                  font-size: 16px; text-decoration: none; 
-                  background-color:#07173d; color: white; 
-                  border-radius: 5px; border: none;">
-            Go to Employee Page
-        </a>
+        {% if 'user_type' in session %}
+        {% if session['user_type'] == 'admin' %}
+            <a href="{{ url_for('adminpage') }}" style="display: inline-block; padding: 10px 20px; 
+            font-size: 14px; text-decoration: none; 
+            background-color:#07173d; color: white; 
+            border-radius: 5px; border: none;">Dashboard</a>
+        {% elif session['user_type'] == 'employee' %}
+            <a href="{{ url_for('employeepage') }}" style="display: inline-block; padding: 10px 20px; 
+            font-size: 14px; text-decoration: none; 
+            background-color:#07173d; color: white; 
+            border-radius: 5px; border: none;">Dashboard</a>
+        {% endif %}
+        {% else %}
+        <a href="{{ url_for('login') }}" style="display: inline-block; padding: 10px 20px; 
+        font-size: 16px; text-decoration: none; 
+        background-color:#07173d; color: white; 
+        border-radius: 5px; border: none;">Login</a>
+        {% endif %}
     </div>
+
+
+
+
+
 {% endblock %}

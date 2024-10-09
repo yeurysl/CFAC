@@ -1,33 +1,18 @@
 {% extends 'base.html' %}
 
-{% block title %}About Us{% endblock %}
+{% block title %}Employee{% endblock %}
 
 {% block content %}
-    <div class="container mt-5">
-        <h2>All Estimate Requests</h2>
-        <table class="table table-striped">
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Address</th>
-                    <th>Phone</th>
-                    <th>Date Requested</th> <!-- Example additional field -->
-                </tr>
-            </thead>
-            <tbody>
-                {% for request in requests %}
-                <tr>
-                    <td>{{ request.name }}</td>
-                    <td>{{ request.address }}</td>
-                    <td>{{ request.phone }}</td>
-                    <td>{{ request.date_requested }}</td> <!-- If you have a date field -->
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <h1>Welcome to the Employee Page</h1>
+
+    <div style="text-align: center; margin: 20px 0;">
+        <a href="{{ url_for('logout') }}" 
+           style="display: inline-block; padding: 10px 20px; 
+                  font-size: 14px; text-decoration: none; 
+                  background-color:#07173d; color: white; 
+                  border-radius: 5px; border: none;">
+            Logout
+        </a>
     </div>
-
-
- 
     
 {% endblock %}

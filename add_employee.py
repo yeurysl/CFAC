@@ -48,6 +48,12 @@ def add_user():
         print("Passwords do not match.")
         return
 
+    # Prompt for user type
+    user_type = input("Enter user type (admin/employee): ").strip().lower()
+    if user_type not in ['admin', 'employee']:
+        print("Invalid user type. Must be 'admin' or 'employee'.")
+        return
+
     # Check if the username already exists
     if users_collection.find_one({'username': username}):
         print(f"Username '{username}' already exists.")
@@ -59,15 +65,17 @@ def add_user():
     # Create a new user document
     user = {
         'username': username,
-        'password': hashed_password
+        'password': hashed_password,
+        'user_type': user_type  # Add user type to the document
     }
 
     # Insert the user into the collection
     try:
         users_collection.insert_one(user)
-        print(f"Employee '{username}' added successfully!")
+        print(f"Employee '{username}' added successfully as a '{user_type}'!")
     except Exception as e:
         print("An error occurred while adding the user:", e)
+
 
 if __name__ == '__main__':
     add_user()
