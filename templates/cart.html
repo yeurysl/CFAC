@@ -3,17 +3,37 @@
 {% block title %}Your Cart{% endblock %}
 
 {% block content %}
-<h1>Your Cart</h1>
-{% if products %}
-    <ul>
-        {% for product in products %}
-            <li>{{ product.name }} - ${{ product.price }}</li>
-        {% endfor %}
-    </ul>
-    <p>Total: ${{ total }}</p>
-    <a href="{{ url_for('checkout') }}">Proceed to Checkout</a>
-{% else %}
-    <p>Your cart is empty.</p>
-    <a href="{{ url_for('products') }}">Continue Shopping</a>
-{% endif %}
+<div class="container mt-4">
+    <h1>Your Cart</h1>
+    {% if products %}
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Price</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for product in products %}
+                    <tr>
+                        <td>{{ product.name }}</td>
+                        <td>${{ product.price }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td><strong>Total</strong></td>
+                    <td><strong>${{ total }}</strong></td>
+                </tr>
+            </tfoot>
+        </table>
+        <div class="text-right">
+            <a href="{{ url_for('checkout') }}" class="btn btn-primary">Proceed to Checkout</a>
+        </div>
+    {% else %}
+        <p>Your cart is empty.</p>
+        <a href="{{ url_for('products') }}" class="btn btn-secondary">Continue Shopping</a>
+    {% endif %}
+</div>
 {% endblock %}

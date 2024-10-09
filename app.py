@@ -4,6 +4,7 @@ from flask_bcrypt import Bcrypt
 from functools import wraps
 from flask_mail import Mail, Message
 from bson.objectid import ObjectId
+from urllib.parse import urlparse, urljoin
 from datetime import datetime
 import os
 
@@ -59,10 +60,27 @@ def employee_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+def customer_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'username' not in session or session.get('user_type') != 'customer':
+            flash('You do not have permission to access this page.', 'danger')
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+
 
 def calculate_cart_total(products):
     total = sum(product['price'] for product in products)
     return total
+
+
+def is_safe_url(target):
+    """Check if the target URL is safe for redirection."""
+    ref_url = urlparse(request.host_url)
+    test_url = urlparse(urljoin(request.host_url, target))
+    return test_url.scheme in ('http', 'https') and ref_url.netloc == test_url.netloc
 
 
 
@@ -149,38 +167,57 @@ def header():
 
 
 
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     # Check if the user is already logged in
     if 'user_type' in session:
-        if session['user_type'] == 'admin':
+        # Determine where to redirect based on user_type
+        user_type = session['user_type']
+        if user_type == 'admin':
             return redirect(url_for('adminpage'))
-        elif session['user_type'] == 'employee':
+        elif user_type == 'employee':
             return redirect(url_for('employeepage'))
+        elif user_type == 'customer':
+            return redirect(url_for('customerpage'))
+        else:
+            flash('User type is not recognized.', 'danger')
+            return redirect(url_for('home'))
 
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password'].encode('utf-8')
+        next_page = request.form.get('next')
+
         user = users_collection.find_one({'username': username})
         
         if user and bcrypt.check_password_hash(user['password'], password):
             session['username'] = username
             session['user_type'] = user['user_type']  # Store user type in session
 
-            # Redirect based on user type
-            if user['user_type'] == 'admin':
-                return redirect(url_for('adminpage'))
-            elif user['user_type'] == 'employee':
-                return redirect(url_for('employeepage'))
+            # Determine the redirect target
+            if next_page and is_safe_url(next_page):
+                return redirect(next_page)
             else:
-                flash('User type is not recognized.', 'danger')
-                return redirect(url_for('login'))
+                # Redirect based on user type
+                if user['user_type'] == 'admin':
+                    return redirect(url_for('adminpage'))
+                elif user['user_type'] == 'employee':
+                    return redirect(url_for('employeepage'))
+                elif user['user_type'] == 'customer':
+                    return redirect(url_for('customerpage'))
+                else:
+                    flash('User type is not recognized.', 'danger')
+                    return redirect(url_for('login'))
         else:
             flash('Invalid username or password', 'danger')
-    
+
+    # For GET requests, render the standard login page
+    # Optionally, handle a 'next' parameter via query string
+    next_page = request.args.get('next')
+    if next_page and is_safe_url(next_page):
+        return render_template('login.html', next=next_page)
     return render_template('login.html')
-
-
 
 
 @app.route('/logout')
@@ -219,6 +256,10 @@ def employeepage():
     return render_template('/employeepage.html')
 
 
+@app.route('/customerpage')
+@login_required
+def customerpage():
+    return render_template('customerpage.html')
 
 
 
@@ -252,13 +293,18 @@ def cart():
 def checkout():
     if 'cart' not in session or not session['cart']:
         flash('Your cart is empty.', 'info')
-        return redirect(url_for('products'))
+        return redirect(url_for('home'))
 
     product_ids = [ObjectId(id) for id in session['cart']]
     products_in_cart = list(products_collection.find({'_id': {'$in': product_ids}}))
     total = calculate_cart_total(products_in_cart)
 
     if request.method == 'POST':
+        if 'username' not in session:
+            flash('Please log in to place your order.', 'warning')
+            return redirect(url_for('checkout'))
+
+        # Process the order
         # Placeholder for payment processing
         # In a real application, integrate with a payment gateway like Stripe
 
@@ -276,9 +322,48 @@ def checkout():
         session.pop('cart', None)
 
         flash('Your order has been placed successfully!', 'success')
-        return redirect(url_for('products'))
+        return redirect(url_for('home'))
 
     return render_template('checkout.html', products=products_in_cart, total=total)
+
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        confirm_password = request.form['confirm_password']
+
+        if not username or not password or not confirm_password:
+            flash('Please fill out all fields.', 'warning')
+            return redirect(url_for('register'))
+
+        if password != confirm_password:
+            flash('Passwords do not match.', 'danger')
+            return redirect(url_for('register'))
+
+        if users_collection.find_one({'username': username}):
+            flash('Username already exists. Please choose another.', 'danger')
+            return redirect(url_for('register'))
+
+        hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
+
+        # Create a new user with user_type set to 'customer'
+        user = {
+            'username': username,
+            'password': hashed_password,
+            'user_type': 'customer'
+        }
+
+        try:
+            users_collection.insert_one(user)
+            flash('Account created successfully! You can now log in.', 'success')
+            return redirect(url_for('login'))
+        except Exception as e:
+            flash('An error occurred while creating your account. Please try again.', 'danger')
+            print("An error occurred while adding the user:", e)
+
+    return render_template('register.html')
 
 
 

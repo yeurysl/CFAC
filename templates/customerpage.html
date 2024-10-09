@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+
+{% block title %}Customer Page{% endblock %}
+
+{% block content %}
+    <h1>Welcome to the Customer Page</h1>
+    <div style="text-align: center; margin: 20px 0;">
+        <a href="{{ url_for('logout') }}" 
+           style="display: inline-block; padding: 10px 20px; 
+                  font-size: 14px; text-decoration: none; 
+                  background-color:#07173d; color: white; 
+                  border-radius: 5px; border: none;">
+            Logout
+        </a>
+    </div>
+{% endblock %}

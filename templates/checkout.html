@@ -3,17 +3,58 @@
 {% block title %}Checkout{% endblock %}
 
 {% block content %}
-<h1>Checkout</h1>
-<ul>
-    {% for product in products %}
-        <li>{{ product.name }} - ${{ product.price }}</li>
-    {% endfor %}
-</ul>
-<p>Total: ${{ total }}</p>
+<div class="container mt-4">
+    <h1>Checkout</h1>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    
+    {% if 'username' in session %}
+        <!-- User is logged in, display the checkout form -->
+        <ul class="list-group mb-3">
+            {% for product in products %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    {{ product.name }}
+                    <span>${{ "%.2f"|format(product.price) }}</span>
+                </li>
+            {% endfor %}
+        </ul>
+        <h4 class="text-end">Total: ${{ "%.2f"|format(total) }}</h4>
 
-<form method="post">
-    <!-- Payment fields (e.g., credit card info) would go here -->
-    <!-- For this example, we'll simulate payment -->
-    <button type="submit">Place Order</button>
-</form>
+        <form method="post">
+            <!-- Payment fields (e.g., credit card info) would go here -->
+            <!-- For this example, we'll simulate payment -->
+            <button type="submit" class="btn btn-primary">Place Order</button>
+        </form>
+    {% else %}
+        <!-- User is not logged in, prompt for login -->
+        <div class="row">
+            <div class="col-md-6 offset-md-3">
+                <p>You need to log in to complete your purchase.</p>
+                <form method="post" action="{{ url_for('login') }}">
+                    <!-- Hidden field to redirect back to checkout after login -->
+                    <input type="hidden" name="next" value="{{ request.path }}">
+                    
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Username:</label>
+                        <input type="text" id="username" name="username" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password:</label>
+                        <input type="password" id="password" name="password" class="form-control" required>
+                    </div>
+                    <button type="submit" class="btn btn-success">Log In</button>
+                </form>
+            </div>
+        </div>
+    {% endif %}
+</div>
 {% endblock %}
