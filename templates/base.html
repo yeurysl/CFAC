@@ -18,7 +18,7 @@
 
 
 
-    {% if 'user_type' in session %}
+    {% if session.get('logged_in') %}
     {% if session['user_type'] == 'admin' %}
         {% include 'header_admin.html' %}
     {% elif session['user_type'] == 'employee' %}
@@ -31,7 +31,6 @@
 {% else %}
     {% include 'header_regular.html' %}
 {% endif %}
-
 
 
     <!-- Flash Messages -->
