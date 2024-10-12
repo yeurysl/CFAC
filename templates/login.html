@@ -1,35 +1,37 @@
-
 {% extends 'base.html' %}
 
 {% block title %}Login{% endblock %}
 
 {% block content %}
     <div class="container mt-5">
+        <!-- Login Form Section -->
         <div class="row justify-content-center">
             <div class="col-md-6 col-lg-4">
                 <h1 class="text-center mb-4">Login</h1>
-                <form method="post" action="{{ url_for('login') }}" class="text-center">
+                <form method="post" action="{{ url_for('login') }}">
                     <div class="mb-3">
-                        <label for="username" class="form-label">Username:</label>
-                        <input type="text" class="form-control" name="username" id="username" required>
+                        <label for="email" class="form-label">Email Address:</label>
+                        <input type="email" id="email" name="email" class="form-control" required>
                     </div>
                     <div class="mb-3">
                         <label for="password" class="form-label">Password:</label>
                         <input type="password" class="form-control" name="password" id="password" required>
                     </div>
-                    <input type="submit" value="Login" class="btn btn-primary mt-3">
+                    <input type="submit" value="Login" class="btn btn-primary w-100">
                 </form>
-                
+            </div>
+        </div>
+
+        <!-- Registration Prompt Section -->
+        <div class="row justify-content-center mt-4">
+            <div class="col-md-6 col-lg-4">
+                <div class="text-center mb-3">
+                    <p>Don't have an account?</p>
+                </div>
+                <div class="text-center">
+                    <a href="{{ url_for('register') }}" class="btn btn-secondary">Create One</a>
+                </div>
             </div>
         </div>
     </div>
-
-    <style>
-        .btn-primary {
-        border-radius: 3%;
-        background-color: #07173d; 
-        border: 1px solid #07173d; 
-       }
-
-   </style>
 {% endblock %}

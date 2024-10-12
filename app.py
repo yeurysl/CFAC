@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from pymongo import MongoClient
 from flask_bcrypt import Bcrypt
+from dotenv import load_dotenv
 from functools import wraps
 from flask_mail import Mail, Message
 from bson.objectid import ObjectId
@@ -15,7 +16,13 @@ app.secret_key = os.getenv('SECRET_KEY')
 
 bcrypt = Bcrypt(app)
 #Mongo DB SETUP
-client = MongoClient("mongodb+srv://yeurys:ZvTt25OmDOp24yCW@cfac.8ba8p.mongodb.net/cfacdb?retryWrites=true&w=majority&appName=cfac", tls=True, tlsAllowInvalidCertificates=True)
+
+MONGODB_URI = os.getenv('MONGODB_URI')
+
+# MongoDB connection string
+client = MongoClient(MONGODB_URI, tls=True, tlsAllowInvalidCertificates=True)
+
+
 db = client["cfacdb"]
 users_collection = db["users"]  
 estimaterequests_collection = db["estimaterequests"]  
@@ -38,7 +45,7 @@ mail = Mail(app)
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if 'username' not in session:
+        if 'email' not in session:
             flash('Please log in to access this page.', 'warning')
             return redirect(url_for('login'))
         return f(*args, **kwargs)
@@ -65,7 +72,7 @@ def employee_required(f):
 def customer_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if 'username' not in session or session.get('user_type') != 'customer':
+        if 'email' not in session or session.get('user_type') != 'customer':
             flash('You do not have permission to access this page.', 'danger')
             return redirect(url_for('login'))
         return f(*args, **kwargs)
@@ -170,10 +177,12 @@ def header():
 
 
 
+# app.py (Login Route)
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     # Check if the user is already logged in
-    if 'user_type' in session:
+    if 'email' in session:
         # Determine where to redirect based on user_type
         user_type = session['user_type']
         if user_type == 'admin':
@@ -187,14 +196,14 @@ def login():
             return redirect(url_for('home'))
 
     if request.method == 'POST':
-        username = request.form['username']
+        email = request.form['email'].strip().lower()
         password = request.form['password'].encode('utf-8')
         next_page = request.form.get('next')
 
-        user = users_collection.find_one({'username': username})
+        user = users_collection.find_one({'email': email})
         
         if user and bcrypt.check_password_hash(user['password'], password):
-            session['username'] = username
+            session['email'] = email
             session['user_type'] = user['user_type']  # Store user type in session
 
             # Determine the redirect target
@@ -212,16 +221,17 @@ def login():
                     flash('User type is not recognized.', 'danger')
                     return redirect(url_for('login'))
         else:
-            flash('Invalid username or password', 'danger')
+            flash('Invalid email or password', 'danger')
     
     # For GET requests, render the login form
     # Optionally, you can handle 'next' from query parameters
     next_page = request.args.get('next')
     return render_template('login.html', next=next_page)
 
+
 @app.route('/logout')
 def logout():
-    session.pop('username', None)
+    session.pop('email', None)
     session.pop('user_type', None)
     flash('You have been logged out.', 'success')
     return redirect(url_for('home'))
@@ -254,7 +264,7 @@ def employeepage():
 
 
 @app.route('/customerpage')
-@login_required
+@customer_required
 def customerpage():
     products = list(products_collection.find())  # Assuming you have products in your DB
     return render_template('customerpage.html', products=products)
@@ -263,6 +273,8 @@ def customerpage():
 
 
 @app.route('/add_to_cart/<product_id>')
+@login_required
+@customer_required 
 def add_to_cart(product_id):
     if 'cart' not in session:
         session['cart'] = []
@@ -274,6 +286,8 @@ def add_to_cart(product_id):
 
 
 @app.route('/cart')
+@login_required
+@customer_required 
 def cart():
     if 'cart' not in session or not session['cart']:
         flash('Your cart is empty.', 'info')
@@ -304,7 +318,7 @@ def checkout():
     total = calculate_cart_total(products_in_cart)
 
     if request.method == 'POST':
-        if 'username' not in session:
+        if 'email' not in session:
             flash('Please log in to place your order.', 'warning')
             return redirect(url_for('checkout'))
 
@@ -314,7 +328,7 @@ def checkout():
 
         # Create an order
         order = {
-            'user': session.get('username', 'Guest'),
+            'user': session.get('email', 'Guest'),
             'products': session['cart'],
             'total': total,
             'date': datetime.now()
@@ -336,13 +350,13 @@ def checkout():
 @app.route('/my_orders')
 @customer_required
 def my_orders():
-    username = session.get('username')
-    if not username:
+    email = session.get('email')
+    if not email:
         flash('Please log in to view your orders.', 'warning')
         return redirect(url_for('login'))
     
     # Fetch orders associated with the current user
-    user_orders = list(orders_collection.find({'user': username}).sort('date', -1))  # Sort by most recent first
+    user_orders = list(orders_collection.find({'user': email}).sort('date', -1))  # Sort by most recent first
     
     # Optional: Enrich orders with product details
     for order in user_orders:
@@ -359,52 +373,59 @@ def my_orders():
 
 
 # app.py (Relevant sections)
+# app.py (Registration Route)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    next_page = request.args.get('next')  # Capture 'next' from query parameters
+    next_page = request.args.get('next')
     if request.method == 'POST':
-        username = request.form['username']
+        email = request.form['email'].strip().lower()
         password = request.form['password']
         confirm_password = request.form['confirm_password']
-        next_page_form = request.form.get('next')  # Capture 'next' from form data
-
-        if not username or not password or not confirm_password:
+        next_page_form = request.form.get('next')
+        
+        # Basic Validation
+        if not email or not password or not confirm_password:
             flash('Please fill out all fields.', 'warning')
             return redirect(url_for('register', next=next_page))
-
+        
         if password != confirm_password:
             flash('Passwords do not match.', 'danger')
             return redirect(url_for('register', next=next_page))
-
-        if users_collection.find_one({'username': username}):
-            flash('Username already exists. Please choose another.', 'danger')
-            return redirect(url_for('register', next=next_page))
-
+        
+        # Check if email already exists
+        if users_collection.find_one({'email': email}):
+            flash('Email already registered. Please log in.', 'danger')
+            return redirect(url_for('login'))
+        
+        # Hash the password
         hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
-
-        # Create a new user with user_type set to 'customer'
+        
+        # Create the user document
         user = {
-            'username': username,
+            'email': email,
             'password': hashed_password,
-            'user_type': 'customer'
+            'user_type': 'customer'  # or assign based on role
         }
-
+        
         try:
             users_collection.insert_one(user)
-            flash('Account created successfully! You can now log in.', 'success')
+            flash('Account created successfully!', 'success')
             
-          
-
-            # Determine the redirect target
+            # Optionally, automatically log in the user after registration
+            session['email'] = email
+            session['user_type'] = user['user_type']
+            
+            # Redirect based on 'next' parameter
             if next_page and is_safe_url(next_page_form or next_page):
                 return redirect(next_page_form or next_page)
             else:
                 return redirect(url_for('customerpage'))
         except Exception as e:
             flash('An error occurred while creating your account. Please try again.', 'danger')
-            print("An error occurred while adding the user:", e)
-
+            print("Error inserting user:", e)
+            return redirect(url_for('register', next=next_page))
+    
     # For GET requests, render the registration form with 'next' parameter
     return render_template('register.html', next=next_page)
 
@@ -413,12 +434,22 @@ def register():
 
 # Use this function to add new users
 if __name__ == '__main__':
-    username = input("Enter username: ").strip()
+    email = input("Enter email: ").strip()
     password = input("Enter password: ").strip()
     user_type = input("Enter user type ('admin' or 'employee'): ").strip().lower()
     
     if user_type not in ['admin', 'employee']:
         print("Invalid user type. Must be 'admin' or 'employee'.")
     else:
-        add_user(username, password, user_type)
+        add_user(email, password, user_type)
         app.run(debug=True)
+
+
+
+load_dotenv()
+
+# Verify by printing (Remove or comment out in production)
+print("SECRET_KEY:", os.getenv('SECRET_KEY'))
+print("MONGODB_URI:", os.getenv('MONGODB_URI'))
+print("EMAIL_USER:", os.getenv('EMAIL_USER'))
+print("EMAIL_PASSWORD:", os.getenv('EMAIL_PASSWORD'))

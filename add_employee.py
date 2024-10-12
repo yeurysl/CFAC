@@ -1,14 +1,19 @@
 # add_employee.py
 
 from pymongo import MongoClient
+from dotenv import load_dotenv
 from flask_bcrypt import Bcrypt
 import getpass  # For secure password input
+import os
+
 
 # Initialize Bcrypt
 bcrypt = Bcrypt()
 
+MONGODB_URI = os.getenv('MONGODB_URI')
+
 # MongoDB connection string
-client = MongoClient("mongodb+srv://yeurys:ZvTt25OmDOp24yCW@cfac.8ba8p.mongodb.net/cfacdb?retryWrites=true&w=majority&appName=cfac", tls=True, tlsAllowInvalidCertificates=True)
+client = MongoClient(MONGODB_URI, tls=True, tlsAllowInvalidCertificates=True)
 
 # Connect to your database and collection
 db = client["cfacdb"]
