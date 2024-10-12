@@ -17,7 +17,7 @@
         {% endif %}
     {% endwith %}
     
-    {% if 'username' in session %}
+    {% if 'user_type' in session %}
         <!-- User is logged in, display the checkout form -->
         <ul class="list-group mb-3">
             {% for product in products %}
@@ -29,9 +29,9 @@
         </ul>
         <h4 class="text-end">Total: ${{ "%.2f"|format(total) }}</h4>
 
-        <form method="post">
-            <!-- Payment fields (e.g., credit card info) would go here -->
-            <!-- For this example, we'll simulate payment -->
+        <form method="post" action="{{ url_for('process_checkout') }}">
+            <!-- Payment fields (e.g., credit card info) should be securely handled -->
+            <!-- For demonstration purposes, we'll simulate payment -->
             <button type="submit" class="btn btn-primary">Place Order</button>
         </form>
     {% else %}
@@ -44,8 +44,8 @@
                     <input type="hidden" name="next" value="{{ request.path }}">
                     
                     <div class="mb-3">
-                        <label for="username" class="form-label">Username:</label>
-                        <input type="text" id="username" name="username" class="form-control" required>
+                        <label for="email" class="form-label">Email:</label>
+                        <input type="email" id="email" name="email" class="form-control" required>
                     </div>
                     <div class="mb-3">
                         <label for="password" class="form-label">Password:</label>
@@ -54,8 +54,9 @@
                     <button type="submit" class="btn btn-success">Log In</button>
                 </form>
                 <hr>
-                <p>Don't have an account? <a href="{{ url_for('register') }}?next={{ request.path }}" class="btn btn-link">Create one </a></p>
+                <p>Don't have an account? <a href="{{ url_for('register') }}?next={{ request.path }}" class="btn btn-link">Create one</a></p>
             </div>
+        </div>
     {% endif %}
 </div>
 {% endblock %}
