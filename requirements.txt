@@ -15,5 +15,6 @@ MarkupSafe==2.1.5
 packaging==24.1
 platformdirs==4.3.2
 pymongo==4.10.1
+python-dotenv==1.0.1
 virtualenv==20.26.4
 Werkzeug==3.0.4
