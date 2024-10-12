@@ -10,6 +10,9 @@ from datetime import datetime
 import os
 
 
+if os.getenv('FLASK_ENV') == 'development':
+    load_dotenv()
+
 
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY')
@@ -446,10 +449,3 @@ if __name__ == '__main__':
 
 
 
-load_dotenv()
-
-# Verify by printing (Remove or comment out in production)
-print("SECRET_KEY:", os.getenv('SECRET_KEY'))
-print("MONGODB_URI:", os.getenv('MONGODB_URI'))
-print("EMAIL_USER:", os.getenv('EMAIL_USER'))
-print("EMAIL_PASSWORD:", os.getenv('EMAIL_PASSWORD'))
