@@ -4,12 +4,59 @@
 
 {% block content %}
     <h1>Welcome to the Customer Page</h1>
+
+    <div class="container">
+        <h1 class="my-4 text-center">Order Now</h1>
+        <div class="row justify-content-center">
+            {% for product in products %}
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card h-100 text-center">
+                        <img src="{{ url_for('static', filename='creatives/sedan.jpg') }}" class="card-img-top" alt="{{ product.name }}">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ product.name }}</h5>
+                        </div>
+                        <div class="card-footer">
+                            <p class="card-text"><strong>Price: ${{ product.price }}</strong></p>
+                            <div class="product-buttons">
+                                <!-- View Details button -->
+                                <button
+                                    class="btn btn-product-view-details"
+                                    type="button"
+                                    data-toggle="collapse"
+                                    data-target="#collapse{{ product._id }}"
+                                    aria-expanded="false"
+                                    aria-controls="collapse{{ product._id }}"
+                                >
+                                    View Details
+                                </button>
+                                <!-- Add to Cart button -->
+                                <a
+                                    href="{{ url_for('add_to_cart', product_id=product._id) }}"
+                                    class="btn btn-book-now"
+                                >
+                                    Book Now
+                                </a>
+                            </div>
+                        </div>
+                        
+                        
+                        <!-- Collapsible content -->
+                        <div class="collapse" id="collapse{{ product._id }}">
+                            <div class="card card-body">
+                                <!-- Detailed description -->
+                                <p>{{ product.description }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+
+
     <div style="text-align: center; margin: 20px 0;">
-        <a href="{{ url_for('logout') }}" 
-           style="display: inline-block; padding: 10px 20px; 
-                  font-size: 14px; text-decoration: none; 
-                  background-color:#07173d; color: white; 
-                  border-radius: 5px; border: none;">
+        <a href="{{ url_for('logout') }}" style="display: inline-block; padding: 10px 20px; font-size: 14px; text-decoration: none; background-color:#07173d; color: white; border-radius: 5px; border: none;">
             Logout
         </a>
     </div>

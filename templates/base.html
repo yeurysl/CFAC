@@ -15,11 +15,47 @@
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 
 
+
+
+
+    {% if 'user_type' in session %}
+    {% if session['user_type'] == 'admin' %}
+        {% include 'header_admin.html' %}
+    {% elif session['user_type'] == 'employee' %}
+        {% include 'header_employee.html' %}
+    {% elif session['user_type'] == 'customer' %}
+        {% include 'header_customer.html' %}
+    {% else %}
+        {% include 'header_regular.html' %}
+    {% endif %}
+{% else %}
+    {% include 'header_regular.html' %}
+{% endif %}
+
+
+
+    <!-- Flash Messages -->
+    <div class="container mt-3">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+
     <div class="content">
         {% block content %}
-        <!-- Content from child templates will be injected here -->
         {% endblock %}
     </div>
+
+
+
 
 
     <script>
@@ -32,7 +68,6 @@
         });
     });
 });
-
     </script>
     
 </body>

@@ -46,3 +46,101 @@
   /* Optional: Set consistent button widths */
   min-width: 120px;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+    
+    
+
+.container-fluid {
+    margin: 0;
+    width: 100%;
+}
+
+.full-width-image {
+    width: 100%;
+    height: auto;
+    display: block;
+
+    /* Apply the mask for fading top and bottom edges */
+    -webkit-mask-image: linear-gradient(to bottom, transparent, black 5%, black 85%, transparent);
+    mask-image: linear-gradient(to bottom, transparent, black 8%, black 95%, transparent);
+}
+.custom-hr {
+     border: none;
+     height: 2px; /* Adjust the thickness */
+     background-color: #ffffff; /* Change to your preferred color */
+     width: 50%; /* Adjust the width as needed */
+     margin: 20px auto; /* Centers the line and adds vertical spacing */
+}
+.call-now-btn {
+    font-size: .8rem;  /* Make the text bigger */
+    padding: 15px 60px;  /* Increase padding for a larger button */
+    font-weight: bold;
+    color: #ffffff;  /* Set the text color to white */
+     border-radius: 3%;
+     background-color: #07173d; 
+     border: 1px solid #07173d;
+    text-align: center;  /* Center-align text within the button */
+    display: inline-block;
+}
+.phone-number {
+    font-size: 1.5rem;  /* Set a slightly smaller font size for the phone number */
+    display: block;  /* Make sure the phone number appears below the main text */
+}
+.form-wrapper {
+max-width: 500px; /* Adjust this value to control the width of the form */
+padding: 18px; /* Optional: Add padding around the form */
+border: 1px solid #ffffff; /* Optional: Add a border to visually separate the form */
+border-radius: 8px; /* Optional: Rounded corners for a nicer look */
+background-color: #ffffff; /* Optional: Add a light background color */
+}
+.form-control {
+border-radius: 1%;
+}
+.btn-primary {
+ border-radius: 3%;
+ background-color: #07173d; 
+ border: 1px solid #07173d; 
+ padding: 15px 75px;
+}
+.card-header .btn {
+display: block;
+text-align: left;
+width: auto; /* Adjust width as needed */
+position: absolute;
+right: 0; /* Align to the right */
+top: 50%; /* Center vertically in the card header */
+transform: translateY(-50%);
+}   
+.card, .card-header {
+border-radius: 2px; /* Reduces the rounding for a sharper look */
+}
+
+/* Optional: Sharpen border radius of collapse components */
+.collapse {
+border-radius: 2px;
+}
+
+#infoAccordion {
+max-width: 75%; /* Adjust the percentage to make it narrower */
+margin: auto; /* This centers the accordion in its container */
+}
+.card-header, .card-body {
+padding: 13px; /* Reduces padding for a more compact look */
+}
+.card-header h2, .card-body {
+font-size: 20px; /* Reduces the font size */
+}
+
+
+

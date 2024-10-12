@@ -211,14 +211,11 @@ def login():
                     return redirect(url_for('login'))
         else:
             flash('Invalid username or password', 'danger')
-
-    # For GET requests, render the standard login page
-    # Optionally, handle a 'next' parameter via query string
+    
+    # For GET requests, render the login form
+    # Optionally, you can handle 'next' from query parameters
     next_page = request.args.get('next')
-    if next_page and is_safe_url(next_page):
-        return render_template('login.html', next=next_page)
-    return render_template('login.html')
-
+    return render_template('login.html', next=next_page)
 
 @app.route('/logout')
 def logout():
@@ -226,8 +223,6 @@ def logout():
     session.pop('user_type', None)
     flash('You have been logged out.', 'success')
     return redirect(url_for('home'))
-
-
 
 @app.route('/protected')
 @login_required
@@ -259,7 +254,8 @@ def employeepage():
 @app.route('/customerpage')
 @login_required
 def customerpage():
-    return render_template('customerpage.html')
+    products = list(products_collection.find())  # Assuming you have products in your DB
+    return render_template('customerpage.html', products=products)
 
 
 
@@ -285,6 +281,12 @@ def cart():
     products_in_cart = list(products_collection.find({'_id': {'$in': product_ids}}))
     total = calculate_cart_total(products_in_cart)
     return render_template('cart.html', products=products_in_cart, total=total)
+
+@app.route('/products')
+def products():
+    # Your logic to display products
+    products = list(products_collection.find())
+    return render_template('products.html', products=products)
 
 
 
@@ -327,24 +329,28 @@ def checkout():
     return render_template('checkout.html', products=products_in_cart, total=total)
 
 
+# app.py (Relevant sections)
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
+    next_page = request.args.get('next')  # Capture 'next' from query parameters
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
         confirm_password = request.form['confirm_password']
+        next_page_form = request.form.get('next')  # Capture 'next' from form data
 
         if not username or not password or not confirm_password:
             flash('Please fill out all fields.', 'warning')
-            return redirect(url_for('register'))
+            return redirect(url_for('register', next=next_page))
 
         if password != confirm_password:
             flash('Passwords do not match.', 'danger')
-            return redirect(url_for('register'))
+            return redirect(url_for('register', next=next_page))
 
         if users_collection.find_one({'username': username}):
             flash('Username already exists. Please choose another.', 'danger')
-            return redirect(url_for('register'))
+            return redirect(url_for('register', next=next_page))
 
         hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
 
@@ -358,12 +364,20 @@ def register():
         try:
             users_collection.insert_one(user)
             flash('Account created successfully! You can now log in.', 'success')
-            return redirect(url_for('login'))
+            
+          
+
+            # Determine the redirect target
+            if next_page and is_safe_url(next_page_form or next_page):
+                return redirect(next_page_form or next_page)
+            else:
+                return redirect(url_for('customerpage'))
         except Exception as e:
             flash('An error occurred while creating your account. Please try again.', 'danger')
             print("An error occurred while adding the user:", e)
 
-    return render_template('register.html')
+    # For GET requests, render the registration form with 'next' parameter
+    return render_template('register.html', next=next_page)
 
 
 
