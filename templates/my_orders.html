@@ -1,0 +1,36 @@
+<!-- templates/my_orders.html -->
+{% extends 'base.html' %}
+
+{% block title %}My Orders{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="my-4 text-center">My Orders</h1>
+    
+    {% if orders %}
+        {% for order in orders %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <strong>Order ID:</strong> {{ order._id }} <br>
+                    <strong>Date:</strong> {{ order.date.strftime('%B %d, %Y at %I:%M %p') }} <br>
+                    <strong>Total:</strong> ${{ "%.2f"|format(order.total) }} <br>
+                    <strong>Status:</strong> {{ order.status if order.status else 'Processing' }}
+                </div>
+                <div class="card-body">
+                    <h5 class="card-title">Products:</h5>
+                    <ul class="list-group list-group-flush">
+                        {% for product in order.product_details %}
+                            <li class="list-group-item">
+                                <strong>{{ product.name }}</strong> - ${{ "%.2f"|format(product.price) }}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+              
+            </div>
+        {% endfor %}
+    {% else %}
+        <p>You have not placed any orders yet. <a href="{{ url_for('customerpage') }}">Start Shopping</a>.</p>
+    {% endif %}
+</div>
+{% endblock %}

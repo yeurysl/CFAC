@@ -20,6 +20,8 @@ db = client["cfacdb"]
 users_collection = db["users"]  
 estimaterequests_collection = db["estimaterequests"]  
 products_collection = db["products"]
+orders_collection = db['orders']
+
 
 
 # Flask-Mail SETUP
@@ -327,6 +329,33 @@ def checkout():
         return redirect(url_for('home'))
 
     return render_template('checkout.html', products=products_in_cart, total=total)
+
+
+
+
+@app.route('/my_orders')
+@customer_required
+def my_orders():
+    username = session.get('username')
+    if not username:
+        flash('Please log in to view your orders.', 'warning')
+        return redirect(url_for('login'))
+    
+    # Fetch orders associated with the current user
+    user_orders = list(orders_collection.find({'user': username}).sort('date', -1))  # Sort by most recent first
+    
+    # Optional: Enrich orders with product details
+    for order in user_orders:
+        order['product_details'] = []
+        for product_id in order['products']:
+            product = products_collection.find_one({'_id': ObjectId(product_id)})
+            if product:
+                order['product_details'].append(product)
+    
+    return render_template('my_orders.html', orders=user_orders)
+
+
+
 
 
 # app.py (Relevant sections)
