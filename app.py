@@ -81,8 +81,9 @@ def load_user(user_id):
 
 def admin_required(f):
     @wraps(f)
+    @login_required
     def decorated_function(*args, **kwargs):
-        if session.get('user_type') != 'admin':
+        if current_user.user_type != 'admin':
             flash('You do not have permission to access this page.', 'danger')
             return redirect(url_for('home'))
         return f(*args, **kwargs)
@@ -90,19 +91,22 @@ def admin_required(f):
 
 def employee_required(f):
     @wraps(f)
+    @login_required
     def decorated_function(*args, **kwargs):
-        if session.get('user_type') != 'employee':
+        if current_user.user_type != 'employee':
             flash('You do not have permission to access this page.', 'danger')
             return redirect(url_for('home'))
         return f(*args, **kwargs)
     return decorated_function
 
+
 def customer_required(f):
     @wraps(f)
+    @login_required
     def decorated_function(*args, **kwargs):
-        if not session.get('logged_in') or session.get('user_type') != 'customer':
+        if current_user.user_type != 'customer':
             flash('You do not have permission to access this page.', 'danger')
-            return redirect(url_for('login'))
+            return redirect(url_for('home'))
         return f(*args, **kwargs)
     return decorated_function
 
