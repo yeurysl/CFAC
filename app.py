@@ -319,18 +319,16 @@ def add_to_cart(product_id):
 
 
 
-@app.route('/cart')
+@app.route('/add_to_cart/<product_id>')
 @login_required
-@customer_required 
-def cart():
-    if 'cart' not in session or not session['cart']:
-        flash('Your cart is empty.', 'info')
-        return render_template('cart.html', products=[])
+@customer_required
+def add_to_cart(product_id):
+    if 'cart' not in session:
+        session['cart'] = []
 
-    product_ids = [ObjectId(id) for id in session['cart']]
-    products_in_cart = list(products_collection.find({'_id': {'$in': product_ids}}))
-    total = calculate_cart_total(products_in_cart)
-    return render_template('cart.html', products=products_in_cart, total=total)
+    session['cart'].append(product_id)
+    flash('Product added to cart!', 'success')
+    return redirect(url_for('cart'))
 
 @app.route('/products')
 def products():
@@ -340,8 +338,9 @@ def products():
 
 
 
-
 @app.route('/checkout', methods=['GET', 'POST'])
+@login_required  # Ensure the user is logged in
+@customer_required  # Ensure the user is a customer
 def checkout():
     if 'cart' not in session or not session['cart']:
         flash('Your cart is empty.', 'info')
@@ -352,9 +351,7 @@ def checkout():
     total = calculate_cart_total(products_in_cart)
 
     if request.method == 'POST':
-        if 'email' not in session:
-            flash('Please log in to place your order.', 'warning')
-            return redirect(url_for('checkout'))
+        # No need to check if the user is logged in; @login_required handles that
 
         # Process the order
         # Placeholder for payment processing
@@ -362,12 +359,11 @@ def checkout():
 
         # Create an order
         order = {
-            'user': session.get('email', 'Guest'),
+            'user': current_user.id,  # Use the email from current_user
             'products': session['cart'],
             'total': total,
             'date': datetime.now()
         }
-        orders_collection = db['orders']
         orders_collection.insert_one(order)
 
         # Clear the cart
