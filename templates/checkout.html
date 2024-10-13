@@ -6,6 +6,7 @@
 <div class="container mt-4">
     <h1>Checkout</h1>
     
+    <!-- Display Flash Messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             {% for category, message in messages %}
@@ -17,8 +18,9 @@
         {% endif %}
     {% endwith %}
     
-    {% if 'user_type' in session %}
-        <!-- User is logged in, display the checkout form -->
+    <!-- Check if User is Logged In and is a Customer -->
+    {% if current_user.is_authenticated and current_user.user_type == 'customer' %}
+        <!-- User is logged in as a customer, display the checkout form -->
         <ul class="list-group mb-3">
             {% for product in products %}
                 <li class="list-group-item d-flex justify-content-between align-items-center">
@@ -29,13 +31,13 @@
         </ul>
         <h4 class="text-end">Total: ${{ "%.2f"|format(total) }}</h4>
 
-        <form method="post" action="{{ url_for('process_checkout') }}">
+        <form method="post" action="{{ url_for('checkout') }}">
             <!-- Payment fields (e.g., credit card info) should be securely handled -->
             <!-- For demonstration purposes, we'll simulate payment -->
             <button type="submit" class="btn btn-primary">Place Order</button>
         </form>
     {% else %}
-        <!-- User is not logged in, prompt for login -->
+        <!-- User is not logged in or not a customer, prompt for login -->
         <div class="row">
             <div class="col-md-6 offset-md-3">
                 <p>You need to log in to complete your purchase.</p>
@@ -47,10 +49,12 @@
                         <label for="email" class="form-label">Email:</label>
                         <input type="email" id="email" name="email" class="form-control" required>
                     </div>
+                    
                     <div class="mb-3">
                         <label for="password" class="form-label">Password:</label>
                         <input type="password" id="password" name="password" class="form-control" required>
                     </div>
+                    
                     <button type="submit" class="btn btn-success">Log In</button>
                 </form>
                 <hr>

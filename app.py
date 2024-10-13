@@ -2,8 +2,10 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from pymongo import MongoClient
 from flask_bcrypt import Bcrypt
 from dotenv import load_dotenv
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from functools import wraps
 from flask_mail import Mail, Message
+from werkzeug.middleware.proxy_fix import ProxyFix
 from bson.objectid import ObjectId
 from urllib.parse import urlparse, urljoin
 from datetime import datetime
@@ -15,6 +17,10 @@ if os.getenv('FLASK_ENV') == 'development':
 
 
 app = Flask(__name__)
+
+# Apply ProxyFix to handle Heroku's proxy headers
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+
 app.secret_key = os.getenv('SECRET_KEY')
 
 bcrypt = Bcrypt(app)
@@ -32,6 +38,18 @@ estimaterequests_collection = db["estimaterequests"]
 products_collection = db["products"]
 orders_collection = db['orders']
 
+# Initialize Flask-Login
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'  # Redirect to 'login' for @login_required
+
+
+
+
+# Session cookie settings for enhanced security
+app.config['SESSION_COOKIE_SECURE'] = True          # Ensures cookies are sent over HTTPS only
+app.config['SESSION_COOKIE_HTTPONLY'] = True        # Prevents JavaScript access to cookies
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'       # Mitigates CSRF attacks
 
 
 # Flask-Mail SETUP
@@ -43,16 +61,23 @@ app.config['MAIL_PASSWORD'] = os.getenv('EMAIL_PASSWORD')  # Get email password 
 mail = Mail(app)
 
 
+
+# User Model FLASK-LOGIN
+class User(UserMixin):
+    def __init__(self, email, user_type):
+        self.id = email
+        self.user_type = user_type
+
+# User Loader Callback
+@login_manager.user_loader
+def load_user(user_id):
+    user = users_collection.find_one({'email': user_id})
+    if user:
+        return User(user['email'], user['user_type'])
+    return None
+
 #SINGLE DEFS
 
-def login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'email' not in session:
-            flash('Please log in to access this page.', 'warning')
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated_function
 
 def admin_required(f):
     @wraps(f)
@@ -75,7 +100,7 @@ def employee_required(f):
 def customer_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if 'email' not in session or session.get('user_type') != 'customer':
+        if not session.get('logged_in') or session.get('user_type') != 'customer':
             flash('You do not have permission to access this page.', 'danger')
             return redirect(url_for('login'))
         return f(*args, **kwargs)
@@ -180,14 +205,12 @@ def header():
 
 
 
-# app.py (Login Route)
-
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     # Check if the user is already logged in
-    if 'email' in session:
+    if current_user.is_authenticated:
         # Determine where to redirect based on user_type
-        user_type = session['user_type']
+        user_type = current_user.user_type
         if user_type == 'admin':
             return redirect(url_for('adminpage'))
         elif user_type == 'employee':
@@ -200,14 +223,15 @@ def login():
 
     if request.method == 'POST':
         email = request.form['email'].strip().lower()
-        password = request.form['password'].encode('utf-8')
+        password = request.form['password']
         next_page = request.form.get('next')
 
         user = users_collection.find_one({'email': email})
         
         if user and bcrypt.check_password_hash(user['password'], password):
-            session['email'] = email
-            session['user_type'] = user['user_type']  # Store user type in session
+            user_obj = User(user['email'], user.get('user_type', 'customer'))
+            login_user(user_obj)
+            flash('Logged in successfully!', 'success')
 
             # Determine the redirect target
             if next_page and is_safe_url(next_page):
@@ -232,12 +256,15 @@ def login():
     return render_template('login.html', next=next_page)
 
 
+
+
 @app.route('/logout')
+@login_required
 def logout():
-    session.pop('email', None)
-    session.pop('user_type', None)
+    logout_user()
     flash('You have been logged out.', 'success')
     return redirect(url_for('home'))
+
 
 @app.route('/protected')
 @login_required
@@ -350,18 +377,21 @@ def checkout():
 
 
 
+
+
 @app.route('/my_orders')
-@customer_required
+@login_required
 def my_orders():
-    email = session.get('email')
-    if not email:
-        flash('Please log in to view your orders.', 'warning')
-        return redirect(url_for('login'))
+    user_email = current_user.id  # 'id' is set to email in the User class
+    user_type = current_user.user_type
+
+    if user_type != 'customer':
+        flash('You do not have permission to access this page.', 'danger')
+        return redirect(url_for('home'))
     
-    # Fetch orders associated with the current user
-    user_orders = list(orders_collection.find({'user': email}).sort('date', -1))  # Sort by most recent first
+    user_orders = list(orders_collection.find({'user': user_email}).sort('date', -1))
     
-    # Optional: Enrich orders with product details
+    # Enrich orders with product details
     for order in user_orders:
         order['product_details'] = []
         for product_id in order['products']:
@@ -375,7 +405,7 @@ def my_orders():
 
 
 
-# app.py (Relevant sections)
+
 # app.py (Registration Route)
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -415,9 +445,9 @@ def register():
             users_collection.insert_one(user)
             flash('Account created successfully!', 'success')
             
-            # Optionally, automatically log in the user after registration
-            session['email'] = email
-            session['user_type'] = user['user_type']
+            # Automatically log in the user after registration
+            user_obj = User(user['email'], user['user_type'])
+            login_user(user_obj)
             
             # Redirect based on 'next' parameter
             if next_page and is_safe_url(next_page_form or next_page):
@@ -426,12 +456,11 @@ def register():
                 return redirect(url_for('customerpage'))
         except Exception as e:
             flash('An error occurred while creating your account. Please try again.', 'danger')
-            print("Error inserting user:", e)
+            app.logger.error(f"Error inserting user: {e}")
             return redirect(url_for('register', next=next_page))
     
     # For GET requests, render the registration form with 'next' parameter
     return render_template('register.html', next=next_page)
-
 
 
 

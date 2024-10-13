@@ -18,19 +18,20 @@
 
 
 
-    {% if session.get('logged_in') %}
-    {% if session['user_type'] == 'admin' %}
-        {% include 'header_admin.html' %}
-    {% elif session['user_type'] == 'employee' %}
-        {% include 'header_employee.html' %}
-    {% elif session['user_type'] == 'customer' %}
-        {% include 'header_customer.html' %}
-    {% else %}
-        {% include 'header_regular.html' %}
-    {% endif %}
-{% else %}
-    {% include 'header_regular.html' %}
-{% endif %}
+    {% if current_user.is_authenticated %}
+                {% if current_user.user_type == 'admin' %}
+                    {% include 'header_admin.html' %}
+                {% elif current_user.user_type == 'employee' %}
+                    {% include 'header_employee.html' %}
+                {% elif current_user.user_type == 'customer' %}
+                    {% include 'header_customer.html' %}
+                {% else %}
+                    {% include 'header_regular.html' %}
+                {% endif %}
+            {% else %}
+                {% include 'header_regular.html' %}
+            
+            {% endif %}
 
 
     <!-- Flash Messages -->
