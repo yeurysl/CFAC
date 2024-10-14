@@ -319,16 +319,6 @@ def add_to_cart(product_id):
 
 
 
-@app.route('/add_to_cart/<product_id>')
-@login_required
-@customer_required
-def add_to_cart(product_id):
-    if 'cart' not in session:
-        session['cart'] = []
-
-    session['cart'].append(product_id)
-    flash('Product added to cart!', 'success')
-    return redirect(url_for('cart'))
 
 @app.route('/products')
 def products():
