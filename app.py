@@ -304,6 +304,19 @@ def customerpage():
     return render_template('customerpage.html', products=products)
 
 
+@app.route('/cart')
+@login_required
+@customer_required
+def cart():
+    if 'cart' not in session or not session['cart']:
+        flash('Your cart is empty.', 'info')
+        return render_template('cart.html', products=[])
+
+    product_ids = [ObjectId(id) for id in session['cart']]
+    products_in_cart = list(products_collection.find({'_id': {'$in': product_ids}}))
+    total = calculate_cart_total(products_in_cart)
+    return render_template('cart.html', products=products_in_cart, total=total)
+
 
 
 @app.route('/add_to_cart/<product_id>')
