@@ -56,8 +56,12 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'       # Mitigates CSRF attacks
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USE_SSL'] = False
 app.config['MAIL_USERNAME'] = os.getenv('EMAIL_USER')  # Get email username from environment
 app.config['MAIL_PASSWORD'] = os.getenv('EMAIL_PASSWORD')  # Get email password from environment
+app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('EMAIL_USER')
+
+
 mail = Mail(app)
 
 
@@ -78,7 +82,7 @@ def load_user(user_id):
 
 #SINGLE DEFS
 
-
+#FORLOGINS
 def admin_required(f):
     @wraps(f)
     @login_required
@@ -88,7 +92,6 @@ def admin_required(f):
             return redirect(url_for('home'))
         return f(*args, **kwargs)
     return decorated_function
-
 def employee_required(f):
     @wraps(f)
     @login_required
@@ -98,8 +101,6 @@ def employee_required(f):
             return redirect(url_for('home'))
         return f(*args, **kwargs)
     return decorated_function
-
-
 def customer_required(f):
     @wraps(f)
     @login_required
@@ -109,6 +110,13 @@ def customer_required(f):
             return redirect(url_for('home'))
         return f(*args, **kwargs)
     return decorated_function
+
+
+#FOR EMAIL
+def send_order_confirmation_email(to_email, order, products):
+    msg = Message('Order Confirmation', recipients=[to_email])
+    msg.html = render_template('order_confirmation_email.html', order=order, products=products)
+    mail.send(msg)
 
 
 
@@ -341,9 +349,10 @@ def products():
 
 
 
+
 @app.route('/checkout', methods=['GET', 'POST'])
-@login_required  # Ensure the user is logged in
-@customer_required  # Ensure the user is a customer
+@login_required
+@customer_required
 def checkout():
     if 'cart' not in session or not session['cart']:
         flash('Your cart is empty.', 'info')
@@ -354,28 +363,30 @@ def checkout():
     total = calculate_cart_total(products_in_cart)
 
     if request.method == 'POST':
-        # No need to check if the user is logged in; @login_required handles that
-
         # Process the order
-        # Placeholder for payment processing
-        # In a real application, integrate with a payment gateway like Stripe
-
-        # Create an order
         order = {
-            'user': current_user.id,  # Use the email from current_user
+            'user': current_user.id,
             'products': session['cart'],
             'total': total,
             'date': datetime.now()
         }
         orders_collection.insert_one(order)
 
+        # Send confirmation email
+        try:
+            send_order_confirmation_email(current_user.id, order, products_in_cart)
+            flash('Your order has been placed successfully!', 'success')
+        except Exception as e:
+            app.logger.error(f"Failed to send confirmation email: {e}")
+            flash('Your order has been placed, but we could not send a confirmation email.', 'warning')
+
         # Clear the cart
         session.pop('cart', None)
 
-        flash('Your order has been placed successfully!', 'success')
         return redirect(url_for('home'))
 
     return render_template('checkout.html', products=products_in_cart, total=total)
+
 
 
 
