@@ -501,6 +501,23 @@ def register():
 
 
 
+
+
+
+
+
+
+
+# Enforce HTTPS
+@app.before_request
+def before_request():
+    if not request.is_secure and not app.debug:
+        url = request.url.replace('http://', 'https://', 1)
+        return redirect(url, code=301)
+
+
+
+
 # Use this function to add new users
 if __name__ == '__main__':
     email = input("Enter email: ").strip()
