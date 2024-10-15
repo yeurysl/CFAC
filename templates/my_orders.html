@@ -12,7 +12,14 @@
             <div class="card mb-4">
                 <div class="card-header">
                     <strong>Order ID:</strong> {{ order._id }} <br>
-                    <strong>Date:</strong> {{ order.date.strftime('%B %d, %Y at %I:%M %p') }} <br>
+                    <strong>Order Date:</strong> {{ order.order_date.strftime('%B %d, %Y at %I:%M %p') }} <br>
+                    <strong>Service Date:</strong>
+                    {% if order.service_date %}
+                        {{ order.service_date.strftime('%B %d, %Y') }}
+                    {% else %}
+                        Not specified
+                    {% endif %}
+                    <br>
                     <strong>Total:</strong> ${{ "%.2f"|format(order.total) }} <br>
                     <strong>Status:</strong> {{ order.status if order.status else 'Processing' }}
                 </div>

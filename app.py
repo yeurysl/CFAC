@@ -8,7 +8,7 @@ from flask_mail import Mail, Message
 from werkzeug.middleware.proxy_fix import ProxyFix
 from bson.objectid import ObjectId
 from urllib.parse import urlparse, urljoin
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 
 
@@ -350,6 +350,8 @@ def products():
 
 
 
+from datetime import datetime, timedelta
+
 @app.route('/checkout', methods=['GET', 'POST'])
 @login_required
 @customer_required
@@ -363,12 +365,30 @@ def checkout():
     total = calculate_cart_total(products_in_cart)
 
     if request.method == 'POST':
+        # Retrieve service date from the form
+        service_date_str = request.form.get('service_date')
+        if not service_date_str:
+            flash('Please select a service date.', 'warning')
+            return redirect(url_for('checkout'))
+
+        # Validate and parse the service date
+        try:
+            service_date = datetime.strptime(service_date_str, '%Y-%m-%d')
+            now = datetime.now()
+            if service_date.date() < now.date():
+                flash('Service date cannot be in the past.', 'danger')
+                return redirect(url_for('checkout'))
+        except ValueError:
+            flash('Invalid date format.', 'danger')
+            return redirect(url_for('checkout'))
+
         # Process the order
         order = {
             'user': current_user.id,
             'products': session['cart'],
             'total': total,
-            'date': datetime.now()
+            'order_date': datetime.now(),
+            'service_date': service_date
         }
         orders_collection.insert_one(order)
 
@@ -384,12 +404,15 @@ def checkout():
         session.pop('cart', None)
 
         return redirect(url_for('home'))
-
-    return render_template('checkout.html', products=products_in_cart, total=total)
-
-
-
-
+    else:
+        # Set default service date to tomorrow
+        default_service_date = (datetime.today() + timedelta(days=1)).strftime('%Y-%m-%d')
+        return render_template(
+            'checkout.html',
+            products=products_in_cart,
+            total=total,
+            default_service_date=default_service_date
+        )
 
 
 

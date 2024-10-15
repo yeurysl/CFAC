@@ -15,7 +15,8 @@
 
     <h2>Thank you for your order!</h2>
     <p>Hi {{ current_user.id }},</p>
-    <p>We have received your order placed on {{ order['date'].strftime('%Y-%m-%d %H:%M:%S') }}.</p>
+    <p>We have received your order placed on {{ order['order_date'].strftime('%Y-%m-%d %H:%M:%S') }}.</p>
+    <p><strong>Scheduled Service Date:</strong> {{ order['service_date'].strftime('%Y-%m-%d') }}</p>
     <h3>Order Details:</h3>
     <ul>
         {% for product in products %}
@@ -23,7 +24,7 @@
         {% endfor %}
     </ul>
     <p><strong>Total:</strong> ${{ order['total'] }}</p>
-    <p>We will notify you when you with more information.</p>
-    <p>Thank you for booking our services!</p>
+    <p>We will see you on your scheduled service date!</p>
+    <p>Thank you for choosing our services!</p>
 </body>
 </html>

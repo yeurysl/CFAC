@@ -32,6 +32,17 @@
         <h4 class="text-end">Total: ${{ "%.2f"|format(total) }}</h4>
 
         <form method="post" action="{{ url_for('checkout') }}">
+            <div class="form-group">
+                <label for="service_date">Select Service Date:</label>
+                <input
+                    type="date"
+                    id="service_date"
+                    name="service_date"
+                    class="form-control"
+                    required
+                    value="{{ default_service_date }}"
+                >
+            </div>
             <!-- Payment fields (e.g., credit card info) should be securely handled -->
             <!-- For demonstration purposes, we'll simulate payment -->
             <button type="submit" class="btn btn-primary">Place Order</button>
