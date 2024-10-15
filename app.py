@@ -12,9 +12,9 @@ from datetime import datetime, timedelta
 import os
 
 
-if os.getenv('FLASK_ENV') == 'development':
-    load_dotenv()
+ENV = os.getenv('ENV', 'development')   
 
+load_dotenv()
 
 app = Flask(__name__)
 
@@ -24,7 +24,9 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 app.secret_key = os.getenv('SECRET_KEY')
 
 bcrypt = Bcrypt(app)
-#Mongo DB SETUP
+
+
+#Mongo DB SETUP\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
 MONGODB_URI = os.getenv('MONGODB_URI')
 
@@ -61,7 +63,6 @@ app.config['MAIL_USERNAME'] = os.getenv('EMAIL_USER')  # Get email username from
 app.config['MAIL_PASSWORD'] = os.getenv('EMAIL_PASSWORD')  # Get email password from environment
 app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('EMAIL_USER')
 
-
 mail = Mail(app)
 
 
@@ -80,7 +81,7 @@ def load_user(user_id):
         return User(user['email'], user['user_type'])
     return None
 
-#SINGLE DEFS
+#SINGLE DEFS\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
 #FORLOGINS
 def admin_required(f):
@@ -112,111 +113,47 @@ def customer_required(f):
     return decorated_function
 
 
-#FOR EMAIL
+#FOREMAILSENDING
 def send_order_confirmation_email(to_email, order, products):
     msg = Message('Order Confirmation', recipients=[to_email])
     msg.html = render_template('order_confirmation_email.html', order=order, products=products)
     mail.send(msg)
 
 
-
+#FORCART
 def calculate_cart_total(products):
     total = sum(product['price'] for product in products)
     return total
 
 
-def is_safe_url(target):
-    """Check if the target URL is safe for redirection."""
-    ref_url = urlparse(request.host_url)
-    test_url = urlparse(urljoin(request.host_url, target))
-    return test_url.scheme in ('http', 'https') and ref_url.netloc == test_url.netloc
 
 
+#ROUTES\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
 
-#ROUTES
-
-
-
+#Base Route
 @app.route('/base')
 def base():
     return render_template('/base.html')
 
-
+#Home Page Route
 @app.route('/')
 def home():
     products = list(products_collection.find())  # Assuming you have products in your DB
     return render_template('home.html', products=products)
-
-
-
-
-
-@app.route('/submit', methods=['POST'])
-def submit():
-    name = request.form.get('name')
-    address = request.form.get('address')
-    phone = request.form.get('phone')
-    # Get the current date and time
-    timestamp = datetime.now()
-
-    if not name or not address or not phone:
-        flash('Please fill out all fields.', 'warning')
-        return redirect(url_for('home'))
-
-    data = {
-        'name': name,
-        'address': address,
-        'phone': phone,
-         "date_requested": timestamp 
-    }
-
-    try:
-        estimaterequests_collection.insert_one(data)
-        print("Data inserted successfully.")
-        flash('Your information has been successfully submitted!', 'success')
-
-          # Send an email notification to you
-        msg = Message(
-            "New Estimate Request Submission",
-            sender="yeurys@cfautocare.biz", 
-            recipients=["yeurysl17@gmail.com"]
-        )
-        msg.body = (
-            f"New Estimate Request:\n\n"
-            f"Name: {name}\n"
-            f"Address: {address}\n"
-            f"Phone: {phone}\n"
-            f"Date Requested: {timestamp.strftime('%Y-%m-%d %H:%M:%S')}"
-        )
-        mail.send(msg)
-        print("Notification email sent successfully.")
-    except Exception as e:
-        print("An error occurred while inserting data:", e)
-        flash('An error occurred while submitting your information. Please try again.', 'danger')
-
-    return redirect(url_for('home'))
-
-
-
+#About Us Page Route
 @app.route('/aboutus')
 def about():
     return render_template('/aboutus.html')
-
+#Career Page Route
 @app.route('/careers')
 def career():
     return render_template('/careers.html')
-
-
-
+#Render Header Route
 @app.route('/header')
 def header():
     return render_template('/header.html')
-
-
-
-
-
+#Login Route
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     # Check if the user is already logged in
@@ -266,10 +203,7 @@ def login():
     # Optionally, you can handle 'next' from query parameters
     next_page = request.args.get('next')
     return render_template('login.html', next=next_page)
-
-
-
-
+#Logout Route
 @app.route('/logout')
 @login_required
 def logout():
@@ -277,7 +211,7 @@ def logout():
     flash('You have been logged out.', 'success')
     return redirect(url_for('home'))
 
-
+#Test
 @app.route('/protected')
 @login_required
 def protected():
@@ -286,18 +220,8 @@ def protected():
 
 
 
-@app.route('/adminpage')
-@login_required
-@admin_required
-def adminpage():
-    # Fetch all documents from the estimaterequests collection
-    requests = estimaterequests_collection.find()  # Retrieve all estimate requests
-    
-    # Pass the data to the admin page template
-    return render_template('adminpage.html', requests=requests)
 
-
-
+#Routes for Employees\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 @app.route('/employeepage')
 @login_required
 @employee_required
@@ -305,13 +229,16 @@ def employeepage():
     return render_template('/employeepage.html')
 
 
+
+#Routes for Customers\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+#Customer Page Route
 @app.route('/customerpage')
 @customer_required
 def customerpage():
     products = list(products_collection.find())  # Assuming you have products in your DB
     return render_template('customerpage.html', products=products)
 
-
+#Cart Page Route
 @app.route('/cart')
 @login_required
 @customer_required
@@ -325,8 +252,7 @@ def cart():
     total = calculate_cart_total(products_in_cart)
     return render_template('cart.html', products=products_in_cart, total=total)
 
-
-
+#ATC Route for Function
 @app.route('/add_to_cart/<product_id>')
 @login_required
 @customer_required 
@@ -338,20 +264,14 @@ def add_to_cart(product_id):
     flash('Product added to cart!', 'success')
     return redirect(url_for('cart'))
 
-
-
-
+#Display of Product Route for Function
 @app.route('/products')
 def products():
     # Your logic to display products
     products = list(products_collection.find())
     return render_template('products.html', products=products)
 
-
-
-
-from datetime import datetime, timedelta
-
+#Checkout Page Route
 @app.route('/checkout', methods=['GET', 'POST'])
 @login_required
 @customer_required
@@ -413,9 +333,8 @@ def checkout():
             total=total,
             default_service_date=default_service_date
         )
-
-
-
+    
+#My Orders Page Routes 
 @app.route('/my_orders')
 @login_required
 def my_orders():
@@ -437,14 +356,7 @@ def my_orders():
                 order['product_details'].append(product)
     
     return render_template('my_orders.html', orders=user_orders)
-
-
-
-
-
-
-# app.py (Registration Route)
-
+#Registration Route
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     next_page = request.args.get('next')
@@ -504,17 +416,49 @@ def register():
 
 
 
+#Routes For Admin\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+#Admin Page Routes
+@app.route('/adminpage')
+@login_required
+@admin_required
+def adminpage():
+    # Fetch all documents from the estimaterequests collection
+    requests = estimaterequests_collection.find()  # Retrieve all estimate requests
+    
+    # Pass the data to the admin page template
+    return render_template('adminpage.html', requests=requests)
+
+@app.route('/admin/users')
+@admin_required
+def manage_users():
+    users = User.query.all()
+    return render_template('admin/manage_users.html', users=users)
 
 
 
 
-# Enforce HTTPS
+
+
+
+
+
+#Extra
+
 @app.before_request
-def before_request():
-    if not request.is_secure and not app.debug:
-        url = request.url.replace('http://', 'https://', 1)
-        return redirect(url, code=301)
+def redirect_to_https():
+    if ENV == 'production':
+        # Check if the request is already secure
+        if not request.is_secure and request.headers.get('X-Forwarded-Proto', 'http') != 'https':
+            url = request.url.replace("http://", "https://", 1)
+            return redirect(url, code=301)
+        
 
+
+def is_safe_url(target):
+    """Check if the target URL is safe for redirection."""
+    ref_url = urlparse(request.host_url)
+    test_url = urlparse(urljoin(request.host_url, target))
+    return test_url.scheme in ('http', 'https') and ref_url.netloc == test_url.netloc
 
 
 
