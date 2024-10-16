@@ -116,7 +116,7 @@ def customer_required(f):
 #FOREMAILSENDING
 def send_order_confirmation_email(to_email, order, products):
     msg = Message('Order Confirmation', recipients=[to_email])
-    msg.html = render_template('order_confirmation_email.html', order=order, products=products)
+    msg.html = render_template('/customer/order_confirmation_email.html', order=order, products=products)
     mail.send(msg)
 
 
@@ -161,11 +161,11 @@ def login():
         # Determine where to redirect based on user_type
         user_type = current_user.user_type
         if user_type == 'admin':
-            return redirect(url_for('adminpage'))
+            return redirect(url_for('admin_home'))
         elif user_type == 'employee':
-            return redirect(url_for('employeepage'))
+            return redirect(url_for('employee_home'))
         elif user_type == 'customer':
-            return redirect(url_for('customerpage'))
+            return redirect(url_for('customer_home'))
         else:
             flash('User type is not recognized.', 'danger')
             return redirect(url_for('home'))
@@ -188,14 +188,14 @@ def login():
             else:
                 # Redirect based on user type
                 if user['user_type'] == 'admin':
-                    return redirect(url_for('adminpage'))
+                    return redirect(url_for('admin_home'))
                 elif user['user_type'] == 'employee':
-                    return redirect(url_for('employeepage'))
+                    return redirect(url_for('employee_home'))
                 elif user['user_type'] == 'customer':
-                    return redirect(url_for('customerpage'))
+                    return redirect(url_for('customer_home'))
                 else:
                     flash('User type is not recognized.', 'danger')
-                    return redirect(url_for('login'))
+                    return redirect(url_for('login.html'))
         else:
             flash('Invalid email or password', 'danger')
     
@@ -222,38 +222,38 @@ def protected():
 
 
 #Routes for Employees\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-@app.route('/employeepage')
+@app.route('/employee/main')
 @login_required
 @employee_required
-def employeepage():
-    return render_template('/employeepage.html')
+def employee_main():
+    return render_template('employee/main.html')
 
 
 
 #Routes for Customers\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 #Customer Page Route
-@app.route('/customerpage')
+@app.route('/customer/home')
 @customer_required
-def customerpage():
+def customer_home():
     products = list(products_collection.find())  # Assuming you have products in your DB
-    return render_template('customerpage.html', products=products)
+    return render_template('customer/home.html', products=products)
 
 #Cart Page Route
-@app.route('/cart')
+@app.route('/customer/cart')
 @login_required
 @customer_required
 def cart():
     if 'cart' not in session or not session['cart']:
         flash('Your cart is empty.', 'info')
-        return render_template('cart.html', products=[])
+        return render_template('customer/cart.html', products=[])
 
     product_ids = [ObjectId(id) for id in session['cart']]
     products_in_cart = list(products_collection.find({'_id': {'$in': product_ids}}))
     total = calculate_cart_total(products_in_cart)
-    return render_template('cart.html', products=products_in_cart, total=total)
+    return render_template('customer/cart.html', products=products_in_cart, total=total)
 
 #ATC Route for Function
-@app.route('/add_to_cart/<product_id>')
+@app.route('/customer/add_to_cart/<product_id>')
 @login_required
 @customer_required 
 def add_to_cart(product_id):
@@ -272,13 +272,13 @@ def products():
     return render_template('products.html', products=products)
 
 #Checkout Page Route
-@app.route('/checkout', methods=['GET', 'POST'])
+@app.route('/customer/checkout', methods=['GET', 'POST'])
 @login_required
 @customer_required
 def checkout():
     if 'cart' not in session or not session['cart']:
         flash('Your cart is empty.', 'info')
-        return redirect(url_for('home'))
+        return redirect(url_for('customer_home'))
 
     product_ids = [ObjectId(id) for id in session['cart']]
     products_in_cart = list(products_collection.find({'_id': {'$in': product_ids}}))
@@ -297,10 +297,10 @@ def checkout():
             now = datetime.now()
             if service_date.date() < now.date():
                 flash('Service date cannot be in the past.', 'danger')
-                return redirect(url_for('checkout'))
+                return redirect(url_for('checkout.html'))
         except ValueError:
             flash('Invalid date format.', 'danger')
-            return redirect(url_for('checkout'))
+            return redirect(url_for('checkout.html'))
 
         # Process the order
         order = {
@@ -323,19 +323,19 @@ def checkout():
         # Clear the cart
         session.pop('cart', None)
 
-        return redirect(url_for('home'))
+        return redirect(url_for('customer_home'))
     else:
         # Set default service date to tomorrow
         default_service_date = (datetime.today() + timedelta(days=1)).strftime('%Y-%m-%d')
         return render_template(
-            'checkout.html',
+            'customer/checkout.html',
             products=products_in_cart,
             total=total,
             default_service_date=default_service_date
         )
     
 #My Orders Page Routes 
-@app.route('/my_orders')
+@app.route('/customer/my_orders')
 @login_required
 def my_orders():
     user_email = current_user.id  # 'id' is set to email in the User class
@@ -343,7 +343,7 @@ def my_orders():
 
     if user_type != 'customer':
         flash('You do not have permission to access this page.', 'danger')
-        return redirect(url_for('home'))
+        return redirect(url_for('customer_home'))
     
     user_orders = list(orders_collection.find({'user': user_email}).sort('date', -1))
     
@@ -355,9 +355,9 @@ def my_orders():
             if product:
                 order['product_details'].append(product)
     
-    return render_template('my_orders.html', orders=user_orders)
+    return render_template('customer/my_orders.html', orders=user_orders)
 #Registration Route
-@app.route('/register', methods=['GET', 'POST'])
+@app.route('/customer/register', methods=['GET', 'POST'])
 def register():
     next_page = request.args.get('next')
     if request.method == 'POST':
@@ -402,14 +402,14 @@ def register():
             if next_page and is_safe_url(next_page_form or next_page):
                 return redirect(next_page_form or next_page)
             else:
-                return redirect(url_for('customerpage'))
+                return redirect(url_for('customer_home'))
         except Exception as e:
             flash('An error occurred while creating your account. Please try again.', 'danger')
             app.logger.error(f"Error inserting user: {e}")
             return redirect(url_for('register', next=next_page))
     
     # For GET requests, render the registration form with 'next' parameter
-    return render_template('register.html', next=next_page)
+    return render_template('customer/register.html', next=next_page)
 
 
 
@@ -418,24 +418,57 @@ def register():
 
 #Routes For Admin\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 #Admin Page Routes
-@app.route('/adminpage')
+@app.route('/admin/home')
 @login_required
 @admin_required
-def adminpage():
+def admin_home():
     # Fetch all documents from the estimaterequests collection
     requests = estimaterequests_collection.find()  # Retrieve all estimate requests
     
     # Pass the data to the admin page template
-    return render_template('adminpage.html', requests=requests)
+    return render_template('admin_home.html', requests=requests)
 
-@app.route('/admin/users')
+#Edit Users Route
+@app.route('/admin/edit_users/<user_id>', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def edit_user(user_id):
+    user = users_collection.find_one({'_id': ObjectId(user_id)})
+    if not user:
+        flash('User not found.', 'danger')
+        return redirect(url_for('manage_users.html'))
+
+    if request.method == 'POST':
+        updated_data = {
+            'email': request.form['email'],
+            'user_type': request.form['user_type']  # Make sure to have this field in your form
+        }
+        users_collection.update_one({'_id': ObjectId(user_id)}, {'$set': updated_data})
+        flash('User updated successfully.', 'success')
+        return redirect(url_for('manage_users'))
+    return render_template('edit_user', user=user)
+#Delete User Route
+@app.route('/admin/delete/<user_id>', methods=['POST'])
+@login_required
+@admin_required
+def delete_user(user_id):
+    if user_id == current_user.id:
+        flash('You cannot delete your own account.', 'danger')
+        return redirect(url_for('manage_users'))
+    users_collection.delete_one({'_id': ObjectId(user_id)})
+    flash('User deleted successfully.', 'success')
+    return redirect(url_for('manage_users'))
+
+#Manage Users Route
+@app.route('/admin/manage_users')
+@login_required
 @admin_required
 def manage_users():
-    users = User.query.all()
-    return render_template('admin/manage_users.html', users=users)
-
-
-
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+    total_users = users_collection.count_documents({})
+    users = list(users_collection.find().skip((page - 1) * per_page).limit(per_page))
+    return render_template('admin/manage_users.html', users=users, page=page, total_users=total_users, per_page=per_page)
 
 
 
@@ -462,17 +495,8 @@ def is_safe_url(target):
 
 
 
-# Use this function to add new users
 if __name__ == '__main__':
-    email = input("Enter email: ").strip()
-    password = input("Enter password: ").strip()
-    user_type = input("Enter user type ('admin' or 'employee'): ").strip().lower()
-    
-    if user_type not in ['admin', 'employee']:
-        print("Invalid user type. Must be 'admin' or 'employee'.")
-    else:
-        add_user(email, password, user_type)
-        app.run(debug=True)
-
+    app.run(debug=True)
+ 
 
 
