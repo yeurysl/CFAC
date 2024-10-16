@@ -161,9 +161,9 @@ def login():
         # Determine where to redirect based on user_type
         user_type = current_user.user_type
         if user_type == 'admin':
-            return redirect(url_for('admin_home'))
+            return redirect(url_for('admin_main'))
         elif user_type == 'employee':
-            return redirect(url_for('employee_home'))
+            return redirect(url_for('employee_main'))
         elif user_type == 'customer':
             return redirect(url_for('customer_home'))
         else:
@@ -188,9 +188,9 @@ def login():
             else:
                 # Redirect based on user type
                 if user['user_type'] == 'admin':
-                    return redirect(url_for('admin_home'))
+                    return redirect(url_for('admin_main'))
                 elif user['user_type'] == 'employee':
-                    return redirect(url_for('employee_home'))
+                    return redirect(url_for('employee_main'))
                 elif user['user_type'] == 'customer':
                     return redirect(url_for('customer_home'))
                 else:
@@ -418,15 +418,15 @@ def register():
 
 #Routes For Admin\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 #Admin Page Routes
-@app.route('/admin/home')
+@app.route('/admin/main')
 @login_required
 @admin_required
-def admin_home():
+def admin_main():
     # Fetch all documents from the estimaterequests collection
     requests = estimaterequests_collection.find()  # Retrieve all estimate requests
     
     # Pass the data to the admin page template
-    return render_template('admin_home.html', requests=requests)
+    return render_template('admin/main.html', requests=requests)
 
 #Edit Users Route
 @app.route('/admin/edit_users/<user_id>', methods=['GET', 'POST'])
@@ -459,7 +459,6 @@ def delete_user(user_id):
     flash('User deleted successfully.', 'success')
     return redirect(url_for('manage_users'))
 
-#Manage Users Route
 @app.route('/admin/manage_users')
 @login_required
 @admin_required
@@ -467,9 +466,20 @@ def manage_users():
     page = request.args.get('page', 1, type=int)
     per_page = 20
     total_users = users_collection.count_documents({})
-    users = list(users_collection.find().skip((page - 1) * per_page).limit(per_page))
-    return render_template('admin/manage_users.html', users=users, page=page, total_users=total_users, per_page=per_page)
-
+    total_pages = (total_users + per_page - 1) // per_page  # Calculate total pages
+    users = list(
+        users_collection.find()
+        .skip((page - 1) * per_page)
+        .limit(per_page)
+    )
+    return render_template(
+        'admin/manage_users.html',
+        users=users,
+        page=page,
+        total_users=total_users,
+        per_page=per_page,
+        total_pages=total_pages  # Pass total_pages to the template
+    )
 
 
 
