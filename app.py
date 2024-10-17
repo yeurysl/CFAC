@@ -422,11 +422,32 @@ def register():
 @login_required
 @admin_required
 def admin_main():
-    # Fetch all documents from the estimaterequests collection
-    requests = estimaterequests_collection.find()  # Retrieve all estimate requests
-    
-    # Pass the data to the admin page template
-    return render_template('admin/main.html', requests=requests)
+    # Fetch all estimate requests
+    requests = list(estimaterequests_collection.find())
+
+    # Fetch all orders from the database
+    orders = list(orders_collection.find().sort('order_date', -1))
+
+    # Enrich orders with user and product details
+    for order in orders:
+        # Get user details
+        user = users_collection.find_one({'email': order['user']})
+        order['user_email'] = user['email'] if user else 'Unknown'
+
+        # Ensure dates are datetime objects
+        if isinstance(order['order_date'], str):
+            order['order_date'] = datetime.strptime(order['order_date'], '%Y-%m-%d %H:%M:%S')
+        if isinstance(order['service_date'], str):
+            order['service_date'] = datetime.strptime(order['service_date'], '%Y-%m-%d')
+
+        # Get product details
+        product_ids = [ObjectId(pid) for pid in order['products']]
+        products = list(products_collection.find({'_id': {'$in': product_ids}}))
+        order['product_details'] = products
+
+    # Pass both requests and orders to the template
+    return render_template('admin/main.html', requests=requests, orders=orders)
+
 
 #Edit Users Route
 @app.route('/admin/edit_users/<user_id>', methods=['GET', 'POST'])
