@@ -29,24 +29,42 @@
                                 <div class="col-md-6">
                                     <p><strong>User Email:</strong> {{ order.user_email }}</p>
                                     <p><strong>Service Date:</strong> {{ order.service_date.strftime('%Y-%m-%d') }}</p>
+                                    {% if order.status %}
+                                        <p><strong>Status:</strong> 
+                                            <span class="badge 
+                                                {% if order.status.lower() == 'pending' %}
+                                                    bg-warning
+                                                {% elif order.status.lower() == 'completed' %}
+                                                    bg-success
+                                                {% elif order.status.lower() == 'shipped' %}
+                                                    bg-info
+                                                {% elif order.status.lower() == 'cancelled' %}
+                                                    bg-danger
+                                                {% else %}
+                                                    bg-secondary
+                                                {% endif %}
+                                            ">
+                                                {{ order.status.capitalize() }}
+                                            </span>
+                                        </p>
+                                    {% endif %}
                                 </div>
                                 <div class="col-md-6">
                                     <p><strong>Total Amount:</strong> ${{ "%.2f"|format(order.total) }}</p>
-                                    
                                 </div>
                             </div>
                             <hr>
                             <h5>Products:</h5>
                             <ul class="list-group list-group-flush mb-3">
                                 {% for product in order.product_details %}
-                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <li class="list-group-item">
                                         {{ product.name }}
-                                        <span class="badge bg-primary rounded-pill">${{ "%.2f"|format(product.price) }}</span>
                                     </li>
                                 {% endfor %}
                             </ul>
+                            <!-- Optional: Add More Details Here -->
                         </div>
-                   
+                        <!-- Removed Card Footer as per user request -->
                     </div>
                 {% endfor %}
             </div>
@@ -57,7 +75,6 @@
         </div>
     {% endif %}
 
-    
-    </nav>
+    <!-- Removed Pagination Controls -->
 </div>
 {% endblock %}
