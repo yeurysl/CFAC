@@ -324,10 +324,13 @@ def checkout():
             now = datetime.now()
             if service_date.date() < now.date():
                 flash('Service date cannot be in the past.', 'danger')
-                return redirect(url_for('checkout.html'))
+                return redirect(url_for('checkout'))
         except ValueError:
             flash('Invalid date format.', 'danger')
-            return redirect(url_for('checkout.html'))
+            return redirect(url_for('checkout'))
+
+        # Determine initial status
+        initial_status = 'ordered'  # Default status for new orders
 
         # Process the order
         order = {
@@ -335,7 +338,8 @@ def checkout():
             'products': session['cart'],
             'total': total,
             'order_date': datetime.now(),
-            'service_date': service_date
+            'service_date': service_date,
+            'status': initial_status  # Add the status field
         }
         orders_collection.insert_one(order)
 
@@ -360,6 +364,7 @@ def checkout():
             total=total,
             default_service_date=default_service_date
         )
+
     
 #My Orders Page Routes 
 @app.route('/customer/my_orders')

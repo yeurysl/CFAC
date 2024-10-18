@@ -32,14 +32,12 @@
                                     {% if order.status %}
                                         <p><strong>Status:</strong> 
                                             <span class="badge 
-                                                {% if order.status.lower() == 'pending' %}
+                                                {% if order.status.lower() == 'ordered' %}
+                                                    bg-info
+                                                {% elif order.status.lower() == 'scheduled' %}
                                                     bg-warning
                                                 {% elif order.status.lower() == 'completed' %}
                                                     bg-success
-                                                {% elif order.status.lower() == 'shipped' %}
-                                                    bg-info
-                                                {% elif order.status.lower() == 'cancelled' %}
-                                                    bg-danger
                                                 {% else %}
                                                     bg-secondary
                                                 {% endif %}
@@ -62,7 +60,7 @@
                                     </li>
                                 {% endfor %}
                             </ul>
-                            <!-- Optional: Add More Details Here -->
+                       
                         </div>
                         <!-- Removed Card Footer as per user request -->
                     </div>
@@ -74,7 +72,5 @@
             No orders found.
         </div>
     {% endif %}
-
-    <!-- Removed Pagination Controls -->
 </div>
 {% endblock %}
