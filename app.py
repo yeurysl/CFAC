@@ -256,6 +256,38 @@ def employee_main():
 
 
 
+@app.route('/employee/my_schedule')
+@login_required
+@employee_required
+def my_schedule():
+    try:
+        # Fetch all orders for the current user with status 'scheduled'
+        user_email = current_user.id  # Assuming 'id' is the user's email; adjust if different
+        scheduled_orders_cursor = orders_collection.find({
+            'user': user_email,
+            'status': 'scheduled'
+        }).sort('service_date', 1)  # Sort by service date ascending
+
+        scheduled_orders = list(scheduled_orders_cursor)
+
+        # Enrich orders with product details
+        for order in scheduled_orders:
+            product_ids = [ObjectId(pid) for pid in order['products']]
+            products = list(products_collection.find({'_id': {'$in': product_ids}}))
+            order['product_details'] = products
+
+            # Format dates if necessary
+            if isinstance(order['order_date'], str):
+                order['order_date'] = datetime.strptime(order['order_date'], '%Y-%m-%d %H:%M:%S')
+            if isinstance(order['service_date'], str):
+                order['service_date'] = datetime.strptime(order['service_date'], '%Y-%m-%d')
+        
+        return render_template('employee/my_schedule.html', orders=scheduled_orders)
+    except Exception as e:
+        app.logger.error(f"Error fetching scheduled orders: {e}")
+        flash('An error occurred while fetching your scheduled orders.', 'danger')
+        return redirect(url_for('employee_main'))
+
 
 #Routes for Customers\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 #Customer Page Route
