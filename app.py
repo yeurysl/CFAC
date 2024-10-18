@@ -222,11 +222,38 @@ def protected():
 
 
 #Routes for Employees\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+# Routes for Employees
 @app.route('/employee/main')
 @login_required
 @employee_required
 def employee_main():
-    return render_template('employee/main.html')
+    try:
+        # Fetch all orders sorted by order_date descending
+        orders = list(orders_collection.find().sort('order_date', -1))
+
+        # Enrich orders with user and product details
+        for order in orders:
+            # Get user details
+            user = users_collection.find_one({'email': order['user']})
+            order['user_email'] = user['email'] if user else 'Unknown'
+
+            # Ensure dates are datetime objects
+            if isinstance(order['order_date'], str):
+                order['order_date'] = datetime.strptime(order['order_date'], '%Y-%m-%d %H:%M:%S')
+            if isinstance(order['service_date'], str):
+                order['service_date'] = datetime.strptime(order['service_date'], '%Y-%m-%d')
+
+            # Get product details
+            product_ids = [ObjectId(pid) for pid in order['products']]
+            products = list(products_collection.find({'_id': {'$in': product_ids}}))
+            order['product_details'] = products
+
+        return render_template('employee/main.html', orders=orders)
+    except Exception as e:
+        app.logger.error(f"Error fetching orders: {e}")
+        flash('An error occurred while fetching orders.', 'danger')
+        return redirect(url_for('home'))
+
 
 
 

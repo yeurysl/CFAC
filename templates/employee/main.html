@@ -1,15 +1,63 @@
 {% extends 'base.html' %}
 
-{% block title %}Employee{% endblock %}
+{% block title %}Employee - Orders{% endblock %}
 
 {% block content %}
-    <h1>Welcome to the Employee Page</h1>
-
-    <div style="text-align: center; margin: 20px 0;">
-        <a href="{{ url_for('logout') }}" 
-           style="display: inline-block; padding: 10px 20px;  font-size: 14px; text-decoration: none; background-color:#07173d; color: white; border-radius: 5px; border: none;">
-            Logout
-        </a>
+<div class="container my-5">
+    <!-- Header Section -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Employee Dashboard</h1>
+        <a href="{{ url_for('logout') }}" class="btn btn-danger">Logout</a>
     </div>
+
+    <h2 class="mb-4">All Orders</h2>
+
+    {% if orders %}
+        <!-- Orders List -->
+        <div class="row justify-content-center">
+            <div class="col-12 col-lg-10">
+                {% for order in orders %}
+                    <div class="card mb-4 shadow-sm">
+                        <div class="card-header bg-primary text-white">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5 class="card-title mb-0">Order ID: {{ order._id }}</h5>
+                                <small>Placed on {{ order.order_date.strftime('%Y-%m-%d %H:%M') }}</small>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <p><strong>User Email:</strong> {{ order.user_email }}</p>
+                                    <p><strong>Service Date:</strong> {{ order.service_date.strftime('%Y-%m-%d') }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Total Amount:</strong> ${{ "%.2f"|format(order.total) }}</p>
+                                    
+                                </div>
+                            </div>
+                            <hr>
+                            <h5>Products:</h5>
+                            <ul class="list-group list-group-flush mb-3">
+                                {% for product in order.product_details %}
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        {{ product.name }}
+                                        <span class="badge bg-primary rounded-pill">${{ "%.2f"|format(product.price) }}</span>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                   
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% else %}
+        <div class="alert alert-info" role="alert">
+            No orders found.
+        </div>
+    {% endif %}
+
     
+    </nav>
+</div>
 {% endblock %}
