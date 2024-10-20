@@ -259,10 +259,6 @@ def employee_main():
 
 
 
-from flask import Flask, render_template, request, redirect, url_for, flash, current_app
-from flask_login import login_required, current_user
-from bson.objectid import ObjectId
-from datetime import datetime
 
 @app.route('/employee/my_schedule')
 @login_required
@@ -271,7 +267,7 @@ def my_schedule():
     try:
         # Determine the unique identifier for the current employee
         # Replace 'username' with the appropriate attribute if different
-        employee_identifier = current_user.id # e.g., 'john_doe'
+        employee_identifier = current_user.id  # e.g., 'john_doe'
 
         # Define the filter to fetch orders with status 'scheduled' and scheduled_by current employee
         filter_query = {
@@ -295,7 +291,7 @@ def my_schedule():
                 order['order_date'] = datetime.strptime(order['order_date'], '%Y-%m-%d %H:%M:%S')
             if isinstance(order.get('service_date'), str):
                 order['service_date'] = datetime.strptime(order['service_date'], '%Y-%m-%d')
-        
+
         return render_template('employee/my_schedule.html', orders=scheduled_orders)
     except Exception as e:
         current_app.logger.error(f"Error fetching scheduled orders: {e}")
