@@ -228,8 +228,11 @@ def protected():
 @employee_required
 def employee_main():
     try:
-        # Fetch all orders sorted by order_date descending
-        orders = list(orders_collection.find().sort('order_date', -1))
+        # Define the filter to fetch only 'ordered' orders
+        filter_query = {'status': 'ordered'}
+        
+        # Fetch all 'ordered' orders sorted by order_date descending
+        orders = list(orders_collection.find(filter_query).sort('order_date', -1))
 
         # Enrich orders with user and product details
         for order in orders:
@@ -256,36 +259,83 @@ def employee_main():
 
 
 
+from flask import Flask, render_template, request, redirect, url_for, flash, current_app
+from flask_login import login_required, current_user
+from bson.objectid import ObjectId
+from datetime import datetime
+
 @app.route('/employee/my_schedule')
 @login_required
-@employee_required
+@employee_required  # Ensure this decorator is correctly implemented
 def my_schedule():
     try:
-        # Fetch all orders for the current user with status 'scheduled'
-        user_email = current_user.id  # Assuming 'id' is the user's email; adjust if different
-        scheduled_orders_cursor = orders_collection.find({
-            'user': user_email,
-            'status': 'scheduled'
-        }).sort('service_date', 1)  # Sort by service date ascending
+        # Determine the unique identifier for the current employee
+        # Replace 'username' with the appropriate attribute if different
+        employee_identifier = current_user.id # e.g., 'john_doe'
+
+        # Define the filter to fetch orders with status 'scheduled' and scheduled_by current employee
+        filter_query = {
+            'status': 'scheduled',
+            'scheduled_by': employee_identifier
+        }
+
+        # Fetch all matching orders sorted by service_date ascending
+        scheduled_orders_cursor = orders_collection.find(filter_query).sort('service_date', 1)
 
         scheduled_orders = list(scheduled_orders_cursor)
 
         # Enrich orders with product details
         for order in scheduled_orders:
-            product_ids = [ObjectId(pid) for pid in order['products']]
+            product_ids = [ObjectId(pid) for pid in order.get('products', [])]
             products = list(products_collection.find({'_id': {'$in': product_ids}}))
             order['product_details'] = products
 
             # Format dates if necessary
-            if isinstance(order['order_date'], str):
+            if isinstance(order.get('order_date'), str):
                 order['order_date'] = datetime.strptime(order['order_date'], '%Y-%m-%d %H:%M:%S')
-            if isinstance(order['service_date'], str):
+            if isinstance(order.get('service_date'), str):
                 order['service_date'] = datetime.strptime(order['service_date'], '%Y-%m-%d')
         
         return render_template('employee/my_schedule.html', orders=scheduled_orders)
     except Exception as e:
-        app.logger.error(f"Error fetching scheduled orders: {e}")
+        current_app.logger.error(f"Error fetching scheduled orders: {e}")
         flash('An error occurred while fetching your scheduled orders.', 'danger')
+        return redirect(url_for('employee_main'))
+
+
+@app.route('/employee/order/<order_id>/schedule', methods=['POST'])
+@login_required
+@employee_required  # Assuming you have this decorator defined
+def schedule_order(order_id):
+    try:
+        # Fetch the order by ID
+        order = orders_collection.find_one({'_id': ObjectId(order_id)})
+
+        if not order:
+            flash('Order not found.', 'danger')
+            return redirect(url_for('employee_main'))
+
+        # Check if the current status is 'ordered'
+        if order.get('status', '').lower() != 'ordered':
+            flash('Only orders with status "ordered" can be scheduled.', 'warning')
+            return redirect(url_for('employee_main'))
+
+        # Update the status to 'scheduled' and add 'scheduled_by'
+        orders_collection.update_one(
+            {'_id': ObjectId(order_id)},
+            {
+                '$set': {
+                    'status': 'scheduled',
+                    'scheduled_by': current_user.id  # Adjust based on your user model
+                }
+            }
+        )
+
+        flash(f'Order {order_id} has been scheduled successfully by {current_user.id}.', 'success')
+        return redirect(url_for('employee_main'))
+    except Exception as e:
+        app.logger.error(f"Error scheduling order {order_id}: {e}")
+        flash('An error occurred while scheduling the order.', 'danger')
         return redirect(url_for('employee_main'))
 
 
