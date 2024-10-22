@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from pymongo import MongoClient
 from flask_bcrypt import Bcrypt
 from dotenv import load_dotenv
@@ -139,8 +139,33 @@ def base():
 #Home Page Route
 @app.route('/')
 def home():
-    products = list(products_collection.find())  # Assuming you have products in your DB
-    return render_template('home.html', products=products)
+    # Fetch all products
+    products = list(products_collection.find())
+    # Convert ObjectId to string for template usage
+    for product in products:
+        product['_id'] = str(product['_id'])
+    
+    # Select Sedan as the default product
+    default_product = next((product for product in products if product['name'] == "Sedan Complete Detailing"), products[0] if products else None)
+    
+    return render_template('home.html', default_product=default_product, products=products)
+
+
+# API endpoint to fetch all products (for dynamic features)
+@app.route('/api/products')
+def get_products():
+    products = list(products_collection.find())
+    for product in products:
+        product['_id'] = str(product['_id'])  # Convert ObjectId to string
+    return jsonify(products)
+
+
+
+
+
+
+
+
 #About Us Page Route
 @app.route('/aboutus')
 def about():
@@ -340,8 +365,17 @@ def schedule_order(order_id):
 @app.route('/customer/home')
 @customer_required
 def customer_home():
-    products = list(products_collection.find())  # Assuming you have products in your DB
-    return render_template('customer/home.html', products=products)
+    # Fetch all products
+    products = list(products_collection.find())
+    # Convert ObjectId to string for template usage
+    for product in products:
+        product['_id'] = str(product['_id'])
+    
+    # Select Sedan as the default product
+    default_product = next((product for product in products if product['name'] == "Sedan Complete Detailing"), products[0] if products else None)
+    
+    return render_template('customer/home.html', default_product=default_product, products=products)
+
 
 #Cart Page Route
 @app.route('/customer/cart')
