@@ -75,7 +75,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             </button>
                             <!-- Add to Cart button -->
                             <a
-                                href="customer/add_to_cart/${product._id}"
+                                href="/customer/add_to_cart/${product._id}"
                                 class="btn btn-book-now"
                             >
                                 Book Now
