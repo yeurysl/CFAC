@@ -7,29 +7,65 @@
     <h1 class="my-4 text-center">Register</h1>
     <div class="form-wrapper mx-auto">
         <form method="POST" action="{{ url_for('register') }}">
-           
+            <!-- Full Name -->
             <div class="form-group">
-                <label for="name">Full Name</label>
+                <label for="name">Full Name <span class="text-danger">*</span></label>
                 <input type="text" class="form-control" name="name" id="name" required>
             </div>
+
+            <!-- Email Address -->
             <div class="mb-3">
-                <label for="email" class="form-label">Email Address:</label>
+                <label for="email" class="form-label">Email Address <span class="text-danger">*</span></label>
                 <input type="email" id="email" name="email" class="form-control" required>
             </div>
           
+            <!-- Phone Number -->
             <div class="form-group">
-                <label for="phone_number">Phone Number</label>
+                <label for="phone_number">Phone Number <span class="text-danger">*</span></label>
                 <input type="tel" class="form-control" name="phone_number" id="phone_number" required>
             </div>
             
+            <!-- Street Address -->
+            <div class="form-group">
+                <label for="street_address">Street Address <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" name="street_address" id="street_address" required>
+            </div>
+            
+            <!-- City -->
+            <div class="form-group">
+                <label for="city">City <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" name="city" id="city" required>
+            </div>
+            
+            <!-- Country -->
+            <div class="form-group">
+                <label for="country">Country <span class="text-danger">*</span></label>
+                <select class="form-control" name="country" id="country" required>
+                    <option value="">Select your country</option>
+                    <option value="United States">United States</option>
+                
+                </select>
+            </div>
+            
+            <!-- Zip Code -->
+            <div class="form-group">
+                <label for="zip_code">Zip Code <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" name="zip_code" id="zip_code" required>
+            </div>
+            
+            <!-- Password -->
             <div class="mb-3">
-                <label for="password" class="form-label">Password</label>
+                <label for="password" class="form-label">Password <span class="text-danger">*</span></label>
                 <input type="password" class="form-control" id="password" name="password" placeholder="Enter your password" required>
             </div>
+            
+            <!-- Confirm Password -->
             <div class="mb-3">
-                <label for="confirm_password" class="form-label">Confirm Password</label>
+                <label for="confirm_password" class="form-label">Confirm Password <span class="text-danger">*</span></label>
                 <input type="password" class="form-control" id="confirm_password" name="confirm_password" placeholder="Confirm your password" required>
             </div>
+            
+            <!-- Submit Button -->
             <div class="text-center">
                 <button type="submit" class="btn btn-primary">Register</button>
             </div>

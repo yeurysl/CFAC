@@ -237,6 +237,8 @@ def protected():
     return "This is a protected page!"
 
 #Account Settings Route
+# app.py (continued)
+
 @app.route('/account_settings', methods=['GET', 'POST'])
 @login_required
 def account_settings():
@@ -248,20 +250,49 @@ def account_settings():
         return redirect(url_for('home'))
 
     if request.method == 'POST':
-        # Update user information
+        # Extract form data
         name = request.form['name'].strip()
         phone_number = request.form['phone_number'].strip()
+        street_address = request.form['street_address'].strip()
+        city = request.form['city'].strip()
+        country = request.form['country'].strip()
+        zip_code = request.form['zip_code'].strip()
 
-        users_collection.update_one(
-            {'email': user_email},
-            {'$set': {'name': name, 'phone_number': phone_number}}
-        )
+        # Basic Validation
+        if not name or not phone_number or not street_address or not city or not country or not zip_code:
+            flash('Please fill out all fields.', 'warning')
+            return redirect(url_for('account_settings'))
+        
+        # Optional: Validate Zip Code Format (Example for US ZIP Codes)
+        import re
+        zip_code_pattern = re.compile(r'^\d{5}(-\d{4})?$')  # e.g., 12345 or 12345-6789
+        if not zip_code_pattern.match(zip_code):
+            flash('Invalid zip code format.', 'danger')
+            return redirect(url_for('account_settings'))
 
-        flash('Account settings updated successfully.', 'success')
-        return redirect(url_for('account_settings'))
+        # Update user information
+        update_fields = {
+            'name': name,
+            'phone_number': phone_number,
+            'address.street_address': street_address,
+            'address.city': city,
+            'address.country': country,
+            'address.zip_code': zip_code
+        }
+
+        try:
+            users_collection.update_one(
+                {'email': user_email},
+                {'$set': update_fields}
+            )
+            flash('Account settings updated successfully.', 'success')
+            return redirect(url_for('account_settings'))
+        except Exception as e:
+            flash('An error occurred while updating your account settings. Please try again.', 'danger')
+            app.logger.error(f"Error updating user: {e}")
+            return redirect(url_for('account_settings'))
 
     return render_template('account_settings.html', user=user)
-
 
 
 #Routes for Employees\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
@@ -526,10 +557,17 @@ def register():
         email = request.form['email'].strip().lower()
         password = request.form['password']
         confirm_password = request.form['confirm_password']
+        name = request.form['name'].strip()
+        phone_number = request.form['phone_number'].strip()
+        street_address = request.form['street_address'].strip()
+        city = request.form['city'].strip()
+        country = request.form['country'].strip()
+        zip_code = request.form['zip_code'].strip()
         next_page_form = request.form.get('next')
         
         # Basic Validation
-        if not email or not password or not confirm_password:
+        if not email or not password or not confirm_password or not name or not phone_number \
+           or not street_address or not city or not country or not zip_code:
             flash('Please fill out all fields.', 'warning')
             return redirect(url_for('register', next=next_page))
         
@@ -542,6 +580,13 @@ def register():
             flash('Email already registered. Please log in.', 'danger')
             return redirect(url_for('login'))
         
+        # Optional: Validate Zip Code Format (Example for US ZIP Codes)
+        import re
+        zip_code_pattern = re.compile(r'^\d{5}(-\d{4})?$')  # e.g., 12345 or 12345-6789
+        if not zip_code_pattern.match(zip_code):
+            flash('Invalid zip code format.', 'danger')
+            return redirect(url_for('register', next=next_page))
+        
         # Hash the password
         hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
         
@@ -551,7 +596,13 @@ def register():
             'password': hashed_password,
             'user_type': 'customer',
             'name': name,
-            'phone_number': phone_number
+            'phone_number': phone_number,
+            'address': {
+                'street_address': street_address,
+                'city': city,
+                'country': country,
+                'zip_code': zip_code
+            }
         }
         try:
             users_collection.insert_one(user)
@@ -573,10 +624,6 @@ def register():
     
     # For GET requests, render the registration form with 'next' parameter
     return render_template('customer/register.html', next=next_page)
-
-
-
-
 
 
 #Routes For Admin\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\

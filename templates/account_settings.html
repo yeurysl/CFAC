@@ -6,24 +6,64 @@
 <div class="container">
     <h1 class="my-4">Account Settings</h1>
     <form method="POST" action="{{ url_for('account_settings') }}">
+        <!-- Email (Read-Only) -->
         <div class="form-group">
-            <label for="email">Email (cannot be changed)</label>
+            <label for="email">Email Address</label>
             <input type="email" class="form-control" id="email" value="{{ user.email }}" readonly>
         </div>
+        
+        <!-- User ID (Read-Only) -->
         <div class="form-group">
-            <label for="user_id">User ID (cannot be changed)</label>
+            <label for="user_id">User ID</label>
             <input type="text" class="form-control" id="user_id" value="{{ user._id }}" readonly>
         </div>
+        
+        <!-- Full Name -->
         <div class="form-group">
-            <label for="name">Full Name</label>
+            <label for="name">Full Name <span class="text-danger">*</span></label>
             <input type="text" class="form-control" name="name" id="name" value="{{ user.name }}" required>
         </div>
+        
+        <!-- Phone Number -->
         <div class="form-group">
-            <label for="phone_number">Phone Number</label>
+            <label for="phone_number">Phone Number <span class="text-danger">*</span></label>
             <input type="tel" class="form-control" name="phone_number" id="phone_number" value="{{ user.phone_number }}" required>
         </div>
-        <!-- Add more fields if needed -->
-        <button type="submit" class="btn btn-primary">Update Settings</button>
+        
+        <!-- Street Address -->
+        <div class="form-group">
+            <label for="street_address">Street Address <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" name="street_address" id="street_address" value="{{ user.address.street_address }}" required>
+        </div>
+        
+        <!-- City -->
+        <div class="form-group">
+            <label for="city">City <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" name="city" id="city" value="{{ user.address.city }}" required>
+        </div>
+        
+        <!-- Country -->
+        <div class="form-group">
+            <label for="country">Country <span class="text-danger">*</span></label>
+            <select class="form-control" name="country" id="country" required>
+                <option value="">Select your country</option>
+                <option value="United States" {% if user.address.country == "United States" %}selected{% endif %}>United States</option>
+                <option value="Canada" {% if user.address.country == "Canada" %}selected{% endif %}>Canada</option>
+                <option value="United Kingdom" {% if user.address.country == "United Kingdom" %}selected{% endif %}>United Kingdom</option>
+                <!-- Add more countries as needed -->
+            </select>
+        </div>
+        
+        <!-- Zip Code -->
+        <div class="form-group">
+            <label for="zip_code">Zip Code <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" name="zip_code" id="zip_code" value="{{ user.address.zip_code }}" required>
+        </div>
+        
+        <!-- Submit Button -->
+        <div class="text-center">
+            <button type="submit" class="btn btn-primary">Update Settings</button>
+        </div>
     </form>
 </div>
 {% endblock %}
