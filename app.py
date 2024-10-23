@@ -160,12 +160,6 @@ def get_products():
     return jsonify(products)
 
 
-
-
-
-
-
-
 #About Us Page Route
 @app.route('/aboutus')
 def about():
@@ -242,7 +236,31 @@ def logout():
 def protected():
     return "This is a protected page!"
 
+#Account Settings Route
+@app.route('/account_settings', methods=['GET', 'POST'])
+@login_required
+def account_settings():
+    user_email = current_user.id
+    user = users_collection.find_one({'email': user_email})
 
+    if not user:
+        flash('User not found.', 'danger')
+        return redirect(url_for('home'))
+
+    if request.method == 'POST':
+        # Update user information
+        name = request.form['name'].strip()
+        phone_number = request.form['phone_number'].strip()
+
+        users_collection.update_one(
+            {'email': user_email},
+            {'$set': {'name': name, 'phone_number': phone_number}}
+        )
+
+        flash('Account settings updated successfully.', 'success')
+        return redirect(url_for('account_settings'))
+
+    return render_template('account_settings.html', user=user)
 
 
 
@@ -531,9 +549,10 @@ def register():
         user = {
             'email': email,
             'password': hashed_password,
-            'user_type': 'customer'  # or assign based on role
+            'user_type': 'customer',
+            'name': name,
+            'phone_number': phone_number
         }
-        
         try:
             users_collection.insert_one(user)
             flash('Account created successfully!', 'success')
