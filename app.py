@@ -122,32 +122,39 @@ def load_user(user_id):
 #FORLOGINS
 def admin_required(f):
     @wraps(f)
-    @login_required
     def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated:
+            flash('Please log in as an admin to access this page.', 'warning')
+            return redirect(url_for('employee_admin_login', next=request.url))
         if current_user.user_type != 'admin':
             flash('You do not have permission to access this page.', 'danger')
             return redirect(url_for('home'))
         return f(*args, **kwargs)
     return decorated_function
+
 def employee_required(f):
     @wraps(f)
-    @login_required
     def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated:
+            flash('Please log in as an employee to access this page.', 'warning')
+            return redirect(url_for('employee_admin_login', next=request.url))
         if current_user.user_type != 'employee':
             flash('You do not have permission to access this page.', 'danger')
             return redirect(url_for('home'))
         return f(*args, **kwargs)
     return decorated_function
+
 def customer_required(f):
     @wraps(f)
-    @login_required
     def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated:
+            flash('Please log in as a customer to access this page.', 'warning')
+            return redirect(url_for('customer_login', next=request.url))
         if current_user.user_type != 'customer':
             flash('You do not have permission to access this page.', 'danger')
             return redirect(url_for('home'))
         return f(*args, **kwargs)
     return decorated_function
-
 
 #FOREMAILSENDING
 def send_order_confirmation_email(to_email, order, products):
@@ -450,7 +457,6 @@ def customer_home():
 
 #Cart Page Route
 @app.route('/customer/cart', methods=['GET', 'POST'])
-@login_required
 @customer_required
 def cart():
     if 'cart' not in session or not session['cart']:
@@ -481,7 +487,6 @@ def cart():
     return render_template('customer/cart.html', products=products_in_cart, total=total, forms=forms)
 #ATC Route for Function
 @app.route('/customer/add_to_cart/<product_id>')
-@login_required
 @customer_required 
 def add_to_cart(product_id):
     if 'cart' not in session:
