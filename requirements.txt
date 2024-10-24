@@ -4,12 +4,15 @@ certifi==2024.8.30
 click==8.1.7
 distlib==0.3.8
 dnspython==2.6.1
+email_validator==2.2.0
 filelock==3.16.0
 Flask==3.0.3
 Flask-Bcrypt==1.0.1
 Flask-Login==0.6.3
 Flask-Mail==0.10.0
+Flask-WTF==1.2.1
 gunicorn==23.0.0
+idna==3.10
 itsdangerous==2.2.0
 Jinja2==3.1.4
 MarkupSafe==2.1.5
@@ -19,3 +22,4 @@ pymongo==4.10.1
 python-dotenv==1.0.1
 virtualenv==20.26.4
 Werkzeug==3.0.4
+WTForms==3.1.2
