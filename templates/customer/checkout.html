@@ -1,3 +1,5 @@
+<!-- templates/customer/checkout.html -->
+
 {% extends 'base.html' %}
 
 {% block title %}Checkout{% endblock %}
@@ -32,6 +34,8 @@
         <h4 class="text-end">Total: ${{ "%.2f"|format(total) }}</h4>
 
         <form method="post" action="{{ url_for('checkout') }}">
+            <!-- Include the CSRF token -->
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-group">
                 <label for="service_date">Select Service Date:</label>
                 <input
@@ -55,6 +59,8 @@
                 <form method="post" action="{{ url_for('login') }}">
                     <!-- Hidden field to redirect back to checkout after login -->
                     <input type="hidden" name="next" value="{{ request.path }}">
+                    <!-- Include the CSRF token -->
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     
                     <div class="mb-3">
                         <label for="email" class="form-label">Email:</label>
