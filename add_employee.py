@@ -3,7 +3,8 @@ from dotenv import load_dotenv
 from flask_bcrypt import Bcrypt
 import getpass  # For secure password input
 import os
-import re  # For email validation
+import re  
+from datetime import datetime  
 
 # Load environment variables from .env file
 load_dotenv()
@@ -101,11 +102,12 @@ def add_user():
 
     # Create a new user document
     user = {
-        'email': email,
-        'username': username,
-        'password': hashed_password,
-        'user_type': user_type,
-        'full_name': full_name,
+    'email': email,
+    'username': username,
+    'password': hashed_password,
+    'user_type': user_type,
+    'full_name': full_name,
+    'creation_date': datetime.utcnow()  # Add this line
     }
 
     # Insert the user into the collection

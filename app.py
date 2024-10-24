@@ -4,6 +4,7 @@ from flask_bcrypt import Bcrypt
 from dotenv import load_dotenv
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_wtf import CSRFProtect
+from flask_wtf.csrf import generate_csrf
 from forms import RegistrationForm, RemoveFromCartForm, CustomerLoginForm, EmployeeLoginForm, UpdateAccountForm
 from functools import wraps
 from flask_mail import Mail, Message
@@ -11,6 +12,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from bson.objectid import ObjectId
 from urllib.parse import urlparse, urljoin
 from datetime import datetime, timedelta
+from dateutil import parser
 import re
 import os
 
@@ -57,6 +59,11 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'employee_admin_login'
 login_manager.login_message_category = 'info'  
+
+
+@app.context_processor
+def inject_csrf_token():
+    return dict(csrf_token=generate_csrf)
 
 
 
@@ -638,7 +645,8 @@ def register():
                 'city': city,
                 'country': country,
                 'zip_code': zip_code
-            }
+            },
+            'creation_date': datetime.utcnow()  
         }
         try:
             users_collection.insert_one(user)
@@ -692,25 +700,23 @@ def admin_main():
     return render_template('admin/main.html', requests=requests, orders=orders)
 
 
-#Edit Users Route
-@app.route('/admin/edit_users/<user_id>', methods=['GET', 'POST'])
+#View Users Route
+@app.route('/admin/view_user/<user_id>')
 @login_required
 @admin_required
-def edit_user(user_id):
+def view_user(user_id):
     user = users_collection.find_one({'_id': ObjectId(user_id)})
     if not user:
         flash('User not found.', 'danger')
-        return redirect(url_for('manage_users.html'))
-
-    if request.method == 'POST':
-        updated_data = {
-            'email': request.form['email'],
-            'user_type': request.form['user_type']  # Make sure to have this field in your form
-        }
-        users_collection.update_one({'_id': ObjectId(user_id)}, {'$set': updated_data})
-        flash('User updated successfully.', 'success')
         return redirect(url_for('manage_users'))
-    return render_template('edit_user', user=user)
+
+    # Ensure creation_date is a datetime object
+    if 'creation_date' in user and isinstance(user['creation_date'], str):
+        # If it's stored as a string, parse it back to datetime
+        user['creation_date'] = datetime.strptime(user['creation_date'], '%Y-%m-%d %H:%M:%S')
+
+    return render_template('admin/view_user.html', user=user)
+
 #Delete User Route
 @app.route('/admin/delete/<user_id>', methods=['POST'])
 @login_required
