@@ -3,16 +3,22 @@ from pymongo import MongoClient
 from flask_bcrypt import Bcrypt
 from dotenv import load_dotenv
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from flask_wtf import CSRFProtect
+from forms import RegistrationForm, RemoveFromCartForm
 from functools import wraps
 from flask_mail import Mail, Message
 from werkzeug.middleware.proxy_fix import ProxyFix
 from bson.objectid import ObjectId
 from urllib.parse import urlparse, urljoin
 from datetime import datetime, timedelta
+import re
 import os
 
 
 ENV = os.getenv('ENV', 'development')   
+
+
+
 
 load_dotenv()
 
@@ -22,8 +28,11 @@ app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 app.secret_key = os.getenv('SECRET_KEY')
+app.config['WTF_CSRF_TIME_LIMIT'] = None
 
 bcrypt = Bcrypt(app)
+
+csrf = CSRFProtect(app)
 
 
 #Mongo DB SETUP\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
@@ -39,6 +48,9 @@ users_collection = db["users"]
 estimaterequests_collection = db["estimaterequests"]  
 products_collection = db["products"]
 orders_collection = db['orders']
+
+
+
 
 # Initialize Flask-Login
 login_manager = LoginManager()
@@ -66,12 +78,19 @@ app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('EMAIL_USER')
 mail = Mail(app)
 
 
+class User:
+    def __init__(self, email, user_type):
+        self.id = email
+        self.user_type = user_type
 
 # User Model FLASK-LOGIN
 class User(UserMixin):
     def __init__(self, email, user_type):
         self.id = email
         self.user_type = user_type
+
+
+    
 
 # User Loader Callback
 @login_manager.user_loader
@@ -427,19 +446,36 @@ def customer_home():
 
 
 #Cart Page Route
-@app.route('/customer/cart')
+@app.route('/customer/cart', methods=['GET', 'POST'])
 @login_required
 @customer_required
 def cart():
     if 'cart' not in session or not session['cart']:
         flash('Your cart is empty.', 'info')
-        return render_template('customer/cart.html', products=[])
+        return render_template('customer/cart.html', products=[], forms={})
 
     product_ids = [ObjectId(id) for id in session['cart']]
     products_in_cart = list(products_collection.find({'_id': {'$in': product_ids}}))
     total = calculate_cart_total(products_in_cart)
-    return render_template('customer/cart.html', products=products_in_cart, total=total)
 
+    # Create a dictionary of forms, one for each product
+    forms = {}
+    for product in products_in_cart:
+        form = RemoveFromCartForm()
+        form.product_id.data = str(product['_id'])
+        forms[str(product['_id'])] = form
+
+    if request.method == 'POST':
+        # Retrieve the product_id from the submitted form
+        product_id = request.form.get('product_id')
+        if product_id in session.get('cart', []):
+            session['cart'].remove(product_id)
+            flash('Item removed from your cart.', 'success')
+        else:
+            flash('Item not found in your cart.', 'warning')
+        return redirect(url_for('cart'))
+
+    return render_template('customer/cart.html', products=products_in_cart, total=total, forms=forms)
 #ATC Route for Function
 @app.route('/customer/add_to_cart/<product_id>')
 @login_required
@@ -451,6 +487,8 @@ def add_to_cart(product_id):
     session['cart'].append(product_id)
     flash('Product added to cart!', 'success')
     return redirect(url_for('cart'))
+
+
 
 #Display of Product Route for Function
 @app.route('/products')
@@ -550,47 +588,39 @@ def my_orders():
     
     return render_template('customer/my_orders.html', orders=user_orders)
 #Registration Route
+@login_manager.user_loader
+def load_user(user_id):
+    user = users_collection.find_one({'email': user_id})
+    if user:
+        return User(user['email'], user.get('user_type', 'customer'))
+    return None
+
 @app.route('/customer/register', methods=['GET', 'POST'])
 def register():
+    form = RegistrationForm()
     next_page = request.args.get('next')
-    if request.method == 'POST':
-        email = request.form['email'].strip().lower()
-        password = request.form['password']
-        confirm_password = request.form['confirm_password']
-        name = request.form['name'].strip()
-        phone_number = request.form['phone_number'].strip()
-        street_address = request.form['street_address'].strip()
-        city = request.form['city'].strip()
-        country = request.form['country'].strip()
-        zip_code = request.form['zip_code'].strip()
-        next_page_form = request.form.get('next')
-        
-        # Basic Validation
-        if not email or not password or not confirm_password or not name or not phone_number \
-           or not street_address or not city or not country or not zip_code:
-            flash('Please fill out all fields.', 'warning')
-            return redirect(url_for('register', next=next_page))
-        
-        if password != confirm_password:
-            flash('Passwords do not match.', 'danger')
-            return redirect(url_for('register', next=next_page))
+    
+    if form.validate_on_submit():
+        # Extract form data
+        email = form.email.data.strip().lower()
+        password = form.password.data
+        name = form.name.data.strip()
+        phone_number = form.phone_number.data.strip()
+        street_address = form.street_address.data.strip()
+        city = form.city.data.strip()
+        country = form.country.data.strip()
+        zip_code = form.zip_code.data.strip()
+        unit_apt = form.unit_apt.data.strip() 
         
         # Check if email already exists
         if users_collection.find_one({'email': email}):
             flash('Email already registered. Please log in.', 'danger')
             return redirect(url_for('login'))
         
-        # Optional: Validate Zip Code Format (Example for US ZIP Codes)
-        import re
-        zip_code_pattern = re.compile(r'^\d{5}(-\d{4})?$')  # e.g., 12345 or 12345-6789
-        if not zip_code_pattern.match(zip_code):
-            flash('Invalid zip code format.', 'danger')
-            return redirect(url_for('register', next=next_page))
-        
         # Hash the password
         hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
         
-        # Create the user document
+      # Create the user document
         user = {
             'email': email,
             'password': hashed_password,
@@ -599,6 +629,7 @@ def register():
             'phone_number': phone_number,
             'address': {
                 'street_address': street_address,
+                'unit_apt': unit_apt,
                 'city': city,
                 'country': country,
                 'zip_code': zip_code
@@ -613,19 +644,16 @@ def register():
             login_user(user_obj)
             
             # Redirect based on 'next' parameter
-            if next_page and is_safe_url(next_page_form or next_page):
-                return redirect(next_page_form or next_page)
+            if next_page and is_safe_url(next_page):
+                return redirect(next_page)
             else:
                 return redirect(url_for('customer_home'))
         except Exception as e:
             flash('An error occurred while creating your account. Please try again.', 'danger')
             app.logger.error(f"Error inserting user: {e}")
-            return redirect(url_for('register', next=next_page))
+            return redirect(url_for('register'))
     
-    # For GET requests, render the registration form with 'next' parameter
-    return render_template('customer/register.html', next=next_page)
-
-
+    return render_template('customer/register.html', form=form, next=next_page)
 #Routes For Admin\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 #Admin Page Routes
 @app.route('/admin/main')
