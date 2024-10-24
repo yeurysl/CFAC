@@ -1,5 +1,3 @@
-# add_employee.py
-
 from pymongo import MongoClient
 from dotenv import load_dotenv
 from flask_bcrypt import Bcrypt
@@ -31,7 +29,13 @@ def is_valid_email(email):
     regex = r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'
     return re.match(regex, email)
 
+def is_valid_username(username):
+    # Simple regex for username validation (alphanumeric and underscores)
+    regex = r'^\w+$'
+    return re.match(regex, username)
+
 def add_user():
+    # Email
     email = input("Enter new employee's email: ").strip().lower()
     if not email:
         print("Email cannot be empty.")
@@ -40,6 +44,34 @@ def add_user():
     if not is_valid_email(email):
         print("Invalid email format.")
         return
+
+    # Check if the email already exists
+    if users_collection.find_one({'email': email}):
+        print(f"An account with email '{email}' already exists.")
+        return
+
+    # Username
+    username = input("Enter new employee's username: ").strip()
+    if not username:
+        print("Username cannot be empty.")
+        return
+
+    if not is_valid_username(username):
+        print("Invalid username. Only letters, numbers, and underscores are allowed.")
+        return
+
+    # Check if the username already exists
+    if users_collection.find_one({'username': username}):
+        print(f"The username '{username}' is already taken.")
+        return
+
+    # First Name
+    full_name = input("Enter new employee's full name: ").strip()
+    if not full_name:
+        print("First name cannot be empty.")
+        return
+
+
 
     # Securely get the password without echoing
     password = getpass.getpass("Enter new employee's password: ").strip()
@@ -64,19 +96,16 @@ def add_user():
         print("Invalid user type. Must be 'admin' or 'employee'.")
         return
 
-    # Check if the email already exists
-    if users_collection.find_one({'email': email}):
-        print(f"An account with email '{email}' already exists.")
-        return
-
     # Hash the password
     hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
 
     # Create a new user document
     user = {
         'email': email,
+        'username': username,
         'password': hashed_password,
-        'user_type': user_type  # Add user type to the document
+        'user_type': user_type,
+        'full_name': full_name,
     }
 
     # Insert the user into the collection

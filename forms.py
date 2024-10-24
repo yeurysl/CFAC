@@ -58,10 +58,16 @@ class RemoveFromCartForm(FlaskForm):
 
 
 
-class LoginForm(FlaskForm):
-    email = StringField('Email Address', validators=[
-        DataRequired(message="Email Address is required."),
-        Email(message="Invalid email address.")
+class CustomerLoginForm(FlaskForm):
+    email = StringField('Email', validators=[DataRequired(), Email(message="Invalid email.")])
+    password = PasswordField('Password', validators=[DataRequired()])
+    submit = SubmitField('Login')
+
+
+
+class EmployeeLoginForm(FlaskForm):
+    username = StringField('Username', validators=[
+        DataRequired(message="Username is required.")
     ])
     password = PasswordField('Password', validators=[
         DataRequired(message="Password is required.")
@@ -69,18 +75,15 @@ class LoginForm(FlaskForm):
     submit = SubmitField('Login')
 
 
+
 class UpdateAccountForm(FlaskForm):
     name = StringField('Full Name', validators=[
         DataRequired(message="Full Name is required."),
         Length(min=2, max=100, message="Full Name must be between 2 and 100 characters.")
     ])
-    email = StringField('Email Address', validators=[
-        DataRequired(message="Email Address is required."),
-        Email(message="Invalid email address.")
-    ])
     phone_number = StringField('Phone Number', validators=[
         DataRequired(message="Phone Number is required."),
-        Regexp(r'^\+?1?\d{9,15}$', message="Phone number must be entered in the format: '+999999999'. Up to 15 digits allowed.")
+        Regexp(r'^\+?1?\d{9,15}$', message="Invalid phone number format.")
     ])
     street_address = StringField('Street Address', validators=[
         DataRequired(message="Street Address is required."),
@@ -93,8 +96,6 @@ class UpdateAccountForm(FlaskForm):
     country = SelectField('Country', choices=[
         ('', 'Select your country'),
         ('United States', 'United States'),
-        ('Canada', 'Canada'),
-        ('United Kingdom', 'United Kingdom'),
         # Add more countries as needed
     ], validators=[DataRequired(message="Country is required.")])
     zip_code = StringField('Zip Code', validators=[

@@ -4,7 +4,7 @@ from flask_bcrypt import Bcrypt
 from dotenv import load_dotenv
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_wtf import CSRFProtect
-from forms import RegistrationForm, RemoveFromCartForm
+from forms import RegistrationForm, RemoveFromCartForm, CustomerLoginForm, EmployeeLoginForm, UpdateAccountForm
 from functools import wraps
 from flask_mail import Mail, Message
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -55,7 +55,9 @@ orders_collection = db['orders']
 # Initialize Flask-Login
 login_manager = LoginManager()
 login_manager.init_app(app)
-login_manager.login_view = 'login'  # Redirect to 'login' for @login_required
+login_manager.login_view = 'employee_admin_login'
+login_manager.login_message_category = 'info'  
+
 
 
 
@@ -78,26 +80,34 @@ app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('EMAIL_USER')
 mail = Mail(app)
 
 
-class User:
-    def __init__(self, email, user_type):
-        self.id = email
-        self.user_type = user_type
+
+
 
 # User Model FLASK-LOGIN
 class User(UserMixin):
-    def __init__(self, email, user_type):
-        self.id = email
+    def __init__(self, identifier, user_type):
+        self.id = identifier  # Can be username or email based on user_type
         self.user_type = user_type
-
-
-    
 
 # User Loader Callback
 @login_manager.user_loader
 def load_user(user_id):
-    user = users_collection.find_one({'email': user_id})
+    # Attempt to find the user by username (for employees/admins)
+    user = users_collection.find_one({
+        'username': user_id,
+        'user_type': {'$in': ['employee', 'admin']}
+    })
+    if user:
+        return User(user['username'], user['user_type'])
+    
+    # Attempt to find the user by email (for customers)
+    user = users_collection.find_one({
+        'email': user_id,
+        'user_type': 'customer'
+    })
     if user:
         return User(user['email'], user['user_type'])
+    
     return None
 
 #SINGLE DEFS\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
@@ -191,56 +201,7 @@ def career():
 @app.route('/header')
 def header():
     return render_template('/header.html')
-#Login Route
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    # Check if the user is already logged in
-    if current_user.is_authenticated:
-        # Determine where to redirect based on user_type
-        user_type = current_user.user_type
-        if user_type == 'admin':
-            return redirect(url_for('admin_main'))
-        elif user_type == 'employee':
-            return redirect(url_for('employee_main'))
-        elif user_type == 'customer':
-            return redirect(url_for('customer_home'))
-        else:
-            flash('User type is not recognized.', 'danger')
-            return redirect(url_for('home'))
 
-    if request.method == 'POST':
-        email = request.form['email'].strip().lower()
-        password = request.form['password']
-        next_page = request.form.get('next')
-
-        user = users_collection.find_one({'email': email})
-        
-        if user and bcrypt.check_password_hash(user['password'], password):
-            user_obj = User(user['email'], user.get('user_type', 'customer'))
-            login_user(user_obj)
-            flash('Logged in successfully!', 'success')
-
-            # Determine the redirect target
-            if next_page and is_safe_url(next_page):
-                return redirect(next_page)
-            else:
-                # Redirect based on user type
-                if user['user_type'] == 'admin':
-                    return redirect(url_for('admin_main'))
-                elif user['user_type'] == 'employee':
-                    return redirect(url_for('employee_main'))
-                elif user['user_type'] == 'customer':
-                    return redirect(url_for('customer_home'))
-                else:
-                    flash('User type is not recognized.', 'danger')
-                    return redirect(url_for('login.html'))
-        else:
-            flash('Invalid email or password', 'danger')
-    
-    # For GET requests, render the login form
-    # Optionally, you can handle 'next' from query parameters
-    next_page = request.args.get('next')
-    return render_template('login.html', next=next_page)
 #Logout Route
 @app.route('/logout')
 @login_required
@@ -256,62 +217,75 @@ def protected():
     return "This is a protected page!"
 
 #Account Settings Route
-# app.py (continued)
-
 @app.route('/account_settings', methods=['GET', 'POST'])
 @login_required
 def account_settings():
-    user_email = current_user.id
-    user = users_collection.find_one({'email': user_email})
+    identifier = current_user.id
+    user_type = current_user.user_type
+
+    if user_type in ['employee', 'admin']:
+        user = users_collection.find_one({'username': identifier})
+    elif user_type == 'customer':
+        user = users_collection.find_one({'email': identifier})
+    else:
+        user = None
 
     if not user:
         flash('User not found.', 'danger')
         return redirect(url_for('home'))
 
+    form = UpdateAccountForm()
+
     if request.method == 'POST':
-        # Extract form data
-        name = request.form['name'].strip()
-        phone_number = request.form['phone_number'].strip()
-        street_address = request.form['street_address'].strip()
-        city = request.form['city'].strip()
-        country = request.form['country'].strip()
-        zip_code = request.form['zip_code'].strip()
+        if form.validate_on_submit():
+            # Extract form data
+            name = form.name.data.strip()
+            phone_number = form.phone_number.data.strip()
+            street_address = form.street_address.data.strip()
+            city = form.city.data.strip()
+            country = form.country.data.strip()
+            zip_code = form.zip_code.data.strip()
 
-        # Basic Validation
-        if not name or not phone_number or not street_address or not city or not country or not zip_code:
-            flash('Please fill out all fields.', 'warning')
-            return redirect(url_for('account_settings'))
-        
-        # Optional: Validate Zip Code Format (Example for US ZIP Codes)
-        import re
-        zip_code_pattern = re.compile(r'^\d{5}(-\d{4})?$')  # e.g., 12345 or 12345-6789
-        if not zip_code_pattern.match(zip_code):
-            flash('Invalid zip code format.', 'danger')
-            return redirect(url_for('account_settings'))
+            # Update user information
+            update_fields = {
+                'name': name,
+                'phone_number': phone_number,
+                'address.street_address': street_address,
+                'address.city': city,
+                'address.country': country,
+                'address.zip_code': zip_code
+            }
 
-        # Update user information
-        update_fields = {
-            'name': name,
-            'phone_number': phone_number,
-            'address.street_address': street_address,
-            'address.city': city,
-            'address.country': country,
-            'address.zip_code': zip_code
-        }
+            try:
+                if user_type in ['employee', 'admin']:
+                    users_collection.update_one(
+                        {'username': identifier},
+                        {'$set': update_fields}
+                    )
+                elif user_type == 'customer':
+                    users_collection.update_one(
+                        {'email': identifier},
+                        {'$set': update_fields}
+                    )
+                flash('Account settings updated successfully.', 'success')
+                return redirect(url_for('account_settings'))
+            except Exception as e:
+                flash('An error occurred while updating your account settings. Please try again.', 'danger')
+                app.logger.error(f"Error updating user: {e}")
+                return redirect(url_for('account_settings'))
+        else:
+            # Handle form validation errors
+            flash('Please correct the errors in the form.', 'danger')
+    else:
+        # Pre-populate form with existing user data
+        form.name.data = user.get('name', '')
+        form.phone_number.data = user.get('phone_number', '')
+        form.street_address.data = user.get('address', {}).get('street_address', '')
+        form.city.data = user.get('address', {}).get('city', '')
+        form.country.data = user.get('address', {}).get('country', '')
+        form.zip_code.data = user.get('address', {}).get('zip_code', '')
 
-        try:
-            users_collection.update_one(
-                {'email': user_email},
-                {'$set': update_fields}
-            )
-            flash('Account settings updated successfully.', 'success')
-            return redirect(url_for('account_settings'))
-        except Exception as e:
-            flash('An error occurred while updating your account settings. Please try again.', 'danger')
-            app.logger.error(f"Error updating user: {e}")
-            return redirect(url_for('account_settings'))
-
-    return render_template('account_settings.html', user=user)
+    return render_template('account_settings.html', form=form, user=user)
 
 
 #Routes for Employees\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
@@ -427,6 +401,28 @@ def schedule_order(order_id):
         flash('An error occurred while scheduling the order.', 'danger')
         return redirect(url_for('employee_main'))
 
+
+
+# Employee/Admin Login Route
+@app.route('/employee_admin_login', methods=['GET', 'POST'])
+def employee_admin_login():
+    form = EmployeeLoginForm()
+    if form.validate_on_submit():
+        # Authenticate employee or admin using username
+        user = users_collection.find_one({'username': form.username.data, 'user_type': {'$in': ['employee', 'admin']}})
+        if user and bcrypt.check_password_hash(user['password'], form.password.data):
+            user_obj = User(user['username'], user['user_type'])  # Assuming User ID is username
+            login_user(user_obj)
+            flash(f'Logged in successfully as {user["user_type"]}.', 'success')
+            next_page = request.args.get('next')
+            # Redirect to appropriate dashboard
+            if user['user_type'] == 'admin':
+                return redirect(next_page or url_for('admin_main'))
+            else:
+                return redirect(next_page or url_for('employee_main'))
+        else:
+            flash('Invalid username or password.', 'danger')
+    return render_template('employee_admin_login.html', form=form)
 
 #Routes for Customers\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 #Customer Page Route
@@ -564,7 +560,23 @@ def checkout():
             default_service_date=default_service_date
         )
 
-    
+# Customer Login Route
+@app.route('/customer/login', methods=['GET', 'POST'])
+def customer_login():
+    form = CustomerLoginForm()
+    if form.validate_on_submit():
+        # Authenticate customer
+        user = users_collection.find_one({'email': form.email.data, 'user_type': 'customer'})
+        if user and bcrypt.check_password_hash(user['password'], form.password.data):
+            user_obj = User(user['email'], user['user_type'])
+            login_user(user_obj)
+            flash('Logged in successfully as customer.', 'success')
+            next_page = request.args.get('next')
+            return redirect(next_page or url_for('customer_home'))
+        else:
+            flash('Invalid email or password.', 'danger')
+    return render_template('customer/login.html', form=form)
+
 #My Orders Page Routes 
 @app.route('/customer/my_orders')
 @login_required
@@ -587,13 +599,6 @@ def my_orders():
                 order['product_details'].append(product)
     
     return render_template('customer/my_orders.html', orders=user_orders)
-#Registration Route
-@login_manager.user_loader
-def load_user(user_id):
-    user = users_collection.find_one({'email': user_id})
-    if user:
-        return User(user['email'], user.get('user_type', 'customer'))
-    return None
 
 @app.route('/customer/register', methods=['GET', 'POST'])
 def register():
