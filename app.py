@@ -10,7 +10,7 @@ from functools import wraps
 from flask_mail import Mail, Message
 from werkzeug.middleware.proxy_fix import ProxyFix
 from bson.objectid import ObjectId, InvalidId
-from urllib.parse import urlparse, urljoin
+from urllib.parse import urlparse, urljoin, quote_plus
 from datetime import datetime, timedelta
 from dateutil import parser
 import phonenumbers
@@ -54,6 +54,12 @@ products_collection = db["products"]
 orders_collection = db['orders']
 
 
+@app.template_filter('urlencode')
+def urlencode_filter(s):
+    if isinstance(s, str):
+        return quote_plus(s)
+    else:
+        return s
 
 
 # Initialize Flask-Login
@@ -361,41 +367,62 @@ def employee_main():
 #My schedule route
 @app.route('/employee/my_schedule')
 @login_required
-@employee_required  # Ensure this decorator is correctly implemented
+@employee_required
 def my_schedule():
     try:
-        # Determine the unique identifier for the current employee
-        # Replace 'username' with the appropriate attribute if different
-        employee_identifier = current_user.id  # e.g., 'john_doe'
+        # Fetch scheduled orders assigned to the current employee
+        filter_query = {'status': 'scheduled', 'scheduled_by': current_user.id}
+        orders = list(orders_collection.find(filter_query).sort('service_date', 1))
 
-        # Define the filter to fetch orders with status 'scheduled' and scheduled_by current employee
-        filter_query = {
-            'status': 'scheduled',
-            'scheduled_by': employee_identifier
-        }
-
-        # Fetch all matching orders sorted by service_date ascending
-        scheduled_orders_cursor = orders_collection.find(filter_query).sort('service_date', 1)
-
-        scheduled_orders = list(scheduled_orders_cursor)
-
-        # Enrich orders with product details
-        for order in scheduled_orders:
+        # Enrich orders with product and address details
+        for order in orders:
+            # Fetch product details
             product_ids = [ObjectId(pid) for pid in order.get('products', [])]
             products = list(products_collection.find({'_id': {'$in': product_ids}}))
             order['product_details'] = products
 
-            # Format dates if necessary
-            if isinstance(order.get('order_date'), str):
+            # Ensure dates are datetime objects
+            if isinstance(order['order_date'], str):
                 order['order_date'] = datetime.strptime(order['order_date'], '%Y-%m-%d %H:%M:%S')
-            if isinstance(order.get('service_date'), str):
+            if isinstance(order['service_date'], str):
                 order['service_date'] = datetime.strptime(order['service_date'], '%Y-%m-%d')
 
-        return render_template('employee/my_schedule.html', orders=scheduled_orders)
+            # Include address details
+            if order.get('guest_address'):
+                # For guest orders
+                order['address'] = order['guest_address']
+            elif order.get('user'):
+                # For registered user orders, fetch the user's address from the users_collection
+                user = users_collection.find_one({'email': order['user']})
+                if user and 'address' in user:
+                    order['address'] = user['address']
+                else:
+                    order['address'] = None
+            else:
+                order['address'] = None  # Or handle as needed
+
+            # Construct full address string
+            if order['address']:
+                address_components = [
+                    order['address'].get('street_address'),
+                    order['address'].get('unit_apt'),
+                    order['address'].get('city'),
+                    order['address'].get('country'),
+                    order['address'].get('zip_code')
+                ]
+                # Filter out empty components and join them
+                full_address = ', '.join(filter(None, address_components))
+                order['full_address'] = full_address
+            else:
+                order['full_address'] = None
+
+        return render_template('employee/my_schedule.html', orders=orders)
     except Exception as e:
-        current_app.logger.error(f"Error fetching scheduled orders: {e}")
-        flash('An error occurred while fetching your scheduled orders.', 'danger')
-        return redirect(url_for('employee_main'))
+        current_app.logger.error(f"Error fetching schedule: {e}")
+        flash('An error occurred while fetching your schedule.', 'danger')
+        return redirect(url_for('home'))
+
+
 
 #Schedule order route
 @app.route('/employee/order/<order_id>/schedule', methods=['POST'])

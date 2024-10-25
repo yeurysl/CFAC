@@ -23,8 +23,8 @@
                             <div class="row mb-3">
                                 <div class="col-md-6">
                                     <!-- Repositioned "Placed on" to appear above "Service Date" -->
-                                    <p><strong>Placed on:</strong> {{ order.order_date.strftime('%B, %d, %Y %H:%M') }}</p>
-                                    <p><strong>Service Date:</strong> {{ order.service_date.strftime('%B, %d, %Y') }}</p>
+                                    <p><strong>Placed on:</strong> {{ order.order_date.strftime('%B %d, %Y %I:%M %p') }}</p>
+                                    <p><strong>Service Date:</strong> {{ order.service_date.strftime('%B %d, %Y') }}</p>
                                     <p><strong>Status:</strong> 
                                         <span class="badge 
                                             {% if order.status.lower() == 'ordered' %}
@@ -41,6 +41,19 @@
                                         </span>
                                     </p>
                                     <p><strong>Scheduled By:</strong> {{ order.scheduled_by }}</p>
+                                    <!-- Display Address -->
+                                    {% if order.full_address %}
+                                        <p>
+                                            <strong>Address:</strong> {{ order.full_address }}
+                                        </p>
+                                        <p>
+                                            <strong>Directions:</strong>
+                                            <a href="https://www.google.com/maps/search/?api=1&query={{ order.full_address | urlencode }}" target="_blank">Google Maps</a> |
+                                            <a href="http://maps.apple.com/?address={{ order.full_address | urlencode }}" target="_blank">Apple Maps</a>
+                                        </p>
+                                    {% else %}
+                                        <p><strong>Address:</strong> Not provided</p>
+                                    {% endif %}
                                 </div>
                                 <div class="col-md-6">
                                     <p><strong>Total Amount:</strong> ${{ "%.2f"|format(order.total) }}</p>
@@ -56,7 +69,7 @@
                                 {% endfor %}
                             </ul>
                         </div>
-                        <!-- Removed Card Footer as per user request -->
+                        <!-- Removed Card Footer as per your request -->
                     </div>
                 {% endfor %}
             </div>
