@@ -5,14 +5,16 @@ from dotenv import load_dotenv
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_wtf import CSRFProtect
 from flask_wtf.csrf import generate_csrf
-from forms import RegistrationForm, RemoveFromCartForm, CustomerLoginForm, EmployeeLoginForm, UpdateAccountForm
+from forms import RegistrationForm, RemoveFromCartForm, CustomerLoginForm, EmployeeLoginForm, UpdateAccountForm, GuestOrderForm
 from functools import wraps
 from flask_mail import Mail, Message
 from werkzeug.middleware.proxy_fix import ProxyFix
-from bson.objectid import ObjectId
+from bson.objectid import ObjectId, InvalidId
 from urllib.parse import urlparse, urljoin
 from datetime import datetime, timedelta
 from dateutil import parser
+import phonenumbers
+from flask import current_app
 import re
 import os
 
@@ -309,7 +311,7 @@ def account_settings():
 @employee_required
 def employee_main():
     try:
-        # Define the filter to fetch only 'ordered' orders
+        # Define the filter to fetch all 'ordered' orders
         filter_query = {'status': 'ordered'}
         
         # Fetch all 'ordered' orders sorted by order_date descending
@@ -317,9 +319,12 @@ def employee_main():
 
         # Enrich orders with user and product details
         for order in orders:
-            # Get user details
-            user = users_collection.find_one({'email': order['user']})
-            order['user_email'] = user['email'] if user else 'Unknown'
+            # Set user_display
+            if order.get('user'):
+                user = users_collection.find_one({'email': order['user']})
+                order['user_display'] = user['email'] if user else 'Unknown'
+            else:
+                order['user_display'] = 'Guest'
 
             # Ensure dates are datetime objects
             if isinstance(order['order_date'], str):
@@ -327,20 +332,33 @@ def employee_main():
             if isinstance(order['service_date'], str):
                 order['service_date'] = datetime.strptime(order['service_date'], '%Y-%m-%d')
 
-            # Get product details
-            product_ids = [ObjectId(pid) for pid in order['products']]
-            products = list(products_collection.find({'_id': {'$in': product_ids}}))
-            order['product_details'] = products
+            # Fetch product details
+            try:
+                # Convert product IDs from strings to ObjectId instances
+                product_ids = []
+                for pid in order.get('products', []):
+                    try:
+                        product_ids.append(ObjectId(pid))
+                    except InvalidId as e:
+                        current_app.logger.error(f"Invalid product ID {pid} in order {order['_id']}: {e}")
+
+                # Fetch products from the products_collection
+                if product_ids:
+                    products = list(products_collection.find({'_id': {'$in': product_ids}}))
+                else:
+                    products = []
+
+                order['product_details'] = products
+            except Exception as e:
+                current_app.logger.error(f"Error fetching products for order {order['_id']}: {e}")
+                order['product_details'] = []
 
         return render_template('employee/main.html', orders=orders)
     except Exception as e:
-        app.logger.error(f"Error fetching orders: {e}")
+        current_app.logger.error(f"Error fetching orders: {e}")
         flash('An error occurred while fetching orders.', 'danger')
         return redirect(url_for('home'))
-
-
-
-
+#My schedule route
 @app.route('/employee/my_schedule')
 @login_required
 @employee_required  # Ensure this decorator is correctly implemented
@@ -379,7 +397,7 @@ def my_schedule():
         flash('An error occurred while fetching your scheduled orders.', 'danger')
         return redirect(url_for('employee_main'))
 
-
+#Schedule order route
 @app.route('/employee/order/<order_id>/schedule', methods=['POST'])
 @login_required
 @employee_required  # Assuming you have this decorator defined
@@ -437,6 +455,81 @@ def employee_admin_login():
         else:
             flash('Invalid username or password.', 'danger')
     return render_template('employee_admin_login.html', form=form)
+#Schedule Guest Order Route
+@app.route('/employee/schedule_guest_order', methods=['GET', 'POST'])
+@login_required
+@employee_required  # Ensure this decorator is defined
+def schedule_guest_order():
+    form = GuestOrderForm()
+    
+    # Populate product choices from the database
+    products = list(products_collection.find())
+    form.products.choices = [(str(product['_id']), product['name']) for product in products]
+    
+    if form.validate_on_submit():
+        try:
+            # Capture guest information
+            guest_name = form.guest_name.data.strip()
+            guest_email = form.guest_email.data.strip().lower() if form.guest_email.data else None
+            guest_phone_number = form.guest_phone_number.data.strip() if form.guest_phone_number.data else None
+            street_address = form.street_address.data.strip()
+            unit_apt = form.unit_apt.data.strip()
+            city = form.city.data.strip()
+            country = form.country.data.strip()
+            zip_code = form.zip_code.data.strip()
+            
+            # Capture order information
+            service_date = form.service_date.data
+            # Convert service_date from date to datetime
+            service_datetime = datetime.combine(service_date, datetime.min.time())
+            selected_product_ids = form.products.data  # List of product ID strings
+            
+            # Convert product IDs to ObjectId
+            product_ids = [ObjectId(pid) for pid in selected_product_ids]
+            
+            # Calculate total amount
+            selected_products = list(products_collection.find({'_id': {'$in': product_ids}}))
+            total_amount = sum(product['price'] for product in selected_products)
+            
+            # Create the order document
+            order = {
+                'user': None,  # No user associated since it's a guest order
+                'is_guest': True,  # Explicitly mark as guest order
+                'guest_name': guest_name,
+                'guest_email': guest_email,
+                'guest_phone_number': guest_phone_number,
+                'guest_address': {
+                    'street_address': street_address,
+                    'unit_apt': unit_apt,
+                    'city': city,
+                    'country': country,
+                    'zip_code': zip_code
+                },
+                'products': selected_product_ids,  # Store as string IDs
+                'total': total_amount,
+                'order_date': datetime.utcnow(),
+                'service_date': service_datetime,  # Use datetime object
+                'status': 'ordered',  # Changed from 'scheduled' to 'ordered'
+                'scheduled_by': current_user.id,  # Employee's identifier
+                'creation_date': datetime.utcnow()
+            }
+            
+            # Insert the order into the database
+            inserted_order = orders_collection.insert_one(order)
+            
+            # Optional: Send confirmation email to guest
+            if guest_email:
+                send_guest_order_confirmation_email(guest_email, order, selected_products)
+            
+            # Flash success message and redirect
+            flash('Guest order scheduled successfully!', 'success')
+            return redirect(url_for('employee_main'))
+        except Exception as e:
+            current_app.logger.error(f"Error scheduling guest order: {e}")
+            flash('An error occurred while scheduling the guest order. Please try again.', 'danger')
+            return redirect(url_for('schedule_guest_order'))
+    
+    return render_template('employee/schedule_guest_order.html', form=form)
 
 #Routes for Customers\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 #Customer Page Route

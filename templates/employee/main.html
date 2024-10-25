@@ -1,3 +1,5 @@
+<!-- templates/employee/main.html -->
+
 {% extends 'base.html' %}
 
 {% block title %}Employee - Main{% endblock %}
@@ -21,14 +23,22 @@
                         <div class="card-header bg-primary text-white">
                             <div class="d-flex justify-content-between align-items-center">
                                 <h5 class="card-title mb-0">Order ID: {{ order._id }}</h5>
-                                <small>Placed on {{ order.order_date.strftime('%Y-%m-%d %H:%M') }}</small>
+                                <small>Placed on {{ order.order_date.strftime('%B %d, %Y %I:%M %p') }}</small>
                             </div>
                         </div>
                         <div class="card-body">
                             <div class="row mb-3">
                                 <div class="col-md-6">
-                                    <p><strong>User Email:</strong> {{ order.user_email }}</p>
-                                    <p><strong>Service Date:</strong> {{ order.service_date.strftime('%Y-%m-%d') }}</p>
+                                    <!-- Display 'Guest' if order is from a guest -->
+                                    <p>
+                                        <strong>User Email:</strong>
+                                        {% if order.user_display == 'Guest' %}
+                                            Guest
+                                        {% else %}
+                                            {{ order.user_display }}
+                                        {% endif %}
+                                    </p>
+                                    <p><strong>Service Date:</strong> {{ order.service_date.strftime('%B %d, %Y') }}</p>
                                     {% if order.status %}
                                         <p><strong>Status:</strong> 
                                             <span class="badge 

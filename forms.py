@@ -1,6 +1,6 @@
 
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SubmitField, SelectField, HiddenField
+from wtforms import StringField, PasswordField, SubmitField, SelectField, HiddenField, SelectMultipleField, DateField
 from wtforms.validators import DataRequired, Email, EqualTo, Length, Regexp, Optional
 
 
@@ -103,3 +103,73 @@ class UpdateAccountForm(FlaskForm):
         Regexp(r'^\d{5}(-\d{4})?$', message="Zip code must be in the format 12345 or 12345-6789.")
     ])
     submit = SubmitField('Update')
+
+
+class GuestOrderForm(FlaskForm):
+    # Guest Information
+    guest_name = StringField('Guest Name', validators=[
+        DataRequired(message="Guest Name is required."),
+        Length(min=2, max=100, message="Guest Name must be between 2 and 100 characters.")
+    ])
+    guest_email = StringField('Guest Email', validators=[
+        Optional(),
+        Email(message="Invalid email address."),
+        Length(max=100, message="Guest Email must be less than 100 characters.")
+    ])
+    guest_phone_number = StringField('Guest Phone Number', validators=[
+        Optional(),
+        Regexp(r'^\+?1?\d{9,15}$', message="Phone number must be entered in the format: '+999999999'. Up to 15 digits allowed."),
+        Length(max=20, message="Guest Phone Number must be less than 20 characters.")
+    ])
+    
+    # Guest Address
+    street_address = StringField('Street Address', validators=[
+        DataRequired(message="Street Address is required."),
+        Length(min=5, max=200, message="Street Address must be between 5 and 200 characters.")
+    ])
+    unit_apt = StringField('Unit/Apt (Optional)', validators=[
+        Optional(),
+        Length(max=50, message="Unit/Apt must be less than 50 characters.")
+    ])
+    city = StringField('City', validators=[
+        DataRequired(message="City is required."),
+        Length(min=2, max=100, message="City must be between 2 and 100 characters.")
+    ])
+    country = SelectField('Country', choices=[
+        ('', 'Select your country'),
+        ('United States', 'United States'),
+        ('Canada', 'Canada'),
+        ('United Kingdom', 'United Kingdom'),
+        ('Australia', 'Australia'),
+        # Add more countries as needed
+    ], validators=[DataRequired(message="Country is required.")])
+    zip_code = StringField('Zip Code', validators=[
+        DataRequired(message="Zip Code is required."),
+        Regexp(r'^\d{5}(-\d{4})?$', message="Zip code must be in the format 12345 or 12345-6789."),
+        Length(max=20, message="Zip Code must be less than 20 characters.")
+    ])
+    
+    # Order Information
+    service_date = DateField('Service Date', validators=[
+        DataRequired(message="Service Date is required.")
+    ], format='%Y-%m-%d')
+    products = SelectMultipleField('Select Products', validators=[
+        DataRequired(message="At least one product must be selected.")
+    ], coerce=str)
+    
+    submit = SubmitField('Schedule Guest Order')
+    
+    def validate(self, *args, **kwargs):
+        """Override the default validate method to add custom validation."""
+        # First, run the default validators with all arguments
+        if not super(GuestOrderForm, self).validate(*args, **kwargs):
+            return False
+        
+        # Custom Validation: Ensure at least one contact method is provided
+        if not self.guest_email.data and not self.guest_phone_number.data:
+            error_message = 'Please provide at least an email or a phone number for the guest.'
+            self.guest_email.errors.append(error_message)
+            self.guest_phone_number.errors.append(error_message)
+            return False
+        
+        return True

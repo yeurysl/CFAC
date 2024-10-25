@@ -1,0 +1,207 @@
+
+{% extends 'base.html' %}
+
+{% block title %}Schedule Guest Order{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <h2>Schedule Guest Order</h2>
+    <form method="POST" action="{{ url_for('schedule_guest_order') }}" id="guestOrderForm">
+        {{ form.hidden_tag() }}
+        
+        <!-- Guest Information -->
+        <div class="card mb-4">
+            <div class="card-header bg-secondary text-white">
+                Guest Information
+            </div>
+            <div class="card-body">
+                <div class="form-group">
+                    {{ form.guest_name.label(class="form-label") }}
+                    {{ form.guest_name(class="form-control", id="guest_name") }}
+                    {% for error in form.guest_name.errors %}
+                        <span class="text-danger">{{ error }}</span>
+                    {% endfor %}
+                </div>
+                
+                <div class="form-group">
+                    {{ form.guest_email.label(class="form-label") }}
+                    {{ form.guest_email(class="form-control", id="guest_email") }}
+                    {% for error in form.guest_email.errors %}
+                        <span class="text-danger">{{ error }}</span>
+                    {% endfor %}
+                </div>
+                
+                <div class="form-group">
+                    {{ form.guest_phone_number.label(class="form-label") }}
+                    {{ form.guest_phone_number(class="form-control", id="guest_phone_number") }}
+                    {% for error in form.guest_phone_number.errors %}
+                        <span class="text-danger">{{ error }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Guest Address -->
+        <div class="card mb-4">
+            <div class="card-header bg-secondary text-white">
+                Guest Address
+            </div>
+            <div class="card-body">
+                <div class="form-group">
+                    {{ form.street_address.label(class="form-label") }}
+                    {{ form.street_address(class="form-control", id="street_address") }}
+                    {% for error in form.street_address.errors %}
+                        <span class="text-danger">{{ error }}</span>
+                    {% endfor %}
+                </div>
+                
+                <div class="form-group">
+                    {{ form.unit_apt.label(class="form-label") }}
+                    {{ form.unit_apt(class="form-control", id="unit_apt") }}
+                    {% for error in form.unit_apt.errors %}
+                        <span class="text-danger">{{ error }}</span>
+                    {% endfor %}
+                </div>
+                
+                <div class="form-group">
+                    {{ form.city.label(class="form-label") }}
+                    {{ form.city(class="form-control", id="city") }}
+                    {% for error in form.city.errors %}
+                        <span class="text-danger">{{ error }}</span>
+                    {% endfor %}
+                </div>
+                
+                <div class="form-group">
+                    {{ form.country.label(class="form-label") }}
+                    {{ form.country(class="form-control", id="country") }}
+                    {% for error in form.country.errors %}
+                        <span class="text-danger">{{ error }}</span>
+                    {% endfor %}
+                </div>
+                
+                <div class="form-group">
+                    {{ form.zip_code.label(class="form-label") }}
+                    {{ form.zip_code(class="form-control", id="zip_code") }}
+                    {% for error in form.zip_code.errors %}
+                        <span class="text-danger">{{ error }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Order Information -->
+        <div class="card mb-4">
+            <div class="card-header bg-secondary text-white">
+                Order Information
+            </div>
+            <div class="card-body">
+                <div class="form-group">
+                    {{ form.service_date.label(class="form-label") }}
+                    {{ form.service_date(class="form-control", type="date", id="service_date") }}
+                    {% for error in form.service_date.errors %}
+                        <span class="text-danger">{{ error }}</span>
+                    {% endfor %}
+                </div>
+                
+                <div class="form-group">
+                    {{ form.products.label(class="form-label") }}
+                    {{ form.products(class="form-control", multiple=True, size=5, id="products") }}
+                    {% for error in form.products.errors %}
+                        <span class="text-danger">{{ error }}</span>
+                    {% endfor %}
+                    <small class="form-text text-muted">Hold down the Ctrl (Windows) or Command (Mac) button to select multiple products.</small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Submit Button -->
+        <button type="submit" class="btn btn-primary">Schedule Order</button>
+        <a href="{{ url_for('employee_main') }}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+
+<!-- JavaScript for Local Storage Handling -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('guestOrderForm');
+        const fields = [
+            'guest_name',
+            'guest_email',
+            'guest_phone_number',
+            'street_address',
+            'unit_apt',
+            'city',
+            'country',
+            'zip_code',
+            'service_date',
+            'products'
+        ];
+
+        // Function to save form data to Local Storage
+        function saveFormData() {
+            fields.forEach(function(field) {
+                const element = document.getElementById(field);
+                if (element) {
+                    if (element.tagName === 'SELECT' && element.hasAttribute('multiple')) {
+                        let selected = [];
+                        for (let option of element.options) {
+                            if (option.selected) {
+                                selected.push(option.value);
+                            }
+                        }
+                        localStorage.setItem(field, JSON.stringify(selected));
+                    } else {
+                        localStorage.setItem(field, element.value);
+                    }
+                }
+            });
+        }
+
+        // Function to load form data from Local Storage
+        function loadFormData() {
+            fields.forEach(function(field) {
+                const element = document.getElementById(field);
+                if (element) {
+                    const savedData = localStorage.getItem(field);
+                    if (savedData) {
+                        if (element.tagName === 'SELECT' && element.hasAttribute('multiple')) {
+                            const selectedValues = JSON.parse(savedData);
+                            for (let option of element.options) {
+                                option.selected = selectedValues.includes(option.value);
+                            }
+                        } else {
+                            element.value = savedData;
+                        }
+                    }
+                }
+            });
+        }
+
+        // Function to clear form data from Local Storage
+        function clearFormData() {
+            fields.forEach(function(field) {
+                localStorage.removeItem(field);
+            });
+        }
+
+        // Load saved form data when the page loads
+        loadFormData();
+
+        // Save form data on input change
+        fields.forEach(function(field) {
+            const element = document.getElementById(field);
+            if (element) {
+                element.addEventListener('input', saveFormData);
+                if (element.tagName === 'SELECT' && element.hasAttribute('multiple')) {
+                    element.addEventListener('change', saveFormData);
+                }
+            }
+        });
+
+        // Clear form data from Local Storage upon successful form submission
+        form.addEventListener('submit', function() {
+            clearFormData();
+        });
+    });
+</script>
+{% endblock %}
