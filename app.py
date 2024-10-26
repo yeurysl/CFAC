@@ -929,7 +929,7 @@ def register():
         # Check if email already exists
         if users_collection.find_one({'email': email}):
             flash('Email already registered. Please log in.', 'danger')
-            return redirect(url_for('login'))
+            return redirect(url_for('customer_login'))
         
         # Hash the password
         hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
