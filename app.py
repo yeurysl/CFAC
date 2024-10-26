@@ -9,6 +9,7 @@ from forms import RegistrationForm, RemoveFromCartForm, CustomerLoginForm, Emplo
 from functools import wraps
 from flask_mail import Mail, Message
 from werkzeug.middleware.proxy_fix import ProxyFix
+from werkzeug.security import generate_password_hash, check_password_hash
 from bson.objectid import ObjectId, InvalidId
 from urllib.parse import urlparse, urljoin, quote_plus
 from datetime import datetime, timedelta, time
