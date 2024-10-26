@@ -130,6 +130,41 @@ def load_user(user_id):
 
 #SINGLE DEFS\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
+
+# For Currency Format
+def currency_format(value):
+    """
+    Formats a float value as currency.
+    Example: 29.99 -> $29.99
+    """
+    try:
+        value = float(value)
+        if value < 0:
+            return "-${:,.2f}".format(abs(value))
+        return "${:,.2f}".format(value)
+    except (ValueError, TypeError):
+        return value  # Return the original value if conversion fails
+
+# Register the currency filter
+app.jinja_env.filters['currency'] = currency_format
+
+# For Date Format
+def format_date_with_suffix(date):
+    """
+    Formats a datetime object into 'Month DaySuffix Year' format.
+    Example: October 10th 2024
+    """
+    if not isinstance(date, datetime):
+        return date  # Return as-is if not a datetime object
+
+    day = date.day
+    suffix = 'th' if 11 <= day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(day % 10, 'th')
+    formatted_date = date.strftime(f'%B {day}{suffix} %Y')
+    return formatted_date
+
+# Register the date format filter
+app.jinja_env.filters['format_date'] = format_date_with_suffix
+
 #FORLOGINS
 def admin_required(f):
     @wraps(f)
@@ -909,97 +944,204 @@ def my_orders():
 
 
 #Customer Register Route
+
 @app.route('/customer/register', methods=['GET', 'POST'])
 def register():
-    form = RegistrationForm()
-    next_page = request.args.get('next')
-    
+    form = RegistrationForm()  # Ensure you have a RegistrationForm defined
     if form.validate_on_submit():
-        # Extract form data
-        email = form.email.data.strip().lower()
+        email = form.email.data.lower().strip()
         password = form.password.data
-        name = form.name.data.strip()
-        phone_number = form.phone_number.data.strip()
-        street_address = form.street_address.data.strip()
-        city = form.city.data.strip()
-        country = form.country.data.strip()
-        zip_code = form.zip_code.data.strip()
-        unit_apt = form.unit_apt.data.strip() 
-        
-        # Check if email already exists
-        if users_collection.find_one({'email': email}):
+        # Add other form fields as necessary
+
+        # Check if the email already exists
+        existing_user = users_collection.find_one({'email': email})
+        if existing_user:
             flash('Email already registered. Please log in.', 'danger')
-            return redirect(url_for('customer_login'))
-        
-        # Hash the password
-        hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
-        
-      # Create the user document
+            logger.warning(f"Attempted duplicate registration for email: {email}")
+            return redirect(url_for('customer_login'))  # Ensure 'customer_login' route exists
+
+        # Proceed to create a new user
+        hashed_pw = generate_password_hash(password)
         user = {
             'email': email,
-            'password': hashed_password,
-            'user_type': 'customer',
-            'name': name,
-            'phone_number': phone_number,
-            'address': {
-                'street_address': street_address,
-                'unit_apt': unit_apt,
-                'city': city,
-                'country': country,
-                'zip_code': zip_code
-            },
-            'creation_date': datetime.utcnow()  
+            'password': hashed_pw,
+            # Include other necessary fields like name, etc.
         }
+
         try:
             users_collection.insert_one(user)
-            flash('Account created successfully!', 'success')
-            
-            # Automatically log in the user after registration
-            user_obj = User(user['email'], user['user_type'])
+            flash('Account created successfully! Please log in.', 'success')
+            logger.info(f"New user created: {email}")
+
+            # Optionally, log the user in immediately
+            user_obj = User(user['email'], user.get('user_type', 'customer'))  # Ensure you have a User class
             login_user(user_obj)
-            
-            # Redirect based on 'next' parameter
-            if next_page and is_safe_url(next_page):
-                return redirect(next_page)
-            else:
-                return redirect(url_for('customer_home'))
+
+            return redirect(url_for('customer_home'))  # Redirect to a home/dashboard page
+        except DuplicateKeyError:
+            flash('Email already registered. Please log in.', 'danger')
+            logger.warning(f"Duplicate key error on registration for email: {email}")
+            return redirect(url_for('customer_login'))
         except Exception as e:
             flash('An error occurred while creating your account. Please try again.', 'danger')
-            app.logger.error(f"Error inserting user: {e}")
+            logger.error(f"Error creating user {email}: {e}")
             return redirect(url_for('register'))
-    
-    return render_template('customer/register.html', form=form, next=next_page)
+
+    return render_template('customer/register.html', form=form)
 #Routes For Admin\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-#Admin Page Routes
+#Admin Page Route
 @app.route('/admin/main')
 @login_required
 @admin_required
 def admin_main():
-    # Fetch all estimate requests
-    requests = list(estimaterequests_collection.find())
+    try:
+        # **1. Fetch All Estimate Requests**
+        requests = list(estimaterequests_collection.find())
 
-    # Fetch all orders from the database
-    orders = list(orders_collection.find().sort('order_date', -1))
+        # **2. Pagination Parameters**
+        page = request.args.get('page', 1, type=int)  # Current page number
+        per_page = 20  # Number of orders per page
 
-    # Enrich orders with user and product details
-    for order in orders:
-        # Get user details
-        user = users_collection.find_one({'email': order['user']})
-        order['user_email'] = user['email'] if user else 'Unknown'
+        # **3. Fetch Total Number of Orders**
+        total_orders = orders_collection.count_documents({})
+        total_pages = (total_orders + per_page - 1) // per_page  # Ceiling division to get total pages
+
+        # **4. Fetch Orders for the Current Page**
+        orders = list(
+            orders_collection.find()
+            .sort('order_date', -1)  # Sort by order_date descending
+            .skip((page - 1) * per_page)  # Skip orders for previous pages
+            .limit(per_page)  # Limit to orders per page
+        )
+
+        # **5. Enrich Orders with Additional Details**
+        for order in orders:
+            # Determine if the order is a guest order or a customer order
+            is_guest = order.get('is_guest', False)
+            order['order_type'] = 'Guest Order' if is_guest else 'Customer Order'
+
+            if is_guest:
+                # For guest orders, fetch the salesperson's details
+                salesperson_id = order.get('salesperson')
+                if salesperson_id:
+                    salesperson = users_collection.find_one({'username': salesperson_id, 'user_type': 'sales'})
+                    order['salesperson_name'] = salesperson.get('name', 'Unknown') if salesperson else 'Unknown'
+                else:
+                    order['salesperson_name'] = 'Not Assigned'
+            else:
+                # For customer orders, fetch the user's email
+                user = users_collection.find_one({'email': order.get('user')})
+                order['user_email'] = user['email'] if user else 'Unknown'
+
+            # Ensure dates are datetime objects
+            for date_field in ['order_date', 'service_date']:
+                if isinstance(order.get(date_field), str):
+                    try:
+                        if date_field == 'service_date':
+                            order[date_field] = datetime.strptime(order[date_field], '%Y-%m-%d')
+                        else:
+                            order[date_field] = datetime.strptime(order[date_field], '%Y-%m-%d %H:%M:%S')
+                    except ValueError:
+                        app.logger.error(f"Invalid {date_field} format for order ID {order.get('_id')}: {order.get(date_field)}")
+                        order[date_field] = None  # Handle invalid date formats as needed
+
+            # Get product details
+            product_ids = [ObjectId(pid) for pid in order.get('products', [])]
+            products = list(products_collection.find({'_id': {'$in': product_ids}}))
+            order['product_details'] = products
+
+        # **6. Pass Variables to the Template**
+        return render_template(
+            'admin/main.html',
+            requests=requests,
+            orders=orders,
+            page=page,
+            per_page=per_page,
+            total_pages=total_pages
+        )
+    except Exception as e:
+        app.logger.error(f"Error in admin_main route: {e}")
+        flash('An error occurred while fetching orders.', 'danger')
+        return redirect(url_for('home'))
+
+
+    
+#View order Route
+
+@app.route('/admin/view_order/<order_id>')
+@login_required
+@admin_required
+def view_order(order_id):
+    try:
+        # Validate and convert the order_id to ObjectId
+        try:
+            order_obj_id = ObjectId(order_id)
+        except InvalidId:
+            flash('Invalid order ID.', 'danger')
+            return redirect(url_for('admin_main'))
+
+        # Fetch the order from the database
+        order = orders_collection.find_one({'_id': order_obj_id})
+        if not order:
+            flash('Order not found.', 'danger')
+            return redirect(url_for('admin_main'))
+
+        # Determine if the order is a guest order or a customer order
+        is_guest = order.get('is_guest', False)
+        order['order_type'] = 'Guest Order' if is_guest else 'Customer Order'
+
+        if is_guest:
+            # For guest orders, fetch the salesperson's details
+            salesperson_id = order.get('salesperson')
+            if salesperson_id:
+                salesperson = users_collection.find_one({'username': salesperson_id, 'user_type': 'sales'})
+                order['salesperson_name'] = salesperson.get('name', 'Unknown') if salesperson else 'Unknown'
+            else:
+                order['salesperson_name'] = 'Not Assigned'
+        else:
+            # For customer orders, fetch the user's details
+            user = users_collection.find_one({'email': order.get('user')})
+            order['user_email'] = user['email'] if user else 'Unknown'
+            order['user_name'] = user.get('name', 'N/A') if user else 'N/A'
+            order['user_phone'] = user.get('phone_number', 'N/A') if user else 'N/A'
+            order['user_address'] = user.get('address', {})
+
+        # Fetch the user who scheduled the order using username
+        scheduled_by_username = order.get('scheduled_by')
+        if scheduled_by_username:
+            scheduled_by_user = users_collection.find_one({'username': scheduled_by_username})
+            if scheduled_by_user:
+                order['scheduled_by_name'] = scheduled_by_user.get('name', 'Unknown')
+                order['scheduled_by_email'] = scheduled_by_user.get('email', 'Unknown')
+            else:
+                order['scheduled_by_name'] = 'Unknown'
+                order['scheduled_by_email'] = 'Unknown'
+        else:
+            order['scheduled_by_name'] = 'Not Scheduled'
+            order['scheduled_by_email'] = ''
 
         # Ensure dates are datetime objects
-        if isinstance(order['order_date'], str):
-            order['order_date'] = datetime.strptime(order['order_date'], '%Y-%m-%d %H:%M:%S')
-        if isinstance(order['service_date'], str):
-            order['service_date'] = datetime.strptime(order['service_date'], '%Y-%m-%d')
+        for date_field in ['order_date', 'service_date']:
+            if isinstance(order.get(date_field), str):
+                try:
+                    if date_field == 'service_date':
+                        order[date_field] = datetime.strptime(order[date_field], '%Y-%m-%d')
+                    else:
+                        order[date_field] = datetime.strptime(order[date_field], '%Y-%m-%d %H:%M:%S')
+                except ValueError:
+                    app.logger.error(f"Invalid {date_field} format for order ID {order.get('_id')}: {order.get(date_field)}")
+                    order[date_field] = None  # Handle invalid date formats as needed
 
-        # Get product details
-        product_ids = [ObjectId(pid) for pid in order['products']]
+        # Fetch product details
+        product_ids = [ObjectId(pid) for pid in order.get('products', [])]
         products = list(products_collection.find({'_id': {'$in': product_ids}}))
         order['product_details'] = products
 
-    # Pass both requests and orders to the template
-    return render_template('admin/main.html', requests=requests, orders=orders)
+        return render_template('admin/view_order.html', order=order)
+    except Exception as e:
+        app.logger.error(f"Error in view_order route: {e}")
+        flash('An error occurred while fetching the order details.', 'danger')
+        return redirect(url_for('admin_main'))
 
 
 #View Users Route
@@ -1035,28 +1177,52 @@ def delete_user(user_id):
 @login_required
 @admin_required
 def manage_users():
-    page = request.args.get('page', 1, type=int)
-    per_page = 20
-    total_users = users_collection.count_documents({})
-    total_pages = (total_users + per_page - 1) // per_page  # Calculate total pages
-    users = list(
-        users_collection.find()
-        .skip((page - 1) * per_page)
-        .limit(per_page)
-    )
-    return render_template(
-        'admin/manage_users.html',
-        users=users,
-        page=page,
-        total_users=total_users,
-        per_page=per_page,
-        total_pages=total_pages  # Pass total_pages to the template
-    )
+    try:
+        # **1. Pagination Parameters**
+        page = request.args.get('page', 1, type=int)
+        per_page = 20
 
+        # **2. Search Parameter (Optional)**
+        search_query = request.args.get('search', '').strip()
 
+        # **3. Build MongoDB Query**
+        query = {}
+        if search_query:
+            # Search by email or ID
+            try:
+                query = {
+                    '$or': [
+                        {'email': {'$regex': search_query, '$options': 'i'}},
+                        {'_id': ObjectId(search_query)}
+                    ]
+                }
+            except InvalidId:
+                # If search_query is not a valid ObjectId, ignore ID search
+                query = {'email': {'$regex': search_query, '$options': 'i'}}
 
+        # **4. Fetch Total Number of Users Matching the Query**
+        total_users = users_collection.count_documents(query)
+        total_pages = (total_users + per_page - 1) // per_page
 
+        # **5. Fetch Users for the Current Page**
+        users = list(
+            users_collection.find(query)
+            .sort('creation_date', -1)  # Sort by creation_date descending
+            .skip((page - 1) * per_page)
+            .limit(per_page)
+        )
 
+        return render_template(
+            'admin/manage_users.html',
+            users=users,
+            page=page,
+            per_page=per_page,
+            total_pages=total_pages
+        )
+    except Exception as e:
+        app.logger.error(f"Error in manage_users route: {e}")
+        flash('An error occurred while fetching users.', 'danger')
+        return redirect(url_for('admin_main'))
 #Extra
 
 @app.before_request
