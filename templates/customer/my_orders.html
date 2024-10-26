@@ -27,6 +27,13 @@
                         Not specified
                     {% endif %}
                     <br>
+                    <strong>Scheduled By:</strong>
+                    {% if order.scheduled_by %}
+                        {{ order.scheduled_by_name }}
+                    {% else %}
+                        Not scheduled yet
+                    {% endif %}
+                    <br>
                     <strong>Total:</strong> ${{ "%.2f"|format(order.total) }} <br>
                     <strong>Status:</strong> {{ order.status if order.status else 'Processing' }}
                 </div>

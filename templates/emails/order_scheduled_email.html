@@ -1,0 +1,72 @@
+<!-- templates/emails/order_scheduled_email.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Your Order Has Been Scheduled!</title>
+    <style>
+        /* Add some basic styling */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            padding: 20px;
+        }
+        .email-container {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 8px;
+            max-width: 600px;
+            margin: auto;
+        }
+        .header {
+            background-color: #007bff;
+            color: #ffffff;
+            padding: 10px;
+            border-radius: 5px 5px 0 0;
+            text-align: center;
+        }
+        .content {
+            padding: 20px;
+        }
+        .footer {
+            text-align: center;
+            color: #777777;
+            font-size: 12px;
+            padding-top: 10px;
+        }
+        .btn {
+            background-color: #28a745;
+            color: #ffffff;
+            padding: 10px 15px;
+            text-decoration: none;
+            border-radius: 5px;
+            display: inline-block;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <h2>Order Scheduled Successfully!</h2>
+        </div>
+        <div class="content">
+            <p>Dear {{ customer_name }},</p>
+            <p>We're pleased to inform you that your order has been scheduled by our technician, {{ tech_name }}. Here are the details:</p>
+            <ul>
+                <li><strong>Order ID:</strong> {{ order._id }}</li>
+                <li><strong>Service Date:</strong> {{ order.service_date.strftime('%B %d, %Y') }}</li>
+                <li><strong>Service Time:</strong> {{ order.service_time | format_time }}</li>
+                <li><strong>Total Amount:</strong> ${{ "%.2f"|format(order.total) }}</li>
+                <li><strong>Status:</strong> {{ order.status.capitalize() }}</li>
+            </ul>
+            <p>If you have any questions or need to make changes to your order, please contact us at support@yourcompany.com.</p>
+            <a href="{{ url_for('my_orders', _external=True) }}" class="btn">View My Orders</a>
+            <p>Thank you for choosing our services!</p>
+        </div>
+        <div class="footer">
+            <p>&copy; {{ current_year }} Your Company Name. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>

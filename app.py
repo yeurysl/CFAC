@@ -328,7 +328,7 @@ def account_settings():
     return render_template('account_settings.html', form=form, user=user)
 
 #Routes for Techs\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-# Routes for Employees
+# Routes for Techs
 @app.route('/tech/main')
 @login_required
 @tech_required
@@ -444,7 +444,7 @@ def my_schedule():
 #Schedule order route
 @app.route('/tech/order/<order_id>/schedule', methods=['POST'])
 @login_required
-@tech_required  # Assuming you have this decorator defined
+@tech_required  # Ensure this decorator is defined
 def schedule_order(order_id):
     try:
         # Fetch the order by ID
@@ -465,12 +465,43 @@ def schedule_order(order_id):
             {
                 '$set': {
                     'status': 'scheduled',
-                    'scheduled_by': current_user.id  # Adjust based on your user model
+                    'scheduled_by': current_user.id  # Assuming 'id' is username for techs
                 }
             }
         )
 
-        flash(f'Order {order_id} has been scheduled successfully by {current_user.id}.', 'success')
+        # Fetch updated order details
+        updated_order = orders_collection.find_one({'_id': ObjectId(order_id)})
+
+        # Determine if the order is a guest order or a registered customer order
+        if updated_order.get('is_guest'):
+            customer_email = updated_order.get('guest_email')
+            customer_name = updated_order.get('guest_name', 'Guest')
+        else:
+            customer_email = updated_order.get('user')
+            # Fetch customer name from users_collection
+            user = users_collection.find_one({'email': customer_email})
+            customer_name = user.get('name', 'Valued Customer') if user else 'Valued Customer'
+
+        # Fetch technician's name
+        scheduled_by_username = updated_order.get('scheduled_by')
+        if scheduled_by_username:
+            tech_user = users_collection.find_one({'username': scheduled_by_username})
+            tech_name = tech_user.get('name', 'Technician') if tech_user else 'Technician'
+        else:
+            tech_name = 'Technician'  # Default value if not found
+
+        # Send email notification if customer_email is available
+        if customer_email:
+            try:
+                send_order_scheduled_email(customer_email, customer_name, updated_order, tech_name)
+                flash(f'Order {order_id} has been scheduled successfully and notification sent to the customer.', 'success')
+            except Exception as e:
+                app.logger.error(f"Failed to send notification email for order {order_id}: {e}")
+                flash(f'Order {order_id} has been scheduled, but failed to send notification email.', 'warning')
+        else:
+            flash(f'Order {order_id} has been scheduled successfully.', 'success')
+
         return redirect(url_for('tech_main'))
     except Exception as e:
         app.logger.error(f"Error scheduling order {order_id}: {e}")
@@ -478,6 +509,36 @@ def schedule_order(order_id):
         return redirect(url_for('tech_main'))
 
 
+#Send scheduled order confirmation to customer 
+# app.py
+
+def send_order_scheduled_email(to_email, customer_name, order, tech_name):
+    """
+    Sends an email notification to the customer when their order is scheduled.
+    
+    Args:
+        to_email (str): Recipient's email address.
+        customer_name (str): Recipient's name.
+        order (dict): Order details.
+        tech_name (str): Name of the technician who scheduled the order.
+    """
+    try:
+        current_year = datetime.utcnow().year  # Calculate current year
+        msg = Message(
+            subject='Your Order Has Been Scheduled!',
+            recipients=[to_email],
+            html=render_template(
+                'emails/order_scheduled_email.html', 
+                customer_name=customer_name, 
+                order=order, 
+                tech_name=tech_name,
+                current_year=current_year  # Pass current_year to the template
+            )
+        )
+        mail.send(msg)
+    except Exception as e:
+        app.logger.error(f"Error sending email to {to_email}: {e}")
+        raise e  # Re-raise the exception to handle it in the calling function
 
 # Employee/Admin Login Route
 @app.route('/tech_admin_login', methods=['GET', 'POST'])
@@ -825,17 +886,28 @@ def my_orders():
         flash('You do not have permission to access this page.', 'danger')
         return redirect(url_for('customer_home'))
     
-    user_orders = list(orders_collection.find({'user': user_email}).sort('date', -1))
+    user_orders = list(orders_collection.find({'user': user_email}).sort('order_date', -1))
     
-    # Enrich orders with product details
+    # Enrich orders with product details and technician's name
     for order in user_orders:
+        # Fetch product details
         order['product_details'] = []
         for product_id in order['products']:
             product = products_collection.find_one({'_id': ObjectId(product_id)})
             if product:
                 order['product_details'].append(product)
+        
+        # Fetch technician's name if the order is scheduled
+        if order.get('status', '').lower() == 'scheduled' and order.get('scheduled_by'):
+            tech_user = users_collection.find_one({'username': order['scheduled_by']})
+            order['scheduled_by_name'] = tech_user.get('name', 'Technician') if tech_user else 'Technician'
+        else:
+            order['scheduled_by_name'] = 'Not scheduled yet'
     
     return render_template('customer/my_orders.html', orders=user_orders)
+
+
+
 #Customer Register Route
 @app.route('/customer/register', methods=['GET', 'POST'])
 def register():
