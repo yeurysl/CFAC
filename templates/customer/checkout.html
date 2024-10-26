@@ -1,5 +1,4 @@
 <!-- templates/customer/checkout.html -->
-
 {% extends 'base.html' %}
 
 {% block title %}Checkout{% endblock %}
@@ -23,7 +22,11 @@
     <!-- Check if User is Logged In and is a Customer -->
     {% if current_user.is_authenticated and current_user.user_type == 'customer' %}
         <!-- User is logged in as a customer, display the checkout form -->
-        <ul class="list-group mb-3">
+        
+
+
+        <!-- Products Summary -->
+        <ul class="list-group mb-4">
             {% for product in products %}
                 <li class="list-group-item d-flex justify-content-between align-items-center">
                     {{ product.name }}
@@ -31,13 +34,17 @@
                 </li>
             {% endfor %}
         </ul>
-        <h4 class="text-end">Total: ${{ "%.2f"|format(total) }}</h4>
+        <h4 class="text-end mb-4">Total: ${{ "%.2f"|format(total) }}</h4>
 
+    
+        <!-- Checkout Form -->
         <form method="post" action="{{ url_for('checkout') }}">
             <!-- Include the CSRF token -->
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="form-group">
-                <label for="service_date">Select Service Date:</label>
+            
+            <!-- Service Date Selection -->
+            <div class="form-group mb-3">
+                <label for="service_date" class="form-label">Select Service Date:</label>
                 <input
                     type="date"
                     id="service_date"
@@ -47,8 +54,34 @@
                     value="{{ default_service_date }}"
                 >
             </div>
-            <!-- Payment fields (e.g., credit card info) should be securely handled -->
-            <!-- For demonstration purposes, we'll simulate payment -->
+            
+            <!-- Service Time Selection -->
+            <div class="form-group mb-3">
+                <label for="service_time" class="form-label">Select Service Time:</label>
+                <input
+                    type="time"
+                    id="service_time"
+                    name="service_time"
+                    class="form-control"
+                    required
+                    min="06:00"
+                    max="16:30"
+                    step="1800"  
+                >
+                <small class="form-text text-muted">Available times: 6:00 AM to 4:30 PM</small>
+            </div>
+            
+            <!-- Payment Method Selection -->
+            <div class="form-group mb-3">
+                <label for="payment_method" class="form-label">Payment Method:</label>
+                <select id="payment_method" name="payment_method" class="form-select" required>
+                    <option value="" disabled selected>Select a payment method</option>
+                    <option value="credit_card">Credit Card</option>
+                    <option value="paypal">PayPal</option>
+                    <!-- Add more payment methods as needed -->
+                </select>
+            </div>
+            
             <button type="submit" class="btn btn-primary">Place Order</button>
         </form>
     {% else %}
@@ -79,5 +112,32 @@
             </div>
         </div>
     {% endif %}
+
+
+        <!-- Service Address Section -->
+        {% if user_address %}
+        <div class="card mb-4 mt-4">
+          
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <!-- Label Column -->
+                    <div class="col-md-4">
+                        <h5 class="service-address-label mb-0">Where we will be servicing:</h5>
+                    </div>
+                    <!-- Address Column -->
+                    <div class="col-md-8">
+                        <p class="service-address-text mb-0">
+                            {{ user_address.street_address }}
+                            {% if user_address.unit_apt %}
+                                , {{ user_address.unit_apt }}
+                            {% endif %},
+                            {{ user_address.city }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
 </div>
 {% endblock %}

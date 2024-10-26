@@ -11,7 +11,7 @@ from flask_mail import Mail, Message
 from werkzeug.middleware.proxy_fix import ProxyFix
 from bson.objectid import ObjectId, InvalidId
 from urllib.parse import urlparse, urljoin, quote_plus
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 from dateutil import parser
 import phonenumbers
 from flask import current_app
@@ -105,17 +105,19 @@ class User(UserMixin):
         self.user_type = user_type
 
 # User Loader Callback
+
+
 @login_manager.user_loader
 def load_user(user_id):
-    # Attempt to find the user by username (for employees/admins)
+    # For admin, tech, and sales users
     user = users_collection.find_one({
         'username': user_id,
-        'user_type': {'$in': ['employee', 'admin']}
+        'user_type': {'$in': ['admin', 'tech', 'sales']}
     })
     if user:
         return User(user['username'], user['user_type'])
     
-    # Attempt to find the user by email (for customers)
+    # For customers
     user = users_collection.find_one({
         'email': user_id,
         'user_type': 'customer'
@@ -124,6 +126,7 @@ def load_user(user_id):
         return User(user['email'], user['user_type'])
     
     return None
+
 
 #SINGLE DEFS\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
@@ -140,13 +143,26 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-def employee_required(f):
+def tech_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not current_user.is_authenticated:
-            flash('Please log in as an employee to access this page.', 'warning')
+            flash('Please log in as a tech to access this page.', 'warning')
             return redirect(url_for('employee_admin_login', next=request.url))
-        if current_user.user_type != 'employee':
+        if current_user.user_type != 'tech':
+            flash('You do not have permission to access this page.', 'danger')
+            return redirect(url_for('home'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+def sales_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated:
+            flash('Please log in as a sales user to access this page.', 'warning')
+            return redirect(url_for('employee_admin_login', next=request.url))
+        if current_user.user_type != 'sales':
             flash('You do not have permission to access this page.', 'danger')
             return redirect(url_for('home'))
         return f(*args, **kwargs)
@@ -239,13 +255,15 @@ def protected():
     return "This is a protected page!"
 
 #Account Settings Route
+
 @app.route('/account_settings', methods=['GET', 'POST'])
 @login_required
 def account_settings():
     identifier = current_user.id
     user_type = current_user.user_type
 
-    if user_type in ['employee', 'admin']:
+    # Updated user_type checks: 'admin', 'tech', 'sales' use 'username'; 'customer' uses 'email'
+    if user_type in ['admin', 'tech', 'sales']:
         user = users_collection.find_one({'username': identifier})
     elif user_type == 'customer':
         user = users_collection.find_one({'email': identifier})
@@ -279,7 +297,7 @@ def account_settings():
             }
 
             try:
-                if user_type in ['employee', 'admin']:
+                if user_type in ['admin', 'tech', 'sales']:
                     users_collection.update_one(
                         {'username': identifier},
                         {'$set': update_fields}
@@ -293,7 +311,7 @@ def account_settings():
                 return redirect(url_for('account_settings'))
             except Exception as e:
                 flash('An error occurred while updating your account settings. Please try again.', 'danger')
-                app.logger.error(f"Error updating user: {e}")
+                current_app.logger.error(f"Error updating user: {e}")
                 return redirect(url_for('account_settings'))
         else:
             # Handle form validation errors
@@ -309,13 +327,12 @@ def account_settings():
 
     return render_template('account_settings.html', form=form, user=user)
 
-
-#Routes for Employees\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+#Routes for Techs\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 # Routes for Employees
-@app.route('/employee/main')
+@app.route('/tech/main')
 @login_required
-@employee_required
-def employee_main():
+@tech_required
+def tech_main():
     try:
         # Define the filter to fetch all 'ordered' orders
         filter_query = {'status': 'ordered'}
@@ -359,15 +376,15 @@ def employee_main():
                 current_app.logger.error(f"Error fetching products for order {order['_id']}: {e}")
                 order['product_details'] = []
 
-        return render_template('employee/main.html', orders=orders)
+        return render_template('tech/main.html', orders=orders)
     except Exception as e:
         current_app.logger.error(f"Error fetching orders: {e}")
         flash('An error occurred while fetching orders.', 'danger')
         return redirect(url_for('home'))
 #My schedule route
-@app.route('/employee/my_schedule')
+@app.route('/tech/my_schedule')
 @login_required
-@employee_required
+@tech_required
 def my_schedule():
     try:
         # Fetch scheduled orders assigned to the current employee
@@ -416,7 +433,7 @@ def my_schedule():
             else:
                 order['full_address'] = None
 
-        return render_template('employee/my_schedule.html', orders=orders)
+        return render_template('tech/my_schedule.html', orders=orders)
     except Exception as e:
         current_app.logger.error(f"Error fetching schedule: {e}")
         flash('An error occurred while fetching your schedule.', 'danger')
@@ -425,9 +442,9 @@ def my_schedule():
 
 
 #Schedule order route
-@app.route('/employee/order/<order_id>/schedule', methods=['POST'])
+@app.route('/tech/order/<order_id>/schedule', methods=['POST'])
 @login_required
-@employee_required  # Assuming you have this decorator defined
+@tech_required  # Assuming you have this decorator defined
 def schedule_order(order_id):
     try:
         # Fetch the order by ID
@@ -435,12 +452,12 @@ def schedule_order(order_id):
 
         if not order:
             flash('Order not found.', 'danger')
-            return redirect(url_for('employee_main'))
+            return redirect(url_for('tech_main'))
 
         # Check if the current status is 'ordered'
         if order.get('status', '').lower() != 'ordered':
             flash('Only orders with status "ordered" can be scheduled.', 'warning')
-            return redirect(url_for('employee_main'))
+            return redirect(url_for('tech_main'))
 
         # Update the status to 'scheduled' and add 'scheduled_by'
         orders_collection.update_one(
@@ -454,38 +471,63 @@ def schedule_order(order_id):
         )
 
         flash(f'Order {order_id} has been scheduled successfully by {current_user.id}.', 'success')
-        return redirect(url_for('employee_main'))
+        return redirect(url_for('tech_main'))
     except Exception as e:
         app.logger.error(f"Error scheduling order {order_id}: {e}")
         flash('An error occurred while scheduling the order.', 'danger')
-        return redirect(url_for('employee_main'))
+        return redirect(url_for('tech_main'))
 
 
 
 # Employee/Admin Login Route
-@app.route('/employee_admin_login', methods=['GET', 'POST'])
-def employee_admin_login():
+@app.route('/tech_admin_login', methods=['GET', 'POST'])
+def tech_admin_login():
     form = EmployeeLoginForm()
     if form.validate_on_submit():
-        # Authenticate employee or admin using username
-        user = users_collection.find_one({'username': form.username.data, 'user_type': {'$in': ['employee', 'admin']}})
+        # Authenticate admin, tech, or sales using username
+        user = users_collection.find_one({
+            'username': form.username.data,
+            'user_type': {'$in': ['admin', 'tech', 'sales']}
+        })
         if user and bcrypt.check_password_hash(user['password'], form.password.data):
-            user_obj = User(user['username'], user['user_type'])  # Assuming User ID is username
+            user_obj = User(user['username'], user['user_type'])
             login_user(user_obj)
             flash(f'Logged in successfully as {user["user_type"]}.', 'success')
             next_page = request.args.get('next')
             # Redirect to appropriate dashboard
             if user['user_type'] == 'admin':
                 return redirect(next_page or url_for('admin_main'))
+            elif user['user_type'] == 'tech':
+                return redirect(next_page or url_for('tech_main'))
+            elif user['user_type'] == 'sales':
+                return redirect(next_page or url_for('sales_main'))
             else:
-                return redirect(next_page or url_for('employee_main'))
+                flash('Invalid user type.', 'danger')
+                return redirect(url_for('tech_admin_login'))
         else:
             flash('Invalid username or password.', 'danger')
-    return render_template('employee_admin_login.html', form=form)
-#Schedule Guest Order Route
-@app.route('/employee/schedule_guest_order', methods=['GET', 'POST'])
+    return render_template('tech_admin_login.html', form=form)
+
+
+
+
+
+
+#Routes for Sales\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+
+@app.route('/sales/main')
 @login_required
-@employee_required  # Ensure this decorator is defined
+@sales_required
+def sales_main():
+
+    return render_template('sales/main.html')
+
+
+#Schedule Guest Order Route
+@app.route('/sales/schedule_guest_order', methods=['GET', 'POST'])
+@login_required
+@sales_required  # Ensure this decorator is defined
 def schedule_guest_order():
     form = GuestOrderForm()
     
@@ -512,11 +554,20 @@ def schedule_guest_order():
             selected_product_ids = form.products.data  # List of product ID strings
             
             # Convert product IDs to ObjectId
-            product_ids = [ObjectId(pid) for pid in selected_product_ids]
+            product_ids = []
+            for pid in selected_product_ids:
+                try:
+                    product_ids.append(ObjectId(pid))
+                except InvalidId:
+                    flash(f"Invalid product ID: {pid}", 'danger')
+                    return redirect(url_for('schedule_guest_order'))
             
             # Calculate total amount
             selected_products = list(products_collection.find({'_id': {'$in': product_ids}}))
-            total_amount = sum(product['price'] for product in selected_products)
+            if not selected_products:
+                flash("No valid products selected.", 'danger')
+                return redirect(url_for('schedule_guest_order'))
+            total_amount = sum(product.get('price', 0) for product in selected_products)
             
             # Create the order document
             order = {
@@ -537,7 +588,7 @@ def schedule_guest_order():
                 'order_date': datetime.utcnow(),
                 'service_date': service_datetime,  # Use datetime object
                 'status': 'ordered',  # Changed from 'scheduled' to 'ordered'
-                'scheduled_by': current_user.id,  # Employee's identifier
+                'salesperson': current_user.id,  # Add 'salesperson' field
                 'creation_date': datetime.utcnow()
             }
             
@@ -549,14 +600,14 @@ def schedule_guest_order():
                 send_guest_order_confirmation_email(guest_email, order, selected_products)
             
             # Flash success message and redirect
-            flash('Guest order scheduled successfully!', 'success')
-            return redirect(url_for('employee_main'))
+            flash(f"Guest order scheduled successfully by {current_user.id}!", 'success')
+            return redirect(url_for('sales_main'))
         except Exception as e:
             current_app.logger.error(f"Error scheduling guest order: {e}")
             flash('An error occurred while scheduling the guest order. Please try again.', 'danger')
             return redirect(url_for('schedule_guest_order'))
     
-    return render_template('employee/schedule_guest_order.html', form=form)
+    return render_template('sales/schedule_guest_order.html', form=form)
 
 #Routes for Customers\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 #Customer Page Route
@@ -577,11 +628,11 @@ def customer_home():
 
 #Cart Page Route
 @app.route('/customer/cart', methods=['GET', 'POST'])
-@customer_required
+@customer_required  # Ensure this decorator is defined and correctly restricts access
 def cart():
     if 'cart' not in session or not session['cart']:
         flash('Your cart is empty.', 'info')
-        return render_template('customer/cart.html', products=[], forms={})
+        return render_template('customer/cart.html', products=[], forms={}, user_address=None)
 
     product_ids = [ObjectId(id) for id in session['cart']]
     products_in_cart = list(products_collection.find({'_id': {'$in': product_ids}}))
@@ -594,6 +645,13 @@ def cart():
         form.product_id.data = str(product['_id'])
         forms[str(product['_id'])] = form
 
+    # Fetch the current user's address
+    user = users_collection.find_one({'email': current_user.id})  # Assuming 'id' is email for customers
+    if user and 'address' in user:
+        user_address = user['address']
+    else:
+        user_address = None  # Handle cases where address might not be available
+
     if request.method == 'POST':
         # Retrieve the product_id from the submitted form
         product_id = request.form.get('product_id')
@@ -604,7 +662,7 @@ def cart():
             flash('Item not found in your cart.', 'warning')
         return redirect(url_for('cart'))
 
-    return render_template('customer/cart.html', products=products_in_cart, total=total, forms=forms)
+    return render_template('customer/cart.html', products=products_in_cart, total=total, forms=forms, user_address=user_address)
 #ATC Route for Function
 @app.route('/customer/add_to_cart/<product_id>')
 @customer_required 
@@ -628,7 +686,7 @@ def products():
 #Checkout Page Route
 @app.route('/customer/checkout', methods=['GET', 'POST'])
 @login_required
-@customer_required
+@customer_required  # Ensure this decorator restricts access to customers
 def checkout():
     if 'cart' not in session or not session['cart']:
         flash('Your cart is empty.', 'info')
@@ -638,26 +696,64 @@ def checkout():
     products_in_cart = list(products_collection.find({'_id': {'$in': product_ids}}))
     total = calculate_cart_total(products_in_cart)
 
+    # Fetch the current user's address
+    user = users_collection.find_one({'email': current_user.id})  # Assuming 'id' is email for customers
+    if user and 'address' in user:
+        user_address = user['address']
+    else:
+        user_address = None  # Handle cases where address might not be available
+
     if request.method == 'POST':
-        # Retrieve service date from the form
+        # Retrieve service date and time from the form
         service_date_str = request.form.get('service_date')
+        service_time_str = request.form.get('service_time')
+        payment_method = request.form.get('payment_method')
+
+        # Validate service date
         if not service_date_str:
             flash('Please select a service date.', 'warning')
             return redirect(url_for('checkout'))
 
-        # Validate and parse the service date
         try:
-            service_date = datetime.strptime(service_date_str, '%Y-%m-%d')
-            now = datetime.now()
-            if service_date.date() < now.date():
+            service_date = datetime.strptime(service_date_str, '%Y-%m-%d').date()
+            today = datetime.now().date()
+            if service_date < today:
                 flash('Service date cannot be in the past.', 'danger')
                 return redirect(url_for('checkout'))
         except ValueError:
-            flash('Invalid date format.', 'danger')
+            flash('Invalid service date format.', 'danger')
+            return redirect(url_for('checkout'))
+
+        # Validate service time
+        if not service_time_str:
+            flash('Please select a service time.', 'warning')
+            return redirect(url_for('checkout'))
+
+        try:
+            # Convert service_time_str to a time object
+            service_time = datetime.strptime(service_time_str, '%H:%M').time()
+
+            # Define allowed time range
+            min_time = time(6, 0)    # 6:00 AM
+            max_time = time(16, 30)  # 4:30 PM
+
+            if not (min_time <= service_time <= max_time):
+                flash('Service time must be between 6:00 AM and 4:30 PM.', 'danger')
+                return redirect(url_for('checkout'))
+        except ValueError:
+            flash('Invalid service time format.', 'danger')
+            return redirect(url_for('checkout'))
+
+        # Validate payment method
+        if not payment_method:
+            flash('Please select a payment method.', 'warning')
             return redirect(url_for('checkout'))
 
         # Determine initial status
         initial_status = 'ordered'  # Default status for new orders
+
+        # Convert service_date to datetime.datetime
+        service_datetime = datetime.combine(service_date, service_time)
 
         # Process the order
         order = {
@@ -665,12 +761,20 @@ def checkout():
             'products': session['cart'],
             'total': total,
             'order_date': datetime.now(),
-            'service_date': service_date,
-            'status': initial_status  # Add the status field
+            'service_date': service_datetime,  # Now a datetime.datetime object
+            'service_time': service_time_str,  # Stored as 'HH:MM' string
+            'payment_method': payment_method,
+            'status': initial_status,
+            'address': {
+                'street_address': user_address.get('street_address') if user_address else '',
+                'unit_apt': user_address.get('unit_apt') if user_address else '',
+                'city': user_address.get('city') if user_address else ''
+            },
+            'creation_date': datetime.utcnow()
         }
         orders_collection.insert_one(order)
 
-        # Send confirmation email
+        # Optional: Send confirmation email
         try:
             send_order_confirmation_email(current_user.id, order, products_in_cart)
             flash('Your order has been placed successfully!', 'success')
@@ -689,7 +793,8 @@ def checkout():
             'customer/checkout.html',
             products=products_in_cart,
             total=total,
-            default_service_date=default_service_date
+            default_service_date=default_service_date,
+            user_address=user_address  # Pass user_address to the template
         )
 
 # Customer Login Route
@@ -731,7 +836,7 @@ def my_orders():
                 order['product_details'].append(product)
     
     return render_template('customer/my_orders.html', orders=user_orders)
-
+#Customer Register Route
 @app.route('/customer/register', methods=['GET', 'POST'])
 def register():
     form = RegistrationForm()
@@ -899,6 +1004,16 @@ def is_safe_url(target):
     return test_url.scheme in ('http', 'https') and ref_url.netloc == test_url.netloc
 
 
+@app.template_filter('format_time')
+def format_time_filter(time_str):
+    """
+    Converts a 'HH:MM' string into 'h:MM AM/PM' format.
+    """
+    try:
+        time_obj = datetime.strptime(time_str, '%H:%M')
+        return time_obj.strftime('%I:%M %p').lstrip('0')  # Removes leading zero
+    except (ValueError, TypeError):
+        return 'Invalid Time'
 
 if __name__ == '__main__':
     app.run(debug=True)

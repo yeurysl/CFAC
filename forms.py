@@ -138,10 +138,7 @@ class GuestOrderForm(FlaskForm):
     country = SelectField('Country', choices=[
         ('', 'Select your country'),
         ('United States', 'United States'),
-        ('Canada', 'Canada'),
-        ('United Kingdom', 'United Kingdom'),
-        ('Australia', 'Australia'),
-        # Add more countries as needed
+     
     ], validators=[DataRequired(message="Country is required.")])
     zip_code = StringField('Zip Code', validators=[
         DataRequired(message="Zip Code is required."),

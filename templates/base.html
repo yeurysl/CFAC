@@ -20,19 +20,20 @@
     <!-- Header -->
 
     {% if current_user.is_authenticated %}
-                {% if current_user.user_type == 'admin' %}
-                    {% include '/admin/header.html' %}
-                {% elif current_user.user_type == 'employee' %}
-                    {% include 'employee/header.html' %}
-                {% elif current_user.user_type == 'customer' %}
-                    {% include 'customer/header.html' %}
-                {% else %}
-                    {% include 'header_regular.html' %}
-                {% endif %}
-            {% else %}
-                {% include 'header_regular.html' %}
-            
-            {% endif %}
+    {% if current_user.user_type == 'admin' %}
+        {% include 'admin/header.html' %}
+    {% elif current_user.user_type == 'tech' %}
+        {% include 'tech/header.html' %}
+    {% elif current_user.user_type == 'sales' %}
+        {% include 'sales/header.html' %}
+    {% elif current_user.user_type == 'customer' %}
+        {% include 'customer/header.html' %}
+    {% else %}
+        {% include 'header_regular.html' %}
+    {% endif %}
+{% else %}
+    {% include 'header_regular.html' %}
+{% endif %}
 
 
     <!-- Flash Messages -->

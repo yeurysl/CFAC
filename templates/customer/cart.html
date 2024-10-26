@@ -1,5 +1,4 @@
 <!-- templates/customer/cart.html -->
-
 {% extends 'base.html' %}
 
 {% block title %}Your Cart{% endblock %}
@@ -20,7 +19,7 @@
                 {% for product in products %}
                 <tr>
                     <td>{{ product.name }}</td>
-                    <td>${{ product.price }}</td>
+                    <td>${{ "%.2f"|format(product.price) }}</td>
                     <td>
                         <!-- Render the form for this product -->
                         <form method="POST" action="{{ url_for('cart') }}" onsubmit="return confirm('Are you sure you want to remove this item from your cart?');">
@@ -33,8 +32,34 @@
                 {% endfor %}
             </tbody>
         </table>
+        
+        <!-- Display the Service Address -->
+        {% if user_address %}
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <!-- Label Column -->
+                    <div class="col-md-4">
+                        <h5 class="service-address-label mb-0">Where we will be servicing:</h5>
+                    </div>
+                    <!-- Address Column -->
+                    <div class="col-md-8">
+                        <p class="service-address-text mb-0">
+                            {{ user_address.street_address }}
+                            {% if user_address.unit_apt %}
+                                , {{ user_address.unit_apt }}
+                            {% endif %},
+                            {{ user_address.city }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+    
+        
         <a href="{{ url_for('customer_home') }}" class="btn btn-secondary mb-3">Add more services</a>
-        <h3>Total: ${{ total }}</h3>
+        <h3>Total: ${{ "%.2f"|format(total) }}</h3>
         <a href="{{ url_for('checkout') }}" class="btn btn-primary">Proceed to Checkout</a>
     {% else %}
     <p>Your cart is empty.</p>

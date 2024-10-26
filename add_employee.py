@@ -37,7 +37,7 @@ def is_valid_username(username):
 
 def add_user():
     # Email
-    email = input("Enter new employee's email: ").strip().lower()
+    email = input("Enter new user's email: ").strip().lower()
     if not email:
         print("Email cannot be empty.")
         return
@@ -52,7 +52,7 @@ def add_user():
         return
 
     # Username
-    username = input("Enter new employee's username: ").strip()
+    username = input("Enter new user's username: ").strip()
     if not username:
         print("Username cannot be empty.")
         return
@@ -66,16 +66,14 @@ def add_user():
         print(f"The username '{username}' is already taken.")
         return
 
-    # First Name
-    full_name = input("Enter new employee's full name: ").strip()
+    # Full Name
+    full_name = input("Enter new user's full name: ").strip()
     if not full_name:
-        print("First name cannot be empty.")
+        print("Full name cannot be empty.")
         return
 
-
-
     # Securely get the password without echoing
-    password = getpass.getpass("Enter new employee's password: ").strip()
+    password = getpass.getpass("Enter new user's password: ").strip()
     confirm_password = getpass.getpass("Confirm password: ").strip()
 
     if not password:
@@ -92,9 +90,9 @@ def add_user():
         return
 
     # Prompt for user type
-    user_type = input("Enter user type (admin/employee): ").strip().lower()
-    if user_type not in ['admin', 'employee']:
-        print("Invalid user type. Must be 'admin' or 'employee'.")
+    user_type = input("Enter user type (admin/tech/sales): ").strip().lower()
+    if user_type not in ['admin', 'tech', 'sales']:
+        print("Invalid user type. Must be 'admin', 'tech', or 'sales'.")
         return
 
     # Hash the password
@@ -102,18 +100,18 @@ def add_user():
 
     # Create a new user document
     user = {
-    'email': email,
-    'username': username,
-    'password': hashed_password,
-    'user_type': user_type,
-    'full_name': full_name,
-    'creation_date': datetime.utcnow()  # Add this line
+        'email': email,
+        'username': username,
+        'password': hashed_password,
+        'user_type': user_type,
+        'full_name': full_name,
+        'creation_date': datetime.utcnow()
     }
 
     # Insert the user into the collection
     try:
         users_collection.insert_one(user)
-        print(f"Employee '{email}' added successfully as a '{user_type}'!")
+        print(f"User '{email}' added successfully as a '{user_type}'!")
     except Exception as e:
         print("An error occurred while adding the user:", e)
 

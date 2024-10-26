@@ -20,6 +20,13 @@
                         Not specified
                     {% endif %}
                     <br>
+                    <strong>Service Time:</strong>
+                    {% if order.service_time %}
+                        {{ order.service_time | format_time }}
+                    {% else %}
+                        Not specified
+                    {% endif %}
+                    <br>
                     <strong>Total:</strong> ${{ "%.2f"|format(order.total) }} <br>
                     <strong>Status:</strong> {{ order.status if order.status else 'Processing' }}
                 </div>

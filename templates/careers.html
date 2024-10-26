@@ -7,18 +7,18 @@
     <div style="text-align: center; margin: 20px 0;">
         {% if 'user_type' in session %}
         {% if session['user_type'] == 'admin' %}
-            <a href="{{ url_for('adminpage') }}" style="display: inline-block; padding: 10px 20px; 
+            <a href="{{ url_for('admin_main') }}" style="display: inline-block; padding: 10px 20px; 
             font-size: 14px; text-decoration: none; 
             background-color:#07173d; color: white; 
             border-radius: 5px; border: none;">Dashboard</a>
         {% elif session['user_type'] == 'employee' %}
-            <a href="{{ url_for('employeepage') }}" style="display: inline-block; padding: 10px 20px; 
+            <a href="{{ url_for('tech_main') }}" style="display: inline-block; padding: 10px 20px; 
             font-size: 14px; text-decoration: none; 
             background-color:#07173d; color: white; 
             border-radius: 5px; border: none;">Dashboard</a>
         {% endif %}
         {% else %}
-        <a href="{{ url_for('employee_admin_login') }}" style="display: inline-block; padding: 10px 20px; 
+        <a href="{{ url_for('tech_admin_login') }}" style="display: inline-block; padding: 10px 20px; 
         font-size: 16px; text-decoration: none; 
         background-color:#07173d; color: white; 
         border-radius: 5px; border: none;">Login</a>
