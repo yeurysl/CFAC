@@ -1,11 +1,10 @@
-
 {% extends 'base.html' %}
 
 {% block title %}Schedule Guest Order{% endblock %}
 
 {% block content %}
 <div class="container my-5">
-    <h2>Schedule Guest Order</h2>
+    <h2 class="mb-4">Schedule Guest Order</h2>
     <form method="POST" action="{{ url_for('schedule_guest_order') }}" id="guestOrderForm">
         {{ form.hidden_tag() }}
         
@@ -15,27 +14,27 @@
                 Guest Information
             </div>
             <div class="card-body">
-                <div class="form-group">
+                <div class="mb-3">
                     {{ form.guest_name.label(class="form-label") }}
                     {{ form.guest_name(class="form-control", id="guest_name") }}
                     {% for error in form.guest_name.errors %}
-                        <span class="text-danger">{{ error }}</span>
+                        <div class="text-danger">{{ error }}</div>
                     {% endfor %}
                 </div>
                 
-                <div class="form-group">
+                <div class="mb-3">
                     {{ form.guest_email.label(class="form-label") }}
                     {{ form.guest_email(class="form-control", id="guest_email") }}
                     {% for error in form.guest_email.errors %}
-                        <span class="text-danger">{{ error }}</span>
+                        <div class="text-danger">{{ error }}</div>
                     {% endfor %}
                 </div>
                 
-                <div class="form-group">
+                <div class="mb-3">
                     {{ form.guest_phone_number.label(class="form-label") }}
                     {{ form.guest_phone_number(class="form-control", id="guest_phone_number") }}
                     {% for error in form.guest_phone_number.errors %}
-                        <span class="text-danger">{{ error }}</span>
+                        <div class="text-danger">{{ error }}</div>
                     {% endfor %}
                 </div>
             </div>
@@ -47,43 +46,45 @@
                 Guest Address
             </div>
             <div class="card-body">
-                <div class="form-group">
+                <div class="mb-3">
                     {{ form.street_address.label(class="form-label") }}
                     {{ form.street_address(class="form-control", id="street_address") }}
                     {% for error in form.street_address.errors %}
-                        <span class="text-danger">{{ error }}</span>
+                        <div class="text-danger">{{ error }}</div>
                     {% endfor %}
                 </div>
                 
-                <div class="form-group">
+                <div class="mb-3">
                     {{ form.unit_apt.label(class="form-label") }}
                     {{ form.unit_apt(class="form-control", id="unit_apt") }}
                     {% for error in form.unit_apt.errors %}
-                        <span class="text-danger">{{ error }}</span>
+                        <div class="text-danger">{{ error }}</div>
                     {% endfor %}
                 </div>
                 
-                <div class="form-group">
-                    {{ form.city.label(class="form-label") }}
-                    {{ form.city(class="form-control", id="city") }}
-                    {% for error in form.city.errors %}
-                        <span class="text-danger">{{ error }}</span>
-                    {% endfor %}
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        {{ form.city.label(class="form-label") }}
+                        {{ form.city(class="form-control", id="city") }}
+                        {% for error in form.city.errors %}
+                            <div class="text-danger">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        {{ form.country.label(class="form-label") }}
+                        {{ form.country(class="form-select", id="country") }}
+                        {% for error in form.country.errors %}
+                            <div class="text-danger">{{ error }}</div>
+                        {% endfor %}
+                    </div>
                 </div>
                 
-                <div class="form-group">
-                    {{ form.country.label(class="form-label") }}
-                    {{ form.country(class="form-control", id="country") }}
-                    {% for error in form.country.errors %}
-                        <span class="text-danger">{{ error }}</span>
-                    {% endfor %}
-                </div>
-                
-                <div class="form-group">
+                <div class="mb-3">
                     {{ form.zip_code.label(class="form-label") }}
                     {{ form.zip_code(class="form-control", id="zip_code") }}
                     {% for error in form.zip_code.errors %}
-                        <span class="text-danger">{{ error }}</span>
+                        <div class="text-danger">{{ error }}</div>
                     {% endfor %}
                 </div>
             </div>
@@ -95,28 +96,37 @@
                 Order Information
             </div>
             <div class="card-body">
-                <div class="form-group">
+                <div class="mb-3">
                     {{ form.service_date.label(class="form-label") }}
                     {{ form.service_date(class="form-control", type="date", id="service_date") }}
                     {% for error in form.service_date.errors %}
-                        <span class="text-danger">{{ error }}</span>
+                        <div class="text-danger">{{ error }}</div>
                     {% endfor %}
                 </div>
                 
-                <div class="form-group">
-                    {{ form.products.label(class="form-label") }}
-                    {{ form.products(class="form-control", multiple=True, size=5, id="products") }}
+                <div class="mb-3">
+                    <label class="form-label">Products</label>
+                    <div class="form-check">
+                        {% for subfield in form.products %}
+                            <div class="form-check">
+                                {{ subfield(class="form-check-input", id=subfield.id) }}
+                                {{ subfield.label(class="form-check-label") }}
+                            </div>
+                        {% endfor %}
+                    </div>
                     {% for error in form.products.errors %}
-                        <span class="text-danger">{{ error }}</span>
+                        <div class="text-danger">{{ error }}</div>
                     {% endfor %}
-                    <small class="form-text text-muted">Hold down the Ctrl (Windows) or Command (Mac) button to select multiple products.</small>
+                    <small class="form-text text-muted">Select the products you want to order.</small>
                 </div>
             </div>
         </div>
         
         <!-- Submit Button -->
-        <button type="submit" class="btn btn-primary">Schedule Order</button>
-        <a href="{{ url_for('sales_main') }}" class="btn btn-secondary">Cancel</a>
+        <div class="d-flex justify-content-between">
+            <button type="submit" class="btn btn-primary">Schedule Order</button>
+            <a href="{{ url_for('sales_main') }}" class="btn btn-secondary">Cancel</a>
+        </div>
     </form>
 </div>
 
@@ -134,7 +144,7 @@
             'country',
             'zip_code',
             'service_date',
-            'products'
+            // 'products' is now multiple checkboxes, handled separately
         ];
 
         // Function to save form data to Local Storage
@@ -142,19 +152,17 @@
             fields.forEach(function(field) {
                 const element = document.getElementById(field);
                 if (element) {
-                    if (element.tagName === 'SELECT' && element.hasAttribute('multiple')) {
-                        let selected = [];
-                        for (let option of element.options) {
-                            if (option.selected) {
-                                selected.push(option.value);
-                            }
-                        }
-                        localStorage.setItem(field, JSON.stringify(selected));
-                    } else {
-                        localStorage.setItem(field, element.value);
-                    }
+                    localStorage.setItem(field, element.value);
                 }
             });
+
+            // Handle products (checkboxes)
+            const productCheckboxes = document.querySelectorAll('input[name="products"]:checked');
+            let selectedProducts = [];
+            productCheckboxes.forEach(function(checkbox) {
+                selectedProducts.push(checkbox.value);
+            });
+            localStorage.setItem('products', JSON.stringify(selectedProducts));
         }
 
         // Function to load form data from Local Storage
@@ -164,17 +172,22 @@
                 if (element) {
                     const savedData = localStorage.getItem(field);
                     if (savedData) {
-                        if (element.tagName === 'SELECT' && element.hasAttribute('multiple')) {
-                            const selectedValues = JSON.parse(savedData);
-                            for (let option of element.options) {
-                                option.selected = selectedValues.includes(option.value);
-                            }
-                        } else {
-                            element.value = savedData;
-                        }
+                        element.value = savedData;
                     }
                 }
             });
+
+            // Handle products (checkboxes)
+            const savedProducts = localStorage.getItem('products');
+            if (savedProducts) {
+                const selectedProducts = JSON.parse(savedProducts);
+                selectedProducts.forEach(function(productId) {
+                    const checkbox = document.getElementById(productId);
+                    if (checkbox) {
+                        checkbox.checked = true;
+                    }
+                });
+            }
         }
 
         // Function to clear form data from Local Storage
@@ -182,6 +195,7 @@
             fields.forEach(function(field) {
                 localStorage.removeItem(field);
             });
+            localStorage.removeItem('products');
         }
 
         // Load saved form data when the page loads
@@ -192,10 +206,13 @@
             const element = document.getElementById(field);
             if (element) {
                 element.addEventListener('input', saveFormData);
-                if (element.tagName === 'SELECT' && element.hasAttribute('multiple')) {
-                    element.addEventListener('change', saveFormData);
-                }
             }
+        });
+
+        // Save products on checkbox change
+        const productCheckboxes = document.querySelectorAll('input[name="products"]');
+        productCheckboxes.forEach(function(checkbox) {
+            checkbox.addEventListener('change', saveFormData);
         });
 
         // Clear form data from Local Storage upon successful form submission

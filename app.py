@@ -814,6 +814,7 @@ def schedule_guest_order():
     
     return render_template('sales/schedule_guest_order.html', form=form)
 
+
 #Routes for Customers\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 #Customer Page Route
 @app.route('/customer/home')

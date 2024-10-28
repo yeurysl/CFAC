@@ -2,6 +2,7 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField, SelectField, HiddenField, SelectMultipleField, DateField, RadioField
 from wtforms.validators import DataRequired, Email, EqualTo, Length, Regexp, Optional
+from wtforms.widgets import ListWidget, CheckboxInput
 import phonenumbers
 
 
@@ -232,6 +233,15 @@ class UpdateAccountForm(FlaskForm):
             raise ValidationError('Invalid phone number format.')
 
 
+
+
+# forms.py
+
+from flask_wtf import FlaskForm
+from wtforms import StringField, SubmitField, SelectMultipleField, DateField
+from wtforms.widgets import ListWidget, CheckboxInput
+from wtforms.validators import DataRequired, Email, Length, Optional, Regexp
+
 class GuestOrderForm(FlaskForm):
     # Guest Information
     guest_name = StringField('Guest Name', validators=[
@@ -265,8 +275,8 @@ class GuestOrderForm(FlaskForm):
     country = SelectField('Country', choices=[
         ('', 'Select your country'),
         ('United States', 'United States'),
-     
-    ], validators=[DataRequired(message="Country is required.")])
+        # Add more countries as needed
+    ], validators=[DataRequired(message="Country is required.")], coerce=str)
     zip_code = StringField('Zip Code', validators=[
         DataRequired(message="Zip Code is required."),
         Regexp(r'^\d{5}(-\d{4})?$', message="Zip code must be in the format 12345 or 12345-6789."),
@@ -277,9 +287,15 @@ class GuestOrderForm(FlaskForm):
     service_date = DateField('Service Date', validators=[
         DataRequired(message="Service Date is required.")
     ], format='%Y-%m-%d')
-    products = SelectMultipleField('Select Products', validators=[
-        DataRequired(message="At least one product must be selected.")
-    ], coerce=str)
+    
+    products = SelectMultipleField(
+        'Products',
+        choices=[],  # Populate this dynamically in your route
+        option_widget=CheckboxInput(),
+        widget=ListWidget(prefix_label=False),
+        validators=[DataRequired(message="At least one product must be selected.")],
+        coerce=str  # Ensure this matches the data type of product IDs
+    )
     
     submit = SubmitField('Schedule Guest Order')
     
@@ -297,7 +313,7 @@ class GuestOrderForm(FlaskForm):
             return False
         
         return True
-    
+
 
 class PasswordResetRequestForm(FlaskForm):
     email = StringField('Email', validators=[DataRequired(), Email()])
