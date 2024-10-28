@@ -1,5 +1,3 @@
-<!-- templates/customer/register.html -->
-
 {% extends 'base.html' %}
 
 {% block title %}Register{% endblock %}
@@ -13,38 +11,55 @@
             
             <!-- Full Name -->
             <div class="form-group mb-3">
-                {{ form.name(class="form-control", placeholder="Full name") }}
+                {{ form.name(class="form-control", placeholder="Full Name") }}
                 {% for error in form.name.errors %}
                     <span class="text-danger">{{ error }}</span>
                 {% endfor %}
             </div>
 
-            <!-- Email Address -->
+            <!-- Registration Method -->
             <div class="form-group mb-3">
-                {{ form.email(class="form-control", placeholder="Email address") }}
+                <label>{{ form.registration_method.label }}</label><br>
+                {% for subfield in form.registration_method %}
+                    <div class="form-check form-check-inline">
+                        {{ subfield(class="form-check-input") }}
+                        <label class="form-check-label" for="{{ subfield.id }}">{{ subfield.label.text }}</label>
+                    </div>
+                {% endfor %}
+                {% for error in form.registration_method.errors %}
+                    <span class="text-danger">{{ error }}</span>
+                {% endfor %}
+            </div>
+
+            <!-- Email Address -->
+            <div class="form-group mb-3" id="email_field">
+                {{ form.email(class="form-control", placeholder="Email Address") }}
                 {% for error in form.email.errors %}
                     <span class="text-danger">{{ error }}</span>
                 {% endfor %}
             </div>
           
             <!-- Phone Number -->
-            <div class="form-group mb-3">
-                {{ form.phone_number(class="form-control", placeholder="Phone number (Optional)") }}
+            <div class="form-group mb-3" id="phone_field" style="display: none;">
+                {{ form.phone_number(class="form-control", placeholder="Phone Number (e.g., 8138609587)") }}
+                <small class="form-text text-muted">Enter a 10-digit US phone number.</small>
                 {% for error in form.phone_number.errors %}
                     <span class="text-danger">{{ error }}</span>
                 {% endfor %}
             </div>
+
             <div class="service-text text-center mb-4">Where will we be servicing</div>
             
 
             <!-- Street Address -->
             <div class="form-group mb-3">
-                {{ form.street_address(class="form-control", placeholder="Street address") }}
+                {{ form.street_address(class="form-control", placeholder="Street Address") }}
                 {% for error in form.street_address.errors %}
                     <span class="text-danger">{{ error }}</span>
                 {% endfor %}
             </div>
             
+            <!-- Unit/Apt -->
             <div class="form-group mb-3">
                 {{ form.unit_apt(class="form-control", placeholder="Unit/Apt (Optional)") }}
                 {% for error in form.unit_apt.errors %}
@@ -60,9 +75,9 @@
                 {% endfor %}
             </div>
             
-            <!-- Country -->
+            <!-- Country (Read-Only) -->
             <div class="form-group mb-3">
-                {{ form.country(class="form-control") }}
+                {{ form.country(class="form-control", readonly=True, value="United States") }}
                 {% for error in form.country.errors %}
                     <span class="text-danger">{{ error }}</span>
                 {% endfor %}
@@ -70,7 +85,7 @@
             
             <!-- Zip Code -->
             <div class="form-group mb-3">
-                {{ form.zip_code(class="form-control", placeholder="Zip code") }}
+                {{ form.zip_code(class="form-control", placeholder="Zip Code") }}
                 {% for error in form.zip_code.errors %}
                     <span class="text-danger">{{ error }}</span>
                 {% endfor %}
@@ -87,7 +102,7 @@
             
             <!-- Confirm Password -->
             <div class="form-group mb-3">
-                {{ form.confirm_password(class="form-control", placeholder="Confirm your password") }}
+                {{ form.confirm_password(class="form-control", placeholder="Confirm Password") }}
                 {% for error in form.confirm_password.errors %}
                     <span class="text-danger">{{ error }}</span>
                 {% endfor %}
@@ -100,4 +115,44 @@
         </form>
     </div>
 </div>
+
+<!-- JavaScript to Toggle Fields Based on Registration Method -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const registrationMethodRadios = document.getElementsByName('{{ form.registration_method.name }}');
+        const emailField = document.getElementById('email_field');
+        const phoneField = document.getElementById('phone_field');
+
+        function toggleFields() {
+            const selectedMethod = document.querySelector('input[name="{{ form.registration_method.name }}"]:checked').value;
+            if (selectedMethod === 'email') {
+                emailField.style.display = 'block';
+                phoneField.style.display = 'none';
+                // Make phone number optional
+                document.getElementById('phone_field').querySelector('input').required = false;
+                document.getElementById('email_field').querySelector('input').required = true;
+            } else if (selectedMethod === 'phone') {
+                emailField.style.display = 'none';
+                phoneField.style.display = 'block';
+                // Make email optional
+                document.getElementById('email_field').querySelector('input').required = false;
+                document.getElementById('phone_field').querySelector('input').required = true;
+            } else if (selectedMethod === 'both') {
+                emailField.style.display = 'block';
+                phoneField.style.display = 'block';
+                // Make both required
+                document.getElementById('phone_field').querySelector('input').required = true;
+                document.getElementById('email_field').querySelector('input').required = true;
+            }
+        }
+
+        // Initialize fields on page load
+        toggleFields();
+
+        // Add event listeners to radio buttons
+        registrationMethodRadios.forEach(function(radio) {
+            radio.addEventListener('change', toggleFields);
+        });
+    });
+</script>
 {% endblock %}

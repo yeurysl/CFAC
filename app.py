@@ -5,17 +5,21 @@ from dotenv import load_dotenv
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_wtf import CSRFProtect
 from flask_wtf.csrf import generate_csrf
-from forms import RegistrationForm, RemoveFromCartForm, CustomerLoginForm, EmployeeLoginForm, UpdateAccountForm, GuestOrderForm
+from forms import RegistrationForm, RemoveFromCartForm, CustomerLoginForm, EmployeeLoginForm, UpdateAccountForm, GuestOrderForm, PasswordResetRequestForm, PasswordResetForm
 from functools import wraps
 from flask_mail import Mail, Message
 from werkzeug.middleware.proxy_fix import ProxyFix
-from werkzeug.security import generate_password_hash, check_password_hash
 from bson.objectid import ObjectId, InvalidId
+from pymongo.errors import DuplicateKeyError
 from urllib.parse import urlparse, urljoin, quote_plus
 from datetime import datetime, timedelta, time
 from dateutil import parser
 import phonenumbers
+from phonenumbers import NumberParseException
+from itsdangerous import URLSafeTimedSerializer, SignatureExpired
 from flask import current_app
+import logging
+import boto3
 import re
 import os
 
@@ -69,12 +73,30 @@ login_manager.init_app(app)
 login_manager.login_view = 'employee_admin_login'
 login_manager.login_message_category = 'info'  
 
+#Init Logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 @app.context_processor
 def inject_csrf_token():
     return dict(csrf_token=generate_csrf)
 
 
+
+
+#AWS Set up
+
+AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
+AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
+AWS_DEFAULT_REGION = os.getenv('AWS_DEFAULT_REGION')
+
+# Initialize the SNS client
+sns_client = boto3.client(
+    'sns',
+    aws_access_key_id=AWS_ACCESS_KEY_ID,
+    aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+    region_name=AWS_DEFAULT_REGION
+)
 
 
 
@@ -100,34 +122,40 @@ mail = Mail(app)
 
 
 # User Model FLASK-LOGIN
+# User Model for Flask-Login
 class User(UserMixin):
-    def __init__(self, identifier, user_type):
-        self.id = identifier  # Can be username or email based on user_type
+    def __init__(self, user_id, user_type):
+        self.id = user_id  # String version of MongoDB's ObjectId
         self.user_type = user_type
 
 # User Loader Callback
-
-
 @login_manager.user_loader
 def load_user(user_id):
-    # For admin, tech, and sales users
-    user = users_collection.find_one({
-        'username': user_id,
-        'user_type': {'$in': ['admin', 'tech', 'sales']}
-    })
-    if user:
-        return User(user['username'], user['user_type'])
-    
-    # For customers
-    user = users_collection.find_one({
-        'email': user_id,
-        'user_type': 'customer'
-    })
-    if user:
-        return User(user['email'], user['user_type'])
-    
-    return None
+    try:
+        # Fetch the user by _id
+        user_record = users_collection.find_one({"_id": ObjectId(user_id)})
+        if user_record and user_record['user_type'] in ['customer', 'admin', 'tech', 'sales']:
+            return User(str(user_record['_id']), user_record['user_type'])
+    except (InvalidId, TypeError):
+        return None
 
+def create_unique_indexes():
+    """
+    Creates unique and sparse indexes on 'email' and 'phone_number' fields in the users_collection.
+    """
+    try:
+        users_collection.create_index('email', unique=True, sparse=True)
+        users_collection.create_index('phone_number', unique=True, sparse=True)
+        app.logger.info("Unique indexes created on 'email' and 'phone_number'.")
+    except Exception as e:
+        app.logger.error(f"Error creating indexes: {e}")
+
+# Call the function to create indexes
+create_unique_indexes()
+
+
+
+s = URLSafeTimedSerializer(app.secret_key)
 
 #SINGLE DEFS\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
@@ -148,6 +176,63 @@ def currency_format(value):
 
 # Register the currency filter
 app.jinja_env.filters['currency'] = currency_format
+
+#AMS Phones 
+def is_valid_phone_number(phone_number):
+    """
+    Validates if the phone number is in E.164 format.
+    """
+    pattern = re.compile(r'^\+[1-9]\d{1,14}$')
+    return bool(pattern.match(phone_number))
+
+def format_phone_number(phone_number, default_region="US"):
+    """
+    Parses and formats the phone number to E.164 format.
+    Assumes 'US' region if the country code is missing.
+    
+    Args:
+        phone_number (str): The phone number input by the user.
+        default_region (str): The default region to assume for parsing.
+    
+    Returns:
+        str or None: The formatted phone number in E.164 format if valid, else None.
+    """
+    try:
+        # Remove common formatting characters
+        phone_number_clean = re.sub(r'[()\-\s]', '', phone_number)
+        
+        # Parse the phone number
+        parsed_number = phonenumbers.parse(phone_number_clean, default_region)
+        
+        # Validate the phone number
+        if phonenumbers.is_valid_number(parsed_number):
+            # Format the number to E.164
+            return phonenumbers.format_number(parsed_number, phonenumbers.PhoneNumberFormat.E164)
+        else:
+            return None
+    except NumberParseException:
+        return None
+
+def send_sms(phone_number, message):
+    """
+    Sends an SMS message to the specified phone number using Amazon SNS.
+
+    :param phone_number: Recipient's phone number in E.164 format (e.g., +15551234567)
+    :param message: The message content to send
+    :return: Message ID if successful, None otherwise
+    """
+    try:
+        response = sns_client.publish(
+            PhoneNumber=phone_number,
+            Message=message
+        )
+        message_id = response.get('MessageId')
+        app.logger.info(f"SMS sent successfully. Message ID: {message_id}")
+        return message_id
+    except Exception as e:
+        app.logger.error(f"Failed to send SMS to {phone_number}: {e}")
+        return None
+
 
 # For Date Format
 def format_date_with_suffix(date):
@@ -217,17 +302,47 @@ def customer_required(f):
     return decorated_function
 
 #FOREMAILSENDING
-def send_order_confirmation_email(to_email, order, products):
-    msg = Message('Order Confirmation', recipients=[to_email])
-    msg.html = render_template('/customer/order_confirmation_email.html', order=order, products=products)
-    mail.send(msg)
+def send_order_confirmation_email(user, order_details):
+    if not user or not user.get('email'):
+        logger.error("Attempted to send order confirmation email, but user has no email.")
+        return
 
+    try:
+        subject = "Your Order Confirmation"
+        sender = app.config['MAIL_DEFAULT_SENDER']
+        recipients = [user['email']]
+        
+        # Render the email template with order details
+        body = render_template('emails/order_confirmation_email.html', user=user, order=order_details)
+        
+        msg = Message(subject=subject, sender=sender, recipients=recipients, html=body)
+        mail.send(msg)
+        logger.info(f"Order confirmation email sent to {user['email']}.")
+    except Exception as e:
+        logger.error(f"Failed to send order confirmation email: {e}")
 
 #FORCART
 def calculate_cart_total(products):
     total = sum(product['price'] for product in products)
     return total
 
+#For password reset
+def notify_password_reset_required(user_email):
+    try:
+        reset_url = url_for('reset_password_request', _external=True)
+        msg = Message('Password Reset Required',
+                      recipients=[user_email])
+        msg.body = f"""Dear user,
+
+We have detected an issue with your account's password security. Please reset your password using the following link: {reset_url}
+
+If you did not request this, please contact our support team immediately.
+
+Best regards,
+CFAC AutoCare Team"""
+        mail.send(msg)
+    except Exception as e:
+        app.logger.error(f"Failed to send password reset notification to {user_email}: {e}")
 
 
 
@@ -295,20 +410,15 @@ def protected():
 @app.route('/account_settings', methods=['GET', 'POST'])
 @login_required
 def account_settings():
-    identifier = current_user.id
-    user_type = current_user.user_type
-
-    # Updated user_type checks: 'admin', 'tech', 'sales' use 'username'; 'customer' uses 'email'
-    if user_type in ['admin', 'tech', 'sales']:
-        user = users_collection.find_one({'username': identifier})
-    elif user_type == 'customer':
-        user = users_collection.find_one({'email': identifier})
-    else:
+    user_id = current_user.id  # This is the string version of ObjectId
+    try:
+        user = users_collection.find_one({'_id': ObjectId(user_id)})
+    except (InvalidId, TypeError):
         user = None
 
     if not user:
         flash('User not found.', 'danger')
-        return redirect(url_for('home'))
+        return redirect(url_for('home'))  # Ensure 'home' route exists
 
     form = UpdateAccountForm()
 
@@ -316,13 +426,14 @@ def account_settings():
         if form.validate_on_submit():
             # Extract form data
             name = form.name.data.strip()
+            email = form.email.data.lower().strip() if form.email.data else user.get('email', None)
             phone_number = form.phone_number.data.strip()
             street_address = form.street_address.data.strip()
             city = form.city.data.strip()
             country = form.country.data.strip()
             zip_code = form.zip_code.data.strip()
 
-            # Update user information
+            # Prepare update fields
             update_fields = {
                 'name': name,
                 'phone_number': phone_number,
@@ -332,17 +443,15 @@ def account_settings():
                 'address.zip_code': zip_code
             }
 
+            # Only update email if provided
+            if form.email.data:
+                update_fields['email'] = email
+
             try:
-                if user_type in ['admin', 'tech', 'sales']:
-                    users_collection.update_one(
-                        {'username': identifier},
-                        {'$set': update_fields}
-                    )
-                elif user_type == 'customer':
-                    users_collection.update_one(
-                        {'email': identifier},
-                        {'$set': update_fields}
-                    )
+                users_collection.update_one(
+                    {'_id': ObjectId(user_id)},
+                    {'$set': update_fields}
+                )
                 flash('Account settings updated successfully.', 'success')
                 return redirect(url_for('account_settings'))
             except Exception as e:
@@ -355,6 +464,7 @@ def account_settings():
     else:
         # Pre-populate form with existing user data
         form.name.data = user.get('name', '')
+        form.email.data = user.get('email', '')
         form.phone_number.data = user.get('phone_number', '')
         form.street_address.data = user.get('address', {}).get('street_address', '')
         form.city.data = user.get('address', {}).get('city', '')
@@ -362,6 +472,7 @@ def account_settings():
         form.zip_code.data = user.get('address', {}).get('zip_code', '')
 
     return render_template('account_settings.html', form=form, user=user)
+
 
 #Routes for Techs\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 # Routes for Techs
@@ -546,7 +657,6 @@ def schedule_order(order_id):
 
 
 #Send scheduled order confirmation to customer 
-# app.py
 
 def send_order_scheduled_email(to_email, customer_name, order, tech_name):
     """
@@ -587,7 +697,7 @@ def tech_admin_login():
             'user_type': {'$in': ['admin', 'tech', 'sales']}
         })
         if user and bcrypt.check_password_hash(user['password'], form.password.data):
-            user_obj = User(user['username'], user['user_type'])
+            user_obj = User(str(user['_id']), user['user_type'])  # Corrected line
             login_user(user_obj)
             flash(f'Logged in successfully as {user["user_type"]}.', 'success')
             next_page = request.args.get('next')
@@ -604,8 +714,6 @@ def tech_admin_login():
         else:
             flash('Invalid username or password.', 'danger')
     return render_template('tech_admin_login.html', form=form)
-
-
 
 
 
@@ -724,8 +832,9 @@ def customer_home():
 
 
 #Cart Page Route
+
 @app.route('/customer/cart', methods=['GET', 'POST'])
-@customer_required  # Ensure this decorator is defined and correctly restricts access
+@customer_required
 def cart():
     if 'cart' not in session or not session['cart']:
         flash('Your cart is empty.', 'info')
@@ -743,7 +852,7 @@ def cart():
         forms[str(product['_id'])] = form
 
     # Fetch the current user's address
-    user = users_collection.find_one({'email': current_user.id})  # Assuming 'id' is email for customers
+    user = users_collection.find_one({'_id': ObjectId(current_user.id)})
     if user and 'address' in user:
         user_address = user['address']
     else:
@@ -760,17 +869,37 @@ def cart():
         return redirect(url_for('cart'))
 
     return render_template('customer/cart.html', products=products_in_cart, total=total, forms=forms, user_address=user_address)
-#ATC Route for Function
-@app.route('/customer/add_to_cart/<product_id>')
-@customer_required 
+
+# Add to Cart Route
+@app.route('/customer/add_to_cart/<product_id>', methods=['GET', 'POST'])
+@customer_required
 def add_to_cart(product_id):
-    if 'cart' not in session:
-        session['cart'] = []
-
-    session['cart'].append(product_id)
-    flash('Product added to cart!', 'success')
-    return redirect(url_for('cart'))
-
+    try:
+        # Fetch the product from the database
+        product = products_collection.find_one({'_id': ObjectId(product_id)})
+        if not product:
+            flash('Product not found.', 'danger')
+            return redirect(url_for('home'))
+        
+        # Initialize the cart in session if it doesn't exist
+        if 'cart' not in session:
+            session['cart'] = []
+        
+        # Add the product ID to the cart if it's not already there
+        if product_id not in session['cart']:
+            session['cart'].append(product_id)
+            flash(f"Added {product['name']} to your cart.", 'success')
+        else:
+            flash(f"{product['name']} is already in your cart.", 'info')
+        
+        return redirect(url_for('customer_home'))
+    except InvalidId:
+        flash('Invalid product ID.', 'danger')
+        return redirect(url_for('home'))
+    except Exception as e:
+        app.logger.error(f"Error adding product to cart: {e}")
+        flash('An error occurred while adding the product to your cart.', 'danger')
+        return redirect(url_for('home'))
 
 
 #Display of Product Route for Function
@@ -781,10 +910,22 @@ def products():
     return render_template('products.html', products=products)
 
 #Checkout Page Route
+
 @app.route('/customer/checkout', methods=['GET', 'POST'])
 @login_required
-@customer_required  # Ensure this decorator restricts access to customers
+@customer_required
 def checkout():
+    user_id = current_user.id  # String version of ObjectId
+
+    try:
+        user = users_collection.find_one({'_id': ObjectId(user_id)})
+    except (InvalidId, TypeError):
+        user = None
+
+    if not user:
+        flash('User not found.', 'danger')
+        return redirect(url_for('home'))
+
     if 'cart' not in session or not session['cart']:
         flash('Your cart is empty.', 'info')
         return redirect(url_for('customer_home'))
@@ -792,13 +933,6 @@ def checkout():
     product_ids = [ObjectId(id) for id in session['cart']]
     products_in_cart = list(products_collection.find({'_id': {'$in': product_ids}}))
     total = calculate_cart_total(products_in_cart)
-
-    # Fetch the current user's address
-    user = users_collection.find_one({'email': current_user.id})  # Assuming 'id' is email for customers
-    if user and 'address' in user:
-        user_address = user['address']
-    else:
-        user_address = None  # Handle cases where address might not be available
 
     if request.method == 'POST':
         # Retrieve service date and time from the form
@@ -863,9 +997,9 @@ def checkout():
             'payment_method': payment_method,
             'status': initial_status,
             'address': {
-                'street_address': user_address.get('street_address') if user_address else '',
-                'unit_apt': user_address.get('unit_apt') if user_address else '',
-                'city': user_address.get('city') if user_address else ''
+                'street_address': user['address'].get('street_address', '') if user.get('address') else '',
+                'unit_apt': user['address'].get('unit_apt', '') if user.get('address') else '',
+                'city': user['address'].get('city', '') if user.get('address') else ''
             },
             'creation_date': datetime.utcnow()
         }
@@ -873,10 +1007,10 @@ def checkout():
 
         # Optional: Send confirmation email
         try:
-            send_order_confirmation_email(current_user.id, order, products_in_cart)
+            send_order_confirmation_email(user, order)  # Corrected parameter
             flash('Your order has been placed successfully!', 'success')
         except Exception as e:
-            app.logger.error(f"Failed to send confirmation email: {e}")
+            logger.error(f"Failed to send confirmation email: {e}")
             flash('Your order has been placed, but we could not send a confirmation email.', 'warning')
 
         # Clear the cart
@@ -886,6 +1020,7 @@ def checkout():
     else:
         # Set default service date to tomorrow
         default_service_date = (datetime.today() + timedelta(days=1)).strftime('%Y-%m-%d')
+        user_address = user.get('address', {})  # Ensure user_address is defined
         return render_template(
             'customer/checkout.html',
             products=products_in_cart,
@@ -894,33 +1029,62 @@ def checkout():
             user_address=user_address  # Pass user_address to the template
         )
 
+
 # Customer Login Route
+
 @app.route('/customer/login', methods=['GET', 'POST'])
 def customer_login():
     form = CustomerLoginForm()
     if form.validate_on_submit():
-        # Authenticate customer
-        user = users_collection.find_one({'email': form.email.data, 'user_type': 'customer'})
-        if user and bcrypt.check_password_hash(user['password'], form.password.data):
-            user_obj = User(user['email'], user['user_type'])
-            login_user(user_obj)
-            flash('Logged in successfully as customer.', 'success')
-            next_page = request.args.get('next')
-            return redirect(next_page or url_for('customer_home'))
+        login_method = form.login_method.data
+        password = form.password.data
+
+        user = None
+
+        if login_method == 'email':
+            email = form.email.data.lower().strip()
+            user = users_collection.find_one({'email': email, 'user_type': 'customer'})
+        elif login_method == 'phone':
+            phone_number = form.phone_number.data.strip()
+            user = users_collection.find_one({'phone_number': phone_number, 'user_type': 'customer'})
+        
+        if user:
+            try:
+                if bcrypt.check_password_hash(user['password'], password):
+                    user_obj = User(str(user['_id']), user['user_type'])  # Corrected line
+                    login_user(user_obj)
+                    flash('Logged in successfully as customer.', 'success')
+                    next_page = request.args.get('next')
+                    return redirect(next_page or url_for('customer_home'))
+                else:
+                    flash('Invalid credentials. Please try again.', 'danger')
+            except ValueError:
+                # Handle invalid hash format
+                flash('Your account has an invalid password format. Please reset your password.', 'danger')
+                return redirect(url_for('reset_password_request'))
         else:
-            flash('Invalid email or password.', 'danger')
+            flash('Invalid credentials. Please try again.', 'danger')
     return render_template('customer/login.html', form=form)
+
 
 #My Orders Page Routes 
 @app.route('/customer/my_orders')
 @login_required
 def my_orders():
-    user_email = current_user.id  # 'id' is set to email in the User class
+    user_id = current_user.id
     user_type = current_user.user_type
 
     if user_type != 'customer':
         flash('You do not have permission to access this page.', 'danger')
         return redirect(url_for('customer_home'))
+    
+    # Fetch the user to get their email
+    user = users_collection.find_one({'_id': ObjectId(user_id)})
+    if not user:
+        flash('User not found.', 'danger')
+        return redirect(url_for('customer_home'))
+    
+    user_email = user['email']
     
     user_orders = list(orders_collection.find({'user': user_email}).sort('order_date', -1))
     
@@ -944,51 +1108,119 @@ def my_orders():
 
 
 
-#Customer Register Route
 
+#Customer Register Route
 @app.route('/customer/register', methods=['GET', 'POST'])
 def register():
-    form = RegistrationForm()  # Ensure you have a RegistrationForm defined
+    form = RegistrationForm()
     if form.validate_on_submit():
-        email = form.email.data.lower().strip()
+        # Extract form data
+        name = form.name.data.strip()
+        email = form.email.data.lower().strip() if form.email.data else None
+        phone_number = form.phone_number.data.strip() if form.phone_number.data else None
         password = form.password.data
-        # Add other form fields as necessary
+        street_address = form.street_address.data.strip()
+        unit_apt = form.unit_apt.data.strip() if form.unit_apt.data else ''
+        city = form.city.data.strip()
+        country = form.country.data.strip()
+        zip_code = form.zip_code.data.strip()
+        registration_method = form.registration_method.data
 
-        # Check if the email already exists
-        existing_user = users_collection.find_one({'email': email})
-        if existing_user:
-            flash('Email already registered. Please log in.', 'danger')
-            logger.warning(f"Attempted duplicate registration for email: {email}")
-            return redirect(url_for('customer_login'))  # Ensure 'customer_login' route exists
+        # At this point, phone_number is already validated and formatted to E.164 if provided
 
-        # Proceed to create a new user
-        hashed_pw = generate_password_hash(password)
+        # Check if the email or phone number already exists
+        if email:
+            existing_email = users_collection.find_one({'email': email})
+            if existing_email:
+                flash('Email already registered. Please log in.', 'danger')
+                return redirect(url_for('customer_login'))
+
+        if phone_number:
+            existing_phone = users_collection.find_one({'phone_number': phone_number})
+            if existing_phone:
+                flash('Phone number already registered. Please log in.', 'danger')
+                return redirect(url_for('register'))
+
+        # Hash the password using Flask-Bcrypt
+        hashed_pw = bcrypt.generate_password_hash(password).decode('utf-8')  # Decode to store as string
+
+        # Create the user document
         user = {
+            'name': name,
             'email': email,
+            'phone_number': phone_number,
             'password': hashed_pw,
-            # Include other necessary fields like name, etc.
+            'address': {
+                'street_address': street_address,
+                'unit_apt': unit_apt,
+                'city': city,
+                'country': country,
+                'zip_code': zip_code
+            },
+            'user_type': 'customer',
+            'created_at': datetime.utcnow(),
+            'sms_opt_in': False  # Default value; you can add a field in the form if needed
+            # Add other necessary fields
         }
 
         try:
             users_collection.insert_one(user)
             flash('Account created successfully! Please log in.', 'success')
-            logger.info(f"New user created: {email}")
-
-            # Optionally, log the user in immediately
-            user_obj = User(user['email'], user.get('user_type', 'customer'))  # Ensure you have a User class
-            login_user(user_obj)
-
-            return redirect(url_for('customer_home'))  # Redirect to a home/dashboard page
-        except DuplicateKeyError:
-            flash('Email already registered. Please log in.', 'danger')
-            logger.warning(f"Duplicate key error on registration for email: {email}")
             return redirect(url_for('customer_login'))
+        except DuplicateKeyError:
+            flash('A user with the provided email or phone number already exists.', 'danger')
+            return redirect(url_for('register'))
         except Exception as e:
+            app.logger.error(f"Error creating user: {e}")
             flash('An error occurred while creating your account. Please try again.', 'danger')
-            logger.error(f"Error creating user {email}: {e}")
             return redirect(url_for('register'))
 
     return render_template('customer/register.html', form=form)
+
+
+#Reset password route request
+@app.route('/customer/reset_password', methods=['GET', 'POST'])
+def reset_password_request():
+    form = PasswordResetRequestForm()
+    if form.validate_on_submit():
+        user = users_collection.find_one({'email': form.email.data, 'user_type': 'customer'})
+        if user:
+            token = s.dumps(user['email'], salt='password-reset-salt')
+            reset_url = url_for('reset_password', token=token, _external=True)
+            # Send email with reset_url
+            msg = Message('Password Reset Request',
+                          recipients=[user['email']])
+            msg.body = f'Please click the link to reset your password: {reset_url}'
+            mail.send(msg)
+            flash('A password reset link has been sent to your email.', 'info')
+            return redirect(url_for('customer_login'))
+        else:
+            flash('Email not found.', 'danger')
+    return render_template('customer/reset_password_request.html', form=form)
+#Reset password route 
+@app.route('/customer/reset_password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    try:
+        email = s.loads(token, salt='password-reset-salt', max_age=3600)  # Token valid for 1 hour
+    except SignatureExpired:
+        flash('The password reset link has expired.', 'danger')
+        return redirect(url_for('reset_password_request'))
+    
+    form = PasswordResetForm()
+    if form.validate_on_submit():
+        user = users_collection.find_one({'email': email, 'user_type': 'customer'})
+        if user:
+            hashed_pw = bcrypt.generate_password_hash(form.password.data).decode('utf-8')
+            users_collection.update_one({'_id': user['_id']}, {'$set': {'password': hashed_pw}})
+            flash('Your password has been updated!', 'success')
+            return redirect(url_for('customer_login'))
+        else:
+            flash('User not found.', 'danger')
+            return redirect(url_for('reset_password_request'))
+    return render_template('customer/reset_password.html', form=form)
+
+
+
 #Routes For Admin\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 #Admin Page Route
 @app.route('/admin/main')
@@ -1225,6 +1457,9 @@ def manage_users():
         flash('An error occurred while fetching users.', 'danger')
         return redirect(url_for('admin_main'))
 #Extra
+
+
+
 
 @app.before_request
 def redirect_to_https():

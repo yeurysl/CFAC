@@ -1,4 +1,5 @@
-<!-- login.html -->
+<!-- templates/customer/login.html -->
+
 {% extends 'base.html' %}
 
 {% block title %}Login{% endblock %}
@@ -10,18 +11,53 @@
             <div class="col-md-6 col-lg-4">
                 <h1 class="text-center mb-4">Login</h1>
                 <form method="post" action="{{ url_for('customer_login') }}">
-                    <!-- Include the CSRF token as a hidden input -->
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <!-- CSRF Token -->
+                    {{ form.hidden_tag() }}
                     
-                    <div class="mb-3">
-                        <label for="email" class="form-label">Email Address:</label>
-                        <input type="email" id="email" name="email" class="form-control" required>
+                    <!-- Login Method -->
+                    <div class="form-group mb-3">
+                        <label>{{ form.login_method.label }}</label><br>
+                        {% for subfield in form.login_method %}
+                            <div class="form-check form-check-inline">
+                                {{ subfield(class="form-check-input") }}
+                                <label class="form-check-label" for="{{ subfield.id }}">{{ subfield.label.text }}</label>
+                            </div>
+                        {% endfor %}
+                        {% for error in form.login_method.errors %}
+                            <span class="text-danger">{{ error }}</span>
+                        {% endfor %}
                     </div>
-                    <div class="mb-3">
-                        <label for="password" class="form-label">Password:</label>
-                        <input type="password" class="form-control" name="password" id="password" required>
+                    
+                    <!-- Email Address -->
+                    <div class="form-group mb-3" id="email_field">
+                        {{ form.email(class="form-control", placeholder="Email Address") }}
+                        {% for error in form.email.errors %}
+                            <span class="text-danger">{{ error }}</span>
+                        {% endfor %}
                     </div>
-                    <input type="submit" value="Login" class="btn btn-primary w-100">
+                  
+                    <!-- Phone Number -->
+                    <div class="form-group mb-3" id="phone_field" style="display: none;">
+                        {{ form.phone_number(class="form-control", placeholder="Phone Number (e.g., 8138609587)") }}
+                        <small class="form-text text-muted">Enter a 10-digit US phone number.</small>
+                        {% for error in form.phone_number.errors %}
+                            <span class="text-danger">{{ error }}</span>
+                        {% endfor %}
+                    </div>
+    
+                    <!-- Password -->
+                    <div class="form-group mb-3">
+                        {{ form.password.label(class="form-label") }}
+                        {{ form.password(class="form-control", placeholder="Password") }}
+                        {% for error in form.password.errors %}
+                            <span class="text-danger">{{ error }}</span>
+                        {% endfor %}
+                    </div>
+                    
+                    <!-- Submit Button -->
+                    <div class="text-center">
+                        {{ form.submit(class="btn btn-primary w-100") }}
+                    </div>
                 </form>
             </div>
         </div>
@@ -33,9 +69,43 @@
                     <p>Don't have an account?</p>
                 </div>
                 <div class="text-center">
-                    <a href="{{ url_for('register') }}" class="btn btn-secondary">Create One</a>
+                    <a href="{{ url_for('register') }}" class="btn btn-secondary w-100">Create One</a>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- JavaScript to Toggle Fields Based on Login Method -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const loginMethodRadios = document.getElementsByName('{{ form.login_method.name }}');
+            const emailField = document.getElementById('email_field');
+            const phoneField = document.getElementById('phone_field');
+
+            function toggleFields() {
+                const selectedMethod = document.querySelector('input[name="{{ form.login_method.name }}"]:checked').value;
+                if (selectedMethod === 'email') {
+                    emailField.style.display = 'block';
+                    phoneField.style.display = 'none';
+                    // Make phone number optional
+                    document.getElementById('phone_field').querySelector('input').required = false;
+                    document.getElementById('email_field').querySelector('input').required = true;
+                } else if (selectedMethod === 'phone') {
+                    emailField.style.display = 'none';
+                    phoneField.style.display = 'block';
+                    // Make email optional
+                    document.getElementById('email_field').querySelector('input').required = false;
+                    document.getElementById('phone_field').querySelector('input').required = true;
+                }
+            }
+
+            // Initialize fields on page load
+            toggleFields();
+
+            // Add event listeners to radio buttons
+            loginMethodRadios.forEach(function(radio) {
+                radio.addEventListener('change', toggleFields);
+            });
+        });
+    </script>
 {% endblock %}

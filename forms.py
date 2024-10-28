@@ -1,54 +1,117 @@
 
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SubmitField, SelectField, HiddenField, SelectMultipleField, DateField
+from wtforms import StringField, PasswordField, SubmitField, SelectField, HiddenField, SelectMultipleField, DateField, RadioField
 from wtforms.validators import DataRequired, Email, EqualTo, Length, Regexp, Optional
+import phonenumbers
+
+
 
 
 
 
 class RegistrationForm(FlaskForm):
-    name = StringField('Full Name', validators=[
-        DataRequired(message="Full Name is required."),
-        Length(min=2, max=100, message="Full Name must be between 2 and 100 characters.")
-    ])
-    email = StringField('Email Address', validators=[
-        DataRequired(message="Email Address is required."),
-        Email(message="Invalid email address.")
-    ])
-    phone_number = StringField('Phone Number', validators=[
-        Optional(),
-        Regexp(r'^\+?1?\d{9,15}$', message="Phone number must be entered in the format: '+999999999'. Up to 15 digits allowed.")
-    ])
-    street_address = StringField('Street Address', validators=[
-        DataRequired(message="Street Address is required."),
-        Length(min=5, max=200, message="Street Address must be between 5 and 200 characters.")
-    ])
-    city = StringField('City', validators=[
-        DataRequired(message="City is required."),
-        Length(min=2, max=100, message="City must be between 2 and 100 characters.")
-    ])
-    country = SelectField('Country', choices=[
-        ('', 'Select your country'),
-        ('United States', 'United States'),
-      
-    ], validators=[DataRequired(message="Country is required.")])
-    zip_code = StringField('Zip Code', validators=[
-        DataRequired(message="Zip Code is required."),
-        Regexp(r'^\d{5}(-\d{4})?$', message="Zip code must be in the format 12345 or 12345-6789.")
-    ])
-    password = PasswordField('Password', validators=[
-        DataRequired(message="Password is required."),
-        Length(min=6, message="Password must be at least 6 characters long.")
-    ])
-    confirm_password = PasswordField('Confirm Password', validators=[
-        DataRequired(message="Please confirm your password."),
-        EqualTo('password', message="Passwords must match.")
-    ])
-    unit_apt = StringField('Unit/Apt', validators=[
-        Optional(),
-        Length(max=20, message="Unit/Apt must be less than 20 characters.")
-    ])
+    name = StringField(
+        'Full Name', 
+        validators=[DataRequired(message="Full name is required.")]
+    )
+    registration_method = RadioField(
+        'Register With:',
+        choices=[('email', 'Email'), ('phone', 'Phone Number'), ('both', 'Both')],
+        default='email',
+        validators=[DataRequired(message="Please select a registration method.")]
+    )
+    email = StringField(
+        'Email Address', 
+        validators=[Optional(), Email(message="Invalid email address.")]
+    )
+    phone_number = StringField(
+        'Phone Number (Optional)', 
+        validators=[Optional()]
+    )
+    street_address = StringField(
+        'Street Address', 
+        validators=[DataRequired(message="Street address is required.")]
+    )
+    unit_apt = StringField(
+        'Unit/Apt (Optional)', 
+        validators=[Optional()]
+    )
+    city = StringField(
+        'City', 
+        validators=[DataRequired(message="City is required.")]
+    )
+    country = SelectField(
+        'Country', 
+        choices=[('United States', 'United States')],  # Only US as per your requirement
+        validators=[DataRequired(message="Country is required.")]
+    )    
+    zip_code = StringField(
+        'Zip Code', 
+        validators=[DataRequired(message="Zip code is required.")]
+    )
+    password = PasswordField(
+        'Password', 
+        validators=[DataRequired(message="Password is required.")]
+    )
+    confirm_password = PasswordField(
+        'Confirm Password', 
+        validators=[
+            DataRequired(message="Please confirm your password."),
+            EqualTo('password', message="Passwords must match.")
+        ]
+    )
     submit = SubmitField('Register')
+
+    def validate(self, *args, **kwargs):
+        """
+        Custom validation to ensure that based on the registration method, the appropriate fields are provided,
+        and to validate and format the phone number if provided.
+        """
+        # Call the base class's validate method first
+        rv = super(RegistrationForm, self).validate(*args, **kwargs)
+        if not rv:
+            return False
+
+        # Retrieve the selected registration method
+        registration_method = self.registration_method.data
+
+        # Validate based on registration method
+        if registration_method == 'email':
+            if not self.email.data:
+                self.email.errors.append('Email is required for email registration.')
+                return False
+        elif registration_method == 'phone':
+            if not self.phone_number.data:
+                self.phone_number.errors.append('Phone number is required for phone registration.')
+                return False
+        elif registration_method == 'both':
+            if not self.email.data and not self.phone_number.data:
+                error_message = 'At least one of Email or Phone Number must be provided.'
+                self.email.errors.append(error_message)
+                self.phone_number.errors.append(error_message)
+                return False
+
+        # If phone_number is provided, validate its format
+        if self.phone_number.data:
+            try:
+                # Parse the phone number with 'US' as the default region
+                input_number = phonenumbers.parse(self.phone_number.data, 'US')
+                if not phonenumbers.is_valid_number(input_number):
+                    self.phone_number.errors.append('Invalid phone number.')
+                    return False
+                # Format the phone number to E.164 and update the field
+                self.phone_number.data = phonenumbers.format_number(
+                    input_number, 
+                    phonenumbers.PhoneNumberFormat.E164
+                )
+            except phonenumbers.NumberParseException:
+                self.phone_number.errors.append('Invalid phone number format.')
+                return False
+
+        return True
+
+
+
 
 
 
@@ -58,11 +121,70 @@ class RemoveFromCartForm(FlaskForm):
 
 
 
+
+
 class CustomerLoginForm(FlaskForm):
-    email = StringField('Email', validators=[DataRequired(), Email(message="Invalid email.")])
-    password = PasswordField('Password', validators=[DataRequired()])
+    login_method = RadioField(
+        'Login With:',
+        choices=[('email', 'Email'), ('phone', 'Phone Number')],
+        default='email',
+        validators=[DataRequired(message="Please select a login method.")]
+    )
+    email = StringField(
+        'Email Address', 
+        validators=[Optional(), Email(message="Invalid email address.")]
+    )
+    phone_number = StringField(
+        'Phone Number', 
+        validators=[Optional()]
+    )
+    password = PasswordField(
+        'Password', 
+        validators=[DataRequired(message="Password is required.")]
+    )
     submit = SubmitField('Login')
 
+    def validate(self, *args, **kwargs):
+        """
+        Custom validation to ensure that based on the login method, the appropriate fields are provided,
+        and to validate the phone number if provided.
+        """
+        # Call the base class's validate method first
+        rv = super(CustomerLoginForm, self).validate(*args, **kwargs)
+        if not rv:
+            return False
+
+        # Retrieve the selected login method
+        login_method = self.login_method.data
+
+        # Validate based on login method
+        if login_method == 'email':
+            if not self.email.data:
+                self.email.errors.append('Email is required for email login.')
+                return False
+        elif login_method == 'phone':
+            if not self.phone_number.data:
+                self.phone_number.errors.append('Phone number is required for phone login.')
+                return False
+
+        # If phone_number is provided, validate its format
+        if self.phone_number.data:
+            try:
+                # Parse the phone number with 'US' as the default region
+                input_number = phonenumbers.parse(self.phone_number.data, 'US')
+                if not phonenumbers.is_valid_number(input_number):
+                    self.phone_number.errors.append('Invalid phone number.')
+                    return False
+                # Format the phone number to E.164 and update the field
+                self.phone_number.data = phonenumbers.format_number(
+                    input_number, 
+                    phonenumbers.PhoneNumberFormat.E164
+                )
+            except phonenumbers.NumberParseException:
+                self.phone_number.errors.append('Invalid phone number format.')
+                return False
+
+        return True
 
 
 class EmployeeLoginForm(FlaskForm):
@@ -76,33 +198,38 @@ class EmployeeLoginForm(FlaskForm):
 
 
 
+
+
+
+
 class UpdateAccountForm(FlaskForm):
-    name = StringField('Full Name', validators=[
-        DataRequired(message="Full Name is required."),
-        Length(min=2, max=100, message="Full Name must be between 2 and 100 characters.")
-    ])
-    phone_number = StringField('Phone Number', validators=[
-        DataRequired(message="Phone Number is required."),
-        Regexp(r'^\+?1?\d{9,15}$', message="Invalid phone number format.")
-    ])
-    street_address = StringField('Street Address', validators=[
-        DataRequired(message="Street Address is required."),
-        Length(min=5, max=200, message="Street Address must be between 5 and 200 characters.")
-    ])
-    city = StringField('City', validators=[
-        DataRequired(message="City is required."),
-        Length(min=2, max=100, message="City must be between 2 and 100 characters.")
-    ])
-    country = SelectField('Country', choices=[
-        ('', 'Select your country'),
-        ('United States', 'United States'),
-        # Add more countries as needed
-    ], validators=[DataRequired(message="Country is required.")])
-    zip_code = StringField('Zip Code', validators=[
-        DataRequired(message="Zip Code is required."),
-        Regexp(r'^\d{5}(-\d{4})?$', message="Zip code must be in the format 12345 or 12345-6789.")
-    ])
+    name = StringField('Full Name', validators=[DataRequired(message="Full name is required.")])
+    email = StringField('Email Address', validators=[Optional(), Email(message="Invalid email address.")])
+    phone_number = StringField('Phone Number', validators=[DataRequired(message="Phone number is required.")])
+    street_address = StringField('Street Address', validators=[DataRequired(message="Street address is required.")])
+    city = StringField('City', validators=[DataRequired(message="City is required.")])
+    country = StringField('Country', validators=[DataRequired(message="Country is required.")])
+    zip_code = StringField('Zip Code', validators=[DataRequired(message="Zip code is required.")])
     submit = SubmitField('Update')
+    
+    def validate_email(self, field):
+        if field.data:
+            # Ensure email is not already taken by another user
+            from app import users_collection  # Import here to avoid circular imports
+            existing_user = users_collection.find_one({'email': field.data.lower()})
+            if existing_user and str(existing_user['_id']) != str(current_user.id):
+                raise ValidationError('This email is already registered with another account.')
+    
+    def validate_phone_number(self, field):
+        phone_number = field.data.strip()
+        try:
+            input_number = phonenumbers.parse(phone_number, 'US')
+            if not phonenumbers.is_valid_number(input_number):
+                raise ValidationError('Invalid phone number.')
+            # Format to E.164
+            field.data = phonenumbers.format_number(input_number, phonenumbers.PhoneNumberFormat.E164)
+        except phonenumbers.NumberParseException:
+            raise ValidationError('Invalid phone number format.')
 
 
 class GuestOrderForm(FlaskForm):
@@ -170,3 +297,13 @@ class GuestOrderForm(FlaskForm):
             return False
         
         return True
+    
+
+class PasswordResetRequestForm(FlaskForm):
+    email = StringField('Email', validators=[DataRequired(), Email()])
+    submit = SubmitField('Request Password Reset')
+
+class PasswordResetForm(FlaskForm):
+    password = PasswordField('New Password', validators=[DataRequired(), Length(min=6)])
+    confirm_password = PasswordField('Confirm New Password', validators=[DataRequired(), EqualTo('password')])
+    submit = SubmitField('Reset Password')
