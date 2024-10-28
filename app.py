@@ -70,7 +70,7 @@ def urlencode_filter(s):
 # Initialize Flask-Login
 login_manager = LoginManager()
 login_manager.init_app(app)
-login_manager.login_view = 'employee_admin_login'
+login_manager.login_view = 'tech_admin_login'
 login_manager.login_message_category = 'info'  
 
 #Init Logging
@@ -257,7 +257,7 @@ def admin_required(f):
     def decorated_function(*args, **kwargs):
         if not current_user.is_authenticated:
             flash('Please log in as an admin to access this page.', 'warning')
-            return redirect(url_for('employee_admin_login', next=request.url))
+            return redirect(url_for('tech_admin_login', next=request.url))
         if current_user.user_type != 'admin':
             flash('You do not have permission to access this page.', 'danger')
             return redirect(url_for('home'))
@@ -269,7 +269,7 @@ def tech_required(f):
     def decorated_function(*args, **kwargs):
         if not current_user.is_authenticated:
             flash('Please log in as a tech to access this page.', 'warning')
-            return redirect(url_for('employee_admin_login', next=request.url))
+            return redirect(url_for('tech_admin_login', next=request.url))
         if current_user.user_type != 'tech':
             flash('You do not have permission to access this page.', 'danger')
             return redirect(url_for('home'))
@@ -282,7 +282,7 @@ def sales_required(f):
     def decorated_function(*args, **kwargs):
         if not current_user.is_authenticated:
             flash('Please log in as a sales user to access this page.', 'warning')
-            return redirect(url_for('employee_admin_login', next=request.url))
+            return redirect(url_for('tech_admin_login', next=request.url))
         if current_user.user_type != 'sales':
             flash('You do not have permission to access this page.', 'danger')
             return redirect(url_for('home'))
@@ -730,6 +730,7 @@ def sales_main():
 
 
 #Schedule Guest Order Route
+
 @app.route('/sales/schedule_guest_order', methods=['GET', 'POST'])
 @login_required
 @sales_required  # Ensure this decorator is defined
@@ -758,21 +759,25 @@ def schedule_guest_order():
             service_datetime = datetime.combine(service_date, datetime.min.time())
             selected_product_ids = form.products.data  # List of product ID strings
             
-            # Convert product IDs to ObjectId
+            # Convert product IDs to ObjectId if any products are selected
             product_ids = []
-            for pid in selected_product_ids:
-                try:
-                    product_ids.append(ObjectId(pid))
-                except InvalidId:
-                    flash(f"Invalid product ID: {pid}", 'danger')
-                    return redirect(url_for('schedule_guest_order'))
+            if selected_product_ids:
+                for pid in selected_product_ids:
+                    try:
+                        product_ids.append(ObjectId(pid))
+                    except InvalidId:
+                        flash(f"Invalid product ID: {pid}", 'danger')
+                        return redirect(url_for('schedule_guest_order'))
             
             # Calculate total amount
-            selected_products = list(products_collection.find({'_id': {'$in': product_ids}}))
-            if not selected_products:
-                flash("No valid products selected.", 'danger')
-                return redirect(url_for('schedule_guest_order'))
-            total_amount = sum(product.get('price', 0) for product in selected_products)
+            total_amount = 0
+            selected_products = []
+            if product_ids:
+                selected_products = list(products_collection.find({'_id': {'$in': product_ids}}))
+                if not selected_products:
+                    flash("No valid products selected.", 'danger')
+                    return redirect(url_for('schedule_guest_order'))
+                total_amount = sum(product.get('price', 0) for product in selected_products)
             
             # Create the order document
             order = {
@@ -788,21 +793,25 @@ def schedule_guest_order():
                     'country': country,
                     'zip_code': zip_code
                 },
-                'products': selected_product_ids,  # Store as string IDs
+                'products': selected_product_ids,  # Store as list of string IDs
                 'total': total_amount,
                 'order_date': datetime.utcnow(),
                 'service_date': service_datetime,  # Use datetime object
                 'status': 'ordered',  # Changed from 'scheduled' to 'ordered'
-                'salesperson': current_user.id,  # Add 'salesperson' field
+                'salesperson': str(current_user.id),  # Ensure it's string if necessary
                 'creation_date': datetime.utcnow()
             }
             
             # Insert the order into the database
             inserted_order = orders_collection.insert_one(order)
             
-            # Optional: Send confirmation email to guest
-            if guest_email:
-                send_guest_order_confirmation_email(guest_email, order, selected_products)
+            # **Send confirmation email and/or SMS to guest**
+            send_guest_order_confirmation_email(
+                guest_email=guest_email,
+                guest_phone_number=guest_phone_number,
+                order=order,
+                selected_products=selected_products
+            )
             
             # Flash success message and redirect
             flash(f"Guest order scheduled successfully by {current_user.id}!", 'success')
@@ -813,6 +822,85 @@ def schedule_guest_order():
             return redirect(url_for('schedule_guest_order'))
     
     return render_template('sales/schedule_guest_order.html', form=form)
+
+
+#Guest Order Email Route
+
+def send_guest_order_confirmation_email(guest_email, guest_phone_number, order, selected_products):
+    """
+    Sends a confirmation email and/or SMS to the guest after scheduling an order.
+
+    :param guest_email: The guest's email address.
+    :param guest_phone_number: The guest's phone number in E.164 format.
+    :param order: The order document inserted into the database.
+    :param selected_products: A list of product documents that were ordered.
+    """
+    try:
+        # Initialize flags
+        email_sent = False
+        sms_sent = False
+
+        # **1. Send Email if guest_email is provided**
+        if guest_email:
+            try:
+                msg = Message(
+                    subject="Your Order Confirmation - CFAC",
+                    recipients=[guest_email],
+                    # sender defaults to MAIL_DEFAULT_SENDER
+                )
+
+                # Render the email body using an HTML template
+                msg.html = render_template(
+                    'emails/guest_order_confirmation.html',
+                    order=order,
+                    products=selected_products,
+                    current_year=datetime.utcnow().year
+                )
+
+                # Optionally, render a plain-text version
+                msg.body = render_template(
+                    'emails/guest_order_confirmation.txt',
+                    order=order,
+                    products=selected_products
+                )
+
+                # Send the email
+                mail.send(msg)
+                app.logger.info(f"Confirmation email sent to {guest_email}")
+                email_sent = True
+            except Exception as e:
+                app.logger.error(f"Failed to send confirmation email to {guest_email}: {e}")
+
+        # **2. Send SMS if guest_phone_number is provided**
+        if guest_phone_number:
+            try:
+                # Compose the SMS message
+                sms_message = render_template(
+                    'sms/guest_order_confirmation.txt',
+                    order=order,
+                    products=selected_products,
+                    current_year=datetime.utcnow().year
+                )
+
+                # Send the SMS via AWS SNS
+                response = sns_client.publish(
+                    PhoneNumber=guest_phone_number,
+                    Message=sms_message
+                )
+
+                message_id = response.get('MessageId')
+                app.logger.info(f"SMS sent successfully to {guest_phone_number}. Message ID: {message_id}")
+                sms_sent = True
+            except Exception as e:
+                app.logger.error(f"Failed to send SMS to {guest_phone_number}: {e}")
+
+        # **3. Log the results**
+        if not email_sent and not sms_sent:
+            app.logger.warning("No confirmation messages were sent to the guest.")
+
+    except Exception as e:
+        app.logger.error(f"Error in send_guest_order_confirmation_email: {e}")
+
 
 
 #Routes for Customers\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
@@ -1111,6 +1199,8 @@ def my_orders():
 
 
 #Customer Register Route
+
+# Registration Route
 @app.route('/customer/register', methods=['GET', 'POST'])
 def register():
     form = RegistrationForm()
@@ -1120,12 +1210,12 @@ def register():
         email = form.email.data.lower().strip() if form.email.data else None
         phone_number = form.phone_number.data.strip() if form.phone_number.data else None
         password = form.password.data
-        street_address = form.street_address.data.strip()
         unit_apt = form.unit_apt.data.strip() if form.unit_apt.data else ''
         city = form.city.data.strip()
         country = form.country.data.strip()
         zip_code = form.zip_code.data.strip()
         registration_method = form.registration_method.data
+        sms_opt_in = form.sms_opt_in.data  # Boolean value: True or False
 
         # At this point, phone_number is already validated and formatted to E.164 if provided
 
@@ -1152,7 +1242,7 @@ def register():
             'phone_number': phone_number,
             'password': hashed_pw,
             'address': {
-                'street_address': street_address,
+                'street_address': form.street_address.data.strip(),
                 'unit_apt': unit_apt,
                 'city': city,
                 'country': country,
@@ -1160,8 +1250,8 @@ def register():
             },
             'user_type': 'customer',
             'created_at': datetime.utcnow(),
-            'sms_opt_in': False  # Default value; you can add a field in the form if needed
-            # Add other necessary fields
+            'sms_opt_in': sms_opt_in  # Store the SMS opt-in preference
+            # Add other necessary fields if required
         }
 
         try:
@@ -1172,12 +1262,12 @@ def register():
             flash('A user with the provided email or phone number already exists.', 'danger')
             return redirect(url_for('register'))
         except Exception as e:
-            app.logger.error(f"Error creating user: {e}")
+            current_app.logger.error(f"Error creating user: {e}")
             flash('An error occurred while creating your account. Please try again.', 'danger')
             return redirect(url_for('register'))
 
     return render_template('customer/register.html', form=form)
-
+          
 
 #Reset password route request
 @app.route('/customer/reset_password', methods=['GET', 'POST'])

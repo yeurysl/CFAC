@@ -48,6 +48,18 @@
                 {% endfor %}
             </div>
 
+
+             <!-- Check box for Phone Number -->
+            <div class="form-group mb-3">
+                <div class="form-check">
+                    {{ form.sms_opt_in(class="form-check-input") }}
+                    {{ form.sms_opt_in.label(class="form-check-label") }}
+                </div>
+                {% for error in form.sms_opt_in.errors %}
+                    <span class="text-danger">{{ error }}</span>
+                {% endfor %}
+            </div>
+
             <div class="service-text text-center mb-4">Where will we be servicing</div>
             
 

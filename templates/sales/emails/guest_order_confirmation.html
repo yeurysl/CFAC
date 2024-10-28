@@ -1,0 +1,95 @@
+<!-- templates/emails/guest_order_confirmation.html -->
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Order Confirmation</title>
+    <style>
+        /* Add some basic styling */
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+        }
+        .container {
+            width: 80%;
+            margin: auto;
+        }
+        .header {
+            background-color: #007bff;
+            color: white;
+            padding: 10px;
+            text-align: center;
+        }
+        .products {
+            margin-top: 20px;
+        }
+        .products th, .products td {
+            padding: 10px;
+            border: 1px solid #dddddd;
+        }
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 0.9em;
+            color: #777777;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Thank You for Your Order!</h1>
+        </div>
+        
+        <p>Dear {{ order.guest_name }},</p>
+        
+        <p>Thank you for placing an order with CFAC. Here are the details of your order:</p>
+        
+        <h3>Order Details:</h3>
+        <p><strong>Order ID:</strong> {{ order._id }}</p>
+        <p><strong>Order Date:</strong> {{ order.order_date.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+        <p><strong>Service Date:</strong> {{ order.service_date.strftime('%Y-%m-%d') }}</p>
+        
+        <h3>Shipping Address:</h3>
+        <p>
+            {{ order.guest_address.street_address }}<br>
+            {% if order.guest_address.unit_apt %}
+                {{ order.guest_address.unit_apt }}<br>
+            {% endif %}
+            {{ order.guest_address.city }}, {{ order.guest_address.country }} {{ order.guest_address.zip_code }}
+        </p>
+        
+        {% if products %}
+            <h3>Products Ordered:</h3>
+            <table class="products">
+                <tr>
+                    <th>Product Name</th>
+                    <th>Price</th>
+                </tr>
+                {% for product in products %}
+                    <tr>
+                        <td>{{ product.name }}</td>
+                        <td>${{ "%.2f"|format(product.price) }}</td>
+                    </tr>
+                {% endfor %}
+                <tr>
+                    <td><strong>Total</strong></td>
+                    <td><strong>${{ "%.2f"|format(order.total) }}</strong></td>
+                </tr>
+            </table>
+        {% else %}
+            <p><strong>No products were selected for this order.</strong></p>
+        {% endif %}
+        
+        <p>If you have any questions or need further assistance, feel free to contact us at support@cfac.com.</p>
+        
+        <p>Best regards,<br>Central Florida Auto Care Team</p>
+        
+        <div class="footer">
+            <p>&copy; {{ current_year }} CFAC. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>

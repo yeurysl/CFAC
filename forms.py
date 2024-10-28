@@ -1,9 +1,10 @@
 
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SubmitField, SelectField, HiddenField, SelectMultipleField, DateField, RadioField
+from wtforms import StringField, PasswordField, SubmitField, SelectField, HiddenField, SelectMultipleField, DateField, RadioField, BooleanField
 from wtforms.validators import DataRequired, Email, EqualTo, Length, Regexp, Optional
 from wtforms.widgets import ListWidget, CheckboxInput
 import phonenumbers
+
 
 
 
@@ -41,11 +42,12 @@ class RegistrationForm(FlaskForm):
         'City', 
         validators=[DataRequired(message="City is required.")]
     )
-    country = SelectField(
+    country = StringField(
         'Country', 
-        choices=[('United States', 'United States')],  # Only US as per your requirement
+        default='United States',
+        render_kw={'readonly': True},
         validators=[DataRequired(message="Country is required.")]
-    )    
+    )
     zip_code = StringField(
         'Zip Code', 
         validators=[DataRequired(message="Zip code is required.")]
@@ -60,6 +62,11 @@ class RegistrationForm(FlaskForm):
             DataRequired(message="Please confirm your password."),
             EqualTo('password', message="Passwords must match.")
         ]
+    )
+    sms_opt_in = BooleanField(
+        'I agree to receive SMS notifications from CFAC AutoCare.',
+        default=False,
+        validators=[Optional()]
     )
     submit = SubmitField('Register')
 
@@ -110,7 +117,6 @@ class RegistrationForm(FlaskForm):
                 return False
 
         return True
-
 
 
 
@@ -235,13 +241,6 @@ class UpdateAccountForm(FlaskForm):
 
 
 
-# forms.py
-
-from flask_wtf import FlaskForm
-from wtforms import StringField, SubmitField, SelectMultipleField, DateField
-from wtforms.widgets import ListWidget, CheckboxInput
-from wtforms.validators import DataRequired, Email, Length, Optional, Regexp
-
 class GuestOrderForm(FlaskForm):
     # Guest Information
     guest_name = StringField('Guest Name', validators=[
@@ -293,7 +292,7 @@ class GuestOrderForm(FlaskForm):
         choices=[],  # Populate this dynamically in your route
         option_widget=CheckboxInput(),
         widget=ListWidget(prefix_label=False),
-        validators=[DataRequired(message="At least one product must be selected.")],
+        validators=[],  # Removed DataRequired to make it optional
         coerce=str  # Ensure this matches the data type of product IDs
     )
     
