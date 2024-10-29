@@ -1013,6 +1013,95 @@ def send_guest_order_confirmation_email(guest_email, guest_phone_number, order, 
     except Exception as e:
         app.logger.error(f"Error in send_guest_order_confirmation_email: {e}")
 
+@app.route('/sales/view_order/<order_id>')
+@login_required
+@sales_required  # Ensure only sales users can access
+def sales_view_order(order_id):
+    try:
+        # **1. Validate the Order ID**
+        if not ObjectId.is_valid(order_id):
+            flash('Invalid order ID.', 'danger')
+            return redirect(url_for('sales_main'))
+        
+        order_obj_id = ObjectId(order_id)
+        
+        # **2. Fetch the Order from the Database**
+        order = orders_collection.find_one({'_id': order_obj_id})
+        if not order:
+            flash('Order not found.', 'danger')
+            return redirect(url_for('sales_main'))
+        
+        # **3. Check if the Current Salesperson is Assigned to the Order**
+        if str(order.get('salesperson')) != str(current_user.id):
+            flash('You do not have permission to view this order.', 'danger')
+            return redirect(url_for('sales_main'))
+        
+        # **4. Enrich the Order with Additional Details**
+        # Convert ObjectId fields to string for easier handling in templates
+        order['_id'] = str(order['_id'])
+        order['salesperson'] = str(order.get('salesperson'))
+    
+        # Determine order type
+        is_guest = order.get('is_guest', False)
+        order['order_type'] = 'Guest Order' if is_guest else 'Customer Order'
+    
+        # Fetch user details if it's a customer order
+        if not is_guest:
+            user = users_collection.find_one({'email': order.get('user')})
+            if user:
+                order['user_name'] = user.get('name', 'N/A')
+                order['user_phone'] = user.get('phone_number', 'N/A')
+                order['user_address'] = user.get('address', {})
+            else:
+                order['user_name'] = 'Unknown'
+                order['user_phone'] = 'Unknown'
+                order['user_address'] = {}
+    
+        # Fetch the user who scheduled the order
+        scheduled_by_username = order.get('scheduled_by')
+        if scheduled_by_username:
+            scheduled_by_user = users_collection.find_one({'username': scheduled_by_username})
+            if scheduled_by_user:
+                order['scheduled_by_name'] = scheduled_by_user.get('name', 'Unknown')
+                order['scheduled_by_email'] = scheduled_by_user.get('email', 'Unknown')
+            else:
+                order['scheduled_by_name'] = 'Unknown'
+                order['scheduled_by_email'] = 'Unknown'
+        else:
+            order['scheduled_by_name'] = 'Not Scheduled'
+            order['scheduled_by_email'] = ''
+    
+        # Ensure dates are datetime objects (if stored as strings)
+        for date_field in ['order_date', 'service_date']:
+            if isinstance(order.get(date_field), str):
+                try:
+                    if date_field == 'service_date':
+                        order[date_field] = datetime.strptime(order[date_field], '%Y-%m-%d')
+                    else:
+                        order[date_field] = datetime.strptime(order[date_field], '%Y-%m-%d %H:%M:%S')
+                except ValueError:
+                    app.logger.error(f"Invalid {date_field} format for order ID {order.get('_id')}: {order.get(date_field)}")
+                    order[date_field] = None  # Handle invalid date formats as needed
+    
+        # Fetch product details
+        product_ids = [ObjectId(pid) for pid in order.get('products', [])]
+        products = list(products_collection.find({'_id': {'$in': product_ids}}))
+        order['product_details'] = products
+    
+        # **5. Initialize Delete Form (Optional)**
+        delete_form = DeleteOrderForm()
+    
+        # **6. Render the Template with Order Details**
+        return render_template(
+            'sales/view_order.html',
+            order=order,
+            delete_form=delete_form  # Pass delete_form if you plan to allow deletion
+        )
+    
+    except Exception as e:
+        app.logger.error(f"Error in sales_view_order route: {e}")
+        flash('An error occurred while fetching the order details.', 'danger')
+        return redirect(url_for('sales_main'))
 
 
 #Routes for Customers\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\

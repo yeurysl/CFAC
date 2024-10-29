@@ -1,0 +1,102 @@
+<!-- templates/sales/view_order.html -->
+{% extends 'base.html' %}
+
+{% block title %}View Order{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="mb-4">Order Details</h1>
+
+    <!-- Order Information -->
+    <div class="card mb-4">
+        <div class="card-header">
+            Order ID: {{ order._id }}
+        </div>
+        <div class="card-body">
+            <p><strong>Order Type:</strong> {{ order.order_type }}</p>
+            <p><strong>Status:</strong> {{ order.status | capitalize }}</p>
+            <p><strong>Service Date:</strong>
+                {% if order.service_date %}
+                    {{ order.service_date.strftime('%Y-%m-%d') }}
+                {% else %}
+                    N/A
+                {% endif %}
+            </p>
+            <p><strong>Total Amount:</strong> ${{ '%.2f'|format(order.total) }}</p>
+            <p><strong>Scheduled By:</strong> {{ order.scheduled_by_name }}</p>
+            <p><strong>Scheduled By Email:</strong> {{ order.scheduled_by_email }}</p>
+        </div>
+    </div>
+
+    <!-- Guest or Customer Information -->
+    <div class="card mb-4">
+        <div class="card-header">
+            {% if order.order_type == 'Guest Order' %}
+                Guest Information
+            {% else %}
+                Customer Information
+            {% endif %}
+        </div>
+        <div class="card-body">
+            <p><strong>Name:</strong>
+                {% if order.order_type == 'Guest Order' %}
+                    {{ order.guest_name }}
+                {% else %}
+                    {{ order.user_name }}
+                {% endif %}
+            </p>
+            <p><strong>Email:</strong>
+                {% if order.order_type == 'Guest Order' %}
+                    {{ order.guest_email or 'N/A' }}
+                {% else %}
+                    {{ order.user_email }}
+                {% endif %}
+            </p>
+            <p><strong>Phone:</strong>
+                {% if order.order_type == 'Guest Order' %}
+                    {{ order.guest_phone_number or 'N/A' }}
+                {% else %}
+                    {{ order.user_phone }}
+                {% endif %}
+            </p>
+            <p><strong>Address:</strong>
+                {% if order.order_type == 'Guest Order' %}
+                    {{ order.guest_address.street_address }}, 
+                    {{ order.guest_address.unit_apt }}, 
+                    {{ order.guest_address.city }}, 
+                    {{ order.guest_address.country }}, 
+                    {{ order.guest_address.zip_code }}
+                {% else %}
+                    {{ order.user_address.street_address }}, 
+                    {{ order.user_address.unit_apt }}, 
+                    {{ order.user_address.city }}, 
+                    {{ order.user_address.country }}, 
+                    {{ order.user_address.zip_code }}
+                {% endif %}
+            </p>
+        </div>
+    </div>
+
+    <!-- Products in the Order -->
+    <div class="card mb-4">
+        <div class="card-header">
+            Products
+        </div>
+        <div class="card-body">
+            {% if order.product_details %}
+                <ul class="list-group">
+                    {% for product in order.product_details %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            {{ product.name }}
+                            <span>${{ '%.2f'|format(product.price) }}</span>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p>No products associated with this order.</p>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}
