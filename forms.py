@@ -1,6 +1,6 @@
 
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SubmitField, SelectField, HiddenField, SelectMultipleField, DateField, RadioField, BooleanField
+from wtforms import StringField, PasswordField, SubmitField, SelectField, HiddenField, SelectMultipleField, DateField, RadioField, BooleanField, DecimalField
 from wtforms.validators import DataRequired, Email, EqualTo, Length, Regexp, Optional
 from wtforms.widgets import ListWidget, CheckboxInput
 import phonenumbers
@@ -322,3 +322,16 @@ class PasswordResetForm(FlaskForm):
     password = PasswordField('New Password', validators=[DataRequired(), Length(min=6)])
     confirm_password = PasswordField('Confirm New Password', validators=[DataRequired(), EqualTo('password')])
     submit = SubmitField('Reset Password')
+
+
+
+
+class EditOrderForm(FlaskForm):
+    status = SelectField('Status', choices=[('ordered', 'Ordered'), ('scheduled', 'Scheduled')], validators=[DataRequired()])
+    payment_method = StringField('Payment Method', validators=[DataRequired()])
+    total_amount = DecimalField('Total Amount', validators=[DataRequired()])
+    service_date = DateField('Schedule Date', format='%Y-%m-%d', validators=[DataRequired()])
+
+
+class DeleteOrderForm(FlaskForm):
+    submit = SubmitField('Delete')

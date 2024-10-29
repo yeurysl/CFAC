@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_wtf import CSRFProtect
 from flask_wtf.csrf import generate_csrf
-from forms import RegistrationForm, RemoveFromCartForm, CustomerLoginForm, EmployeeLoginForm, UpdateAccountForm, GuestOrderForm, PasswordResetRequestForm, PasswordResetForm
+from forms import RegistrationForm, RemoveFromCartForm, CustomerLoginForm, EmployeeLoginForm, UpdateAccountForm, GuestOrderForm, PasswordResetRequestForm, PasswordResetForm, EditOrderForm, DeleteOrderForm
 from functools import wraps
 from flask_mail import Mail, Message
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -1410,6 +1410,9 @@ def view_order(order_id):
             flash('Order not found.', 'danger')
             return redirect(url_for('admin_main'))
 
+        # Initialize delete form
+        delete_form = DeleteOrderForm()
+        
         # Determine if the order is a guest order or a customer order
         is_guest = order.get('is_guest', False)
         order['order_type'] = 'Guest Order' if is_guest else 'Customer Order'
@@ -1461,13 +1464,59 @@ def view_order(order_id):
         products = list(products_collection.find({'_id': {'$in': product_ids}}))
         order['product_details'] = products
 
-        return render_template('admin/view_order.html', order=order)
+        return render_template('admin/view_order.html', order=order, delete_form=delete_form)
     except Exception as e:
         app.logger.error(f"Error in view_order route: {e}")
         flash('An error occurred while fetching the order details.', 'danger')
         return redirect(url_for('admin_main'))
 
 
+
+# Edit Order Route
+@app.route('/admin/edit_order/<order_id>', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def edit_order(order_id):
+    order = orders_collection.find_one({'_id': ObjectId(order_id)})
+    if not order:
+        flash('Order not found.', 'danger')
+        return redirect(url_for('admin_main'))
+    
+    # Instantiate the form and populate it with order data
+    form = EditOrderForm(
+        status=order.get('status'),
+        payment_method=order.get('payment_method'),
+        total_amount=order.get('total'),
+        service_date=order.get('service_date')
+    )
+    
+    if form.validate_on_submit():
+        # Update order in the database
+        orders_collection.update_one(
+            {'_id': ObjectId(order_id)},
+            {'$set': {
+                'status': form.status.data,
+                'payment_method': form.payment_method.data,
+                'total': form.total_amount.data,
+                'service_date': form.service_date.data
+            }}
+        )
+        flash('Order updated successfully.', 'success')
+        return redirect(url_for('view_order', order_id=order_id))
+    
+    return render_template('admin/edit_order.html', form=form, order=order)
+
+@app.route('/admin/delete_order/<order_id>', methods=['POST'])
+@login_required
+@admin_required
+def delete_order(order_id):
+    delete_form = DeleteOrderForm()
+    if delete_form.validate_on_submit():  # CSRF validation
+        orders_collection.delete_one({'_id': ObjectId(order_id)})
+        flash('Order deleted successfully.', 'success')
+    else:
+        flash('Invalid CSRF token.', 'danger')
+    return redirect(url_for('admin_main'))
 #View Users Route
 @app.route('/admin/view_user/<user_id>')
 @login_required
