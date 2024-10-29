@@ -721,12 +721,124 @@ def tech_admin_login():
 #Routes for Sales\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
 
+
+#Sales Main
 @app.route('/sales/main')
 @login_required
-@sales_required
+@sales_required  # Ensure this decorator checks for salesperson privileges
 def sales_main():
+    try:
+        # **1. Pagination Parameters**
+        page = request.args.get('page', 1, type=int)  # Current page number
+        per_page = 20  # Number of orders per page
 
-    return render_template('sales/main.html')
+        # **2. Search Parameter (Optional)**
+        search_query = request.args.get('search', '').strip()
+
+        # **3. Build MongoDB Query**
+        query = {
+            'salesperson': str(current_user.id)  # Assuming 'salesperson' is stored as a string ID
+        }
+
+        if search_query:
+            try:
+                # If the search query is a valid ObjectId, include it in the search
+                object_id = ObjectId(search_query)
+                query['$or'] = [
+                    {'_id': object_id},
+                    {'guest_name': {'$regex': search_query, '$options': 'i'}},
+                    {'user_email': {'$regex': search_query, '$options': 'i'}}
+                ]
+            except InvalidId:
+                # If not a valid ObjectId, search by guest_name or user_email
+                query['$or'] = [
+                    {'guest_name': {'$regex': search_query, '$options': 'i'}},
+                    {'user_email': {'$regex': search_query, '$options': 'i'}}
+                ]
+
+        # **4. Fetch Total Number of Orders Matching the Query**
+        total_orders = orders_collection.count_documents(query)
+        total_pages = (total_orders + per_page - 1) // per_page  # Ceiling division to get total pages
+
+        # **5. Fetch Orders for the Current Page**
+        orders = list(
+            orders_collection.find(query)
+            .sort('order_date', -1)  # Sort by order_date descending
+            .skip((page - 1) * per_page)
+            .limit(per_page)
+        )
+
+        # **6. Enrich Orders with Additional Details**
+        for order in orders:
+            # Convert ObjectId fields to string for easier handling in templates
+            order['_id'] = str(order['_id'])
+            order['salesperson'] = str(order.get('salesperson'))
+
+            # Determine order type
+            is_guest = order.get('is_guest', False)
+            order['order_type'] = 'Guest Order' if is_guest else 'Customer Order'
+
+            # Fetch user details if it's a customer order
+            if not is_guest:
+                user = users_collection.find_one({'email': order.get('user')})
+                if user:
+                    order['user_name'] = user.get('name', 'N/A')
+                    order['user_phone'] = user.get('phone_number', 'N/A')
+                    order['user_address'] = user.get('address', {})
+                else:
+                    order['user_name'] = 'Unknown'
+                    order['user_phone'] = 'Unknown'
+                    order['user_address'] = {}
+
+            # Fetch the user who scheduled the order
+            scheduled_by_username = order.get('scheduled_by')
+            if scheduled_by_username:
+                scheduled_by_user = users_collection.find_one({'username': scheduled_by_username})
+                if scheduled_by_user:
+                    order['scheduled_by_name'] = scheduled_by_user.get('name', 'Unknown')
+                    order['scheduled_by_email'] = scheduled_by_user.get('email', 'Unknown')
+                else:
+                    order['scheduled_by_name'] = 'Unknown'
+                    order['scheduled_by_email'] = 'Unknown'
+            else:
+                order['scheduled_by_name'] = 'Not Scheduled'
+                order['scheduled_by_email'] = ''
+
+            # Ensure dates are datetime objects (if stored as strings)
+            for date_field in ['order_date', 'service_date']:
+                if isinstance(order.get(date_field), str):
+                    try:
+                        if date_field == 'service_date':
+                            order[date_field] = datetime.strptime(order[date_field], '%Y-%m-%d')
+                        else:
+                            order[date_field] = datetime.strptime(order[date_field], '%Y-%m-%d %H:%M:%S')
+                    except ValueError:
+                        app.logger.error(f"Invalid {date_field} format for order ID {order.get('_id')}: {order.get(date_field)}")
+                        order[date_field] = None  # Handle invalid date formats as needed
+
+            # Fetch product details
+            product_ids = [ObjectId(pid) for pid in order.get('products', [])]
+            products = list(products_collection.find({'_id': {'$in': product_ids}}))
+            order['product_details'] = products
+
+        # **7. Initialize Delete Form**
+        delete_form = DeleteOrderForm()
+
+        # **8. Pass Variables to the Template**
+        return render_template(
+            'sales/main.html',
+            orders=orders,
+            page=page,
+            per_page=per_page,
+            total_pages=total_pages,
+            search_query=search_query,
+            delete_form=delete_form  # Pass delete_form for CSRF in delete actions
+        )
+    except Exception as e:
+        app.logger.error(f"Error in sales_main route: {e}")
+        flash('An error occurred while fetching your scheduled sales.', 'danger')
+        return redirect(url_for('home'))
+
 
 
 #Schedule Guest Order Route

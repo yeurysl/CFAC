@@ -1,7 +1,118 @@
+<!-- templates/sales/main.html -->
 {% extends 'base.html' %}
 
-{% block title %}About Us{% endblock %}
+{% block title %}Sales Dashboard{% endblock %}
 
 {% block content %}
-    <h1>Welcome to the Sales Main Page</h1>
+<div class="container mt-5">
+    <h1 class="mb-4">Scheduled Sales</h1>
+
+    <!-- Search Form -->
+    <form method="GET" action="{{ url_for('sales_main') }}" class="mb-4">
+        <div class="input-group">
+            <input type="text" name="search" class="form-control" placeholder="Search sales..." value="{{ search_query }}">
+            <button class="btn btn-primary" type="submit">Search</button>
+        </div>
+    </form>
+
+    <!-- Responsive Table Wrapper -->
+    <div class="table-responsive">
+        <table class="table table-striped table-bordered align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th>ID</th>
+                    <th>Order Type</th>
+                    <th>Guest/Customer Name</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>Service Date</th>
+                    <th>Total Amount</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in orders %}
+                <tr>
+                    <td>{{ order._id }}</td>
+                    <td>{{ order.order_type }}</td>
+                    <td>
+                        {% if order.order_type == 'Guest Order' %}
+                            {{ order.guest_name }}
+                        {% else %}
+                            {{ order.user_name }}
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if order.order_type == 'Guest Order' %}
+                            {{ order.guest_email or 'N/A' }}
+                        {% else %}
+                            {{ order.user_email }}
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if order.order_type == 'Guest Order' %}
+                            {{ order.guest_phone_number or 'N/A' }}
+                        {% else %}
+                            {{ order.user_phone }}
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if order.service_date %}
+                            {{ order.service_date.strftime('%Y-%m-%d') }}
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </td>
+                    <td>${{ '%.2f'|format(order.total) }}</td>
+                    <td>{{ order.status | capitalize }}</td>
+                    <td>
+                        <a href="{{ url_for('view_order', order_id=order._id) }}" class="btn btn-info btn-sm me-1" title="View Order">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                        <form action="{{ url_for('delete_order', order_id=order._id) }}" method="POST" class="d-inline">
+                            {{ delete_form.hidden_tag() }}
+                            <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this order?');" title="Delete Order">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="9" class="text-center">No scheduled sales found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination Controls -->
+    {% if total_pages > 1 %}
+    <nav aria-label="Page navigation">
+        <ul class="pagination justify-content-center">
+            <!-- Previous Page Link -->
+            <li class="page-item {% if page == 1 %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('sales_main', page=page-1, search=search_query) }}" aria-label="Previous">
+                    <span aria-hidden="true">&laquo;</span>
+                </a>
+            </li>
+
+            <!-- Page Number Links -->
+            {% for p in range(1, total_pages + 1) %}
+                <li class="page-item {% if p == page %}active{% endif %}">
+                    <a class="page-link" href="{{ url_for('sales_main', page=p, search=search_query) }}">{{ p }}</a>
+                </li>
+            {% endfor %}
+
+            <!-- Next Page Link -->
+            <li class="page-item {% if page == total_pages %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('sales_main', page=page+1, search=search_query) }}" aria-label="Next">
+                    <span aria-hidden="true">&raquo;</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+    {% endif %}
+</div>
 {% endblock %}
