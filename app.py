@@ -1546,22 +1546,22 @@ def delete_user(user_id):
     flash('User deleted successfully.', 'success')
     return redirect(url_for('manage_users'))
 
+#Manage Users Route
 @app.route('/admin/manage_users')
 @login_required
 @admin_required
 def manage_users():
     try:
-        # **1. Pagination Parameters**
+        # Instantiate the delete form
+        delete_form = DeleteOrderForm()
+
+        # Pagination and search setup
         page = request.args.get('page', 1, type=int)
         per_page = 20
-
-        # **2. Search Parameter (Optional)**
         search_query = request.args.get('search', '').strip()
 
-        # **3. Build MongoDB Query**
         query = {}
         if search_query:
-            # Search by email or ID
             try:
                 query = {
                     '$or': [
@@ -1570,17 +1570,14 @@ def manage_users():
                     ]
                 }
             except InvalidId:
-                # If search_query is not a valid ObjectId, ignore ID search
                 query = {'email': {'$regex': search_query, '$options': 'i'}}
 
-        # **4. Fetch Total Number of Users Matching the Query**
         total_users = users_collection.count_documents(query)
         total_pages = (total_users + per_page - 1) // per_page
 
-        # **5. Fetch Users for the Current Page**
         users = list(
             users_collection.find(query)
-            .sort('creation_date', -1)  # Sort by creation_date descending
+            .sort('creation_date', -1)
             .skip((page - 1) * per_page)
             .limit(per_page)
         )
@@ -1590,12 +1587,14 @@ def manage_users():
             users=users,
             page=page,
             per_page=per_page,
-            total_pages=total_pages
+            total_pages=total_pages,
+            delete_form=delete_form  # Pass delete form
         )
     except Exception as e:
         app.logger.error(f"Error in manage_users route: {e}")
         flash('An error occurred while fetching users.', 'danger')
         return redirect(url_for('admin_main'))
+
 #Extra
 
 

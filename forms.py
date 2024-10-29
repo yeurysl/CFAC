@@ -239,7 +239,8 @@ class UpdateAccountForm(FlaskForm):
             raise ValidationError('Invalid phone number format.')
 
 
-
+class DeleteUserForm(FlaskForm):
+    submit = SubmitField('Delete')
 
 class GuestOrderForm(FlaskForm):
     # Guest Information
@@ -331,6 +332,9 @@ class EditOrderForm(FlaskForm):
     payment_method = StringField('Payment Method', validators=[DataRequired()])
     total_amount = DecimalField('Total Amount', validators=[DataRequired()])
     service_date = DateField('Schedule Date', format='%Y-%m-%d', validators=[DataRequired()])
+
+
+
 
 
 class DeleteOrderForm(FlaskForm):
