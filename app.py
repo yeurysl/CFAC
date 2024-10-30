@@ -14,7 +14,7 @@ from pymongo.errors import DuplicateKeyError
 from urllib.parse import urlparse, urljoin, quote_plus
 from bson.decimal128 import Decimal128, create_decimal128_context
 import decimal
-import datetime
+from datetime import datetime
 from dateutil import parser
 import phonenumbers
 from phonenumbers import NumberParseException
@@ -933,7 +933,7 @@ def schedule_guest_order():
         except Exception as e:
             current_app.logger.error(f"Error scheduling guest order: {e}")
             flash('An error occurred while scheduling the guest order. Please try again.', 'danger')
-            return redirect(url_for('schedule_guest_order'))
+            return render_template('sales/schedule_guest_order.html', form=form)
     
     return render_template('sales/schedule_guest_order.html', form=form)
 

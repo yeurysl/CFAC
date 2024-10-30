@@ -1,6 +1,6 @@
 
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SubmitField, SelectField, HiddenField, SelectMultipleField, DateField, RadioField, BooleanField, DecimalField
+from wtforms import StringField, PasswordField, SubmitField, SelectField, HiddenField, SelectMultipleField, DateField, RadioField, BooleanField, DecimalField, TimeField
 from wtforms.validators import DataRequired, Email, EqualTo, Length, Regexp, Optional
 from wtforms.widgets import ListWidget, CheckboxInput
 import phonenumbers
@@ -287,7 +287,11 @@ class GuestOrderForm(FlaskForm):
     service_date = DateField('Service Date', validators=[
         DataRequired(message="Service Date is required.")
     ], format='%Y-%m-%d')
-    
+
+     #  Time Field
+    service_time = TimeField('Service Time', format='%H:%M', validators=[
+        DataRequired()]) 
+
     products = SelectMultipleField(
         'Products',
         choices=[],  # Populate this dynamically in your route

@@ -105,6 +105,13 @@
                         <div class="text-danger">{{ error }}</div>
                     {% endfor %}
                 </div>
+                <div class="mb-3">
+                    {{ form.service_time.label(class="form-label") }}
+                    {{ form.service_time(class="form-control", type="time", id="service_time") }}
+                    {% for error in form.service_time.errors %}
+                        <div class="text-danger">{{ error }}</div>
+                    {% endfor %}
+                </div>
                 
                 <div class="mb-3">
                     <label class="form-label">Products</label>
@@ -146,6 +153,7 @@
             'country',
             'zip_code',
             'service_date',
+            'service_time',  // Added Time Field
             // 'products' is now multiple checkboxes, handled separately
         ];
 
@@ -223,4 +231,5 @@
         });
     });
 </script>
+
 {% endblock %}
