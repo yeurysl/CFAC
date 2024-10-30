@@ -12,7 +12,9 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from bson.objectid import ObjectId, InvalidId
 from pymongo.errors import DuplicateKeyError
 from urllib.parse import urlparse, urljoin, quote_plus
-from datetime import datetime, timedelta, time
+from bson.decimal128 import Decimal128, create_decimal128_context
+import decimal
+import datetime
 from dateutil import parser
 import phonenumbers
 from phonenumbers import NumberParseException
@@ -42,7 +44,7 @@ app.config['WTF_CSRF_TIME_LIMIT'] = None
 bcrypt = Bcrypt(app)
 
 csrf = CSRFProtect(app)
-
+decimal.getcontext().prec = 28 
 
 #Mongo DB SETUP\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
@@ -240,7 +242,7 @@ def format_date_with_suffix(date):
     Formats a datetime object into 'Month DaySuffix Year' format.
     Example: October 10th 2024
     """
-    if not isinstance(date, datetime):
+    if not isinstance(date, datetime.datetime):
         return date  # Return as-is if not a datetime object
 
     day = date.day
@@ -498,9 +500,9 @@ def tech_main():
 
             # Ensure dates are datetime objects
             if isinstance(order['order_date'], str):
-                order['order_date'] = datetime.strptime(order['order_date'], '%Y-%m-%d %H:%M:%S')
+                order['order_date'] = datetime.datetime.strptime(order['order_date'], '%Y-%m-%d %H:%M:%S')
             if isinstance(order['service_date'], str):
-                order['service_date'] = datetime.strptime(order['service_date'], '%Y-%m-%d')
+                order['service_date'] = datetime.datetime.strptime(order['service_date'], '%Y-%m-%d')
 
             # Fetch product details
             try:
@@ -547,9 +549,9 @@ def my_schedule():
 
             # Ensure dates are datetime objects
             if isinstance(order['order_date'], str):
-                order['order_date'] = datetime.strptime(order['order_date'], '%Y-%m-%d %H:%M:%S')
+                order['order_date'] = datetime.datetime.strptime(order['order_date'], '%Y-%m-%d %H:%M:%S')
             if isinstance(order['service_date'], str):
-                order['service_date'] = datetime.strptime(order['service_date'], '%Y-%m-%d')
+                order['service_date'] = datetime.datetime.strptime(order['service_date'], '%Y-%m-%d')
 
             # Include address details
             if order.get('guest_address'):
@@ -1563,9 +1565,9 @@ def admin_main():
                 if isinstance(order.get(date_field), str):
                     try:
                         if date_field == 'service_date':
-                            order[date_field] = datetime.strptime(order[date_field], '%Y-%m-%d')
+                           order[date_field] = datetime.datetime.strptime(order[date_field], '%Y-%m-%d')
                         else:
-                            order[date_field] = datetime.strptime(order[date_field], '%Y-%m-%d %H:%M:%S')
+                           order[date_field] = datetime.datetime.strptime(order[date_field], '%Y-%m-%d %H:%M:%S')
                     except ValueError:
                         app.logger.error(f"Invalid {date_field} format for order ID {order.get('_id')}: {order.get(date_field)}")
                         order[date_field] = None  # Handle invalid date formats as needed
@@ -1592,7 +1594,6 @@ def admin_main():
 
     
 #View order Route
-
 @app.route('/admin/view_order/<order_id>')
 @login_required
 @admin_required
@@ -1619,11 +1620,15 @@ def view_order(order_id):
         order['order_type'] = 'Guest Order' if is_guest else 'Customer Order'
 
         if is_guest:
-            # For guest orders, fetch the salesperson's details
+            # For guest orders, fetch the salesperson's details using _id
             salesperson_id = order.get('salesperson')
             if salesperson_id:
-                salesperson = users_collection.find_one({'username': salesperson_id, 'user_type': 'sales'})
-                order['salesperson_name'] = salesperson.get('name', 'Unknown') if salesperson else 'Unknown'
+                try:
+                    salesperson_obj_id = ObjectId(salesperson_id)
+                    salesperson = users_collection.find_one({'_id': salesperson_obj_id, 'user_type': 'sales'})
+                    order['salesperson_name'] = salesperson.get('name', 'Unknown') if salesperson else 'Unknown'
+                except InvalidId:
+                    order['salesperson_name'] = 'Unknown'
             else:
                 order['salesperson_name'] = 'Not Assigned'
         else:
@@ -1653,9 +1658,9 @@ def view_order(order_id):
             if isinstance(order.get(date_field), str):
                 try:
                     if date_field == 'service_date':
-                        order[date_field] = datetime.strptime(order[date_field], '%Y-%m-%d')
+                       order[date_field] = datetime.datetime.strptime(order[date_field], '%Y-%m-%d')
                     else:
-                        order[date_field] = datetime.strptime(order[date_field], '%Y-%m-%d %H:%M:%S')
+                     order[date_field] = datetime.datetime.strptime(order[date_field], '%Y-%m-%d %H:%M:%S')
                 except ValueError:
                     app.logger.error(f"Invalid {date_field} format for order ID {order.get('_id')}: {order.get(date_field)}")
                     order[date_field] = None  # Handle invalid date formats as needed
@@ -1674,38 +1679,70 @@ def view_order(order_id):
 
 
 # Edit Order Route
+
 @app.route('/admin/edit_order/<order_id>', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def edit_order(order_id):
-    order = orders_collection.find_one({'_id': ObjectId(order_id)})
-    if not order:
-        flash('Order not found.', 'danger')
+    try:
+        # **1. Validate and Convert Order ID**
+        if not ObjectId.is_valid(order_id):
+            flash('Invalid order ID.', 'danger')
+            return redirect(url_for('admin_main'))
+        
+        order_obj_id = ObjectId(order_id)
+        order = orders_collection.find_one({'_id': order_obj_id})
+        if not order:
+            flash('Order not found.', 'danger')
+            return redirect(url_for('admin_main'))
+        
+        # **2. Initialize the Form with Existing Order Data**
+        form = EditOrderForm(obj=order)
+        
+        if form.validate_on_submit():
+            # **3. Handle Total Amount Conversion**
+            try:
+                total_float = float(form.total_amount.data)
+            except (ValueError, TypeError):
+                flash('Invalid total amount.', 'danger')
+                return redirect(url_for('edit_order', order_id=order_id))
+            
+            # **4. Handle Service Date Conversion**
+            service_date = form.service_date.data  # This is a datetime.date object
+            if isinstance(service_date, datetime.date) and not isinstance(service_date, datetime.datetime):
+                # Combine with a default time, e.g., midnight
+                service_datetime = datetime.datetime.combine(service_date, datetime.time.min)
+            else:
+                service_datetime = service_date  # Already a datetime.datetime object
+            
+            # **5. Update the Order in MongoDB**
+            update_result = orders_collection.update_one(
+                {'_id': order_obj_id},
+                {'$set': {
+                    'status': form.status.data,
+                    'payment_method': form.payment_method.data,
+                    'total': total_float,
+                    'service_date': service_datetime  # Now a datetime.datetime object
+                }}
+            )
+            
+            if update_result.modified_count:
+                flash('Order updated successfully.', 'success')
+            else:
+                flash('No changes made to the order.', 'info')
+            
+            return redirect(url_for('view_order', order_id=order_id))
+        
+        # **6. Render the Edit Order Template**
+        return render_template('admin/edit_order.html', form=form, order=order)
+    
+    except Exception as e:
+        app.logger.error(f"Error in edit_order route: {e}", exc_info=True)
+        flash('An error occurred while editing the order.', 'danger')
         return redirect(url_for('admin_main'))
-    
-    # Instantiate the form and populate it with order data
-    form = EditOrderForm(
-        status=order.get('status'),
-        payment_method=order.get('payment_method'),
-        total_amount=order.get('total'),
-        service_date=order.get('service_date')
-    )
-    
-    if form.validate_on_submit():
-        # Update order in the database
-        orders_collection.update_one(
-            {'_id': ObjectId(order_id)},
-            {'$set': {
-                'status': form.status.data,
-                'payment_method': form.payment_method.data,
-                'total': form.total_amount.data,
-                'service_date': form.service_date.data
-            }}
-        )
-        flash('Order updated successfully.', 'success')
-        return redirect(url_for('view_order', order_id=order_id))
-    
-    return render_template('admin/edit_order.html', form=form, order=order)
+
+
+
 
 @app.route('/admin/delete_order/<order_id>', methods=['POST'])
 @login_required
@@ -1731,7 +1768,7 @@ def view_user(user_id):
     # Ensure creation_date is a datetime object
     if 'creation_date' in user and isinstance(user['creation_date'], str):
         # If it's stored as a string, parse it back to datetime
-        user['creation_date'] = datetime.strptime(user['creation_date'], '%Y-%m-%d %H:%M:%S')
+        user['creation_date'] = datetime.datetime.strptime(user['creation_date'], '%Y-%m-%d %H:%M:%S')
 
     return render_template('admin/view_user.html', user=user)
 
@@ -1824,10 +1861,19 @@ def format_time_filter(time_str):
     Converts a 'HH:MM' string into 'h:MM AM/PM' format.
     """
     try:
-        time_obj = datetime.strptime(time_str, '%H:%M')
+        time_obj = datetime.datetime.strptime(time_str, '%H:%M')
         return time_obj.strftime('%I:%M %p').lstrip('0')  # Removes leading zero
     except (ValueError, TypeError):
         return 'Invalid Time'
+    
+
+
+
+
+
+
+
+
 
 if __name__ == '__main__':
     app.run(debug=True)
