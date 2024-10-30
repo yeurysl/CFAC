@@ -14,7 +14,7 @@ from pymongo.errors import DuplicateKeyError
 from urllib.parse import urlparse, urljoin, quote_plus
 from bson.decimal128 import Decimal128, create_decimal128_context
 import decimal
-from datetime import datetime
+from datetime import datetime, date, time
 from dateutil import parser
 import phonenumbers
 from phonenumbers import NumberParseException
@@ -242,7 +242,7 @@ def format_date_with_suffix(date):
     Formats a datetime object into 'Month DaySuffix Year' format.
     Example: October 10th 2024
     """
-    if not isinstance(date, datetime.datetime):
+    if not isinstance(date, datetime):
         return date  # Return as-is if not a datetime object
 
     day = date.day
@@ -500,9 +500,9 @@ def tech_main():
 
             # Ensure dates are datetime objects
             if isinstance(order['order_date'], str):
-                order['order_date'] = datetime.datetime.strptime(order['order_date'], '%Y-%m-%d %H:%M:%S')
+                order['order_date'] = datetime.strptime(order['order_date'], '%Y-%m-%d %H:%M:%S')
             if isinstance(order['service_date'], str):
-                order['service_date'] = datetime.datetime.strptime(order['service_date'], '%Y-%m-%d')
+                order['service_date'] = datetime.strptime(order['service_date'], '%Y-%m-%d')
 
             # Fetch product details
             try:
@@ -549,9 +549,9 @@ def my_schedule():
 
             # Ensure dates are datetime objects
             if isinstance(order['order_date'], str):
-                order['order_date'] = datetime.datetime.strptime(order['order_date'], '%Y-%m-%d %H:%M:%S')
+                order['order_date'] = datetime.strptime(order['order_date'], '%Y-%m-%d %H:%M:%S')
             if isinstance(order['service_date'], str):
-                order['service_date'] = datetime.datetime.strptime(order['service_date'], '%Y-%m-%d')
+                order['service_date'] = datetime.strptime(order['service_date'], '%Y-%m-%d')
 
             # Include address details
             if order.get('guest_address'):
@@ -1548,11 +1548,15 @@ def admin_main():
             order['order_type'] = 'Guest Order' if is_guest else 'Customer Order'
 
             if is_guest:
-                # For guest orders, fetch the salesperson's details
+                # For guest orders, fetch the salesperson's details using _id
                 salesperson_id = order.get('salesperson')
                 if salesperson_id:
-                    salesperson = users_collection.find_one({'username': salesperson_id, 'user_type': 'sales'})
-                    order['salesperson_name'] = salesperson.get('name', 'Unknown') if salesperson else 'Unknown'
+                    try:
+                        salesperson_obj_id = ObjectId(salesperson_id)
+                        salesperson = users_collection.find_one({'_id': salesperson_obj_id, 'user_type': 'sales'})
+                        order['salesperson_name'] = salesperson.get('name', 'Unknown') if salesperson else 'Unknown'
+                    except InvalidId:
+                        order['salesperson_name'] = 'Unknown'
                 else:
                     order['salesperson_name'] = 'Not Assigned'
             else:
@@ -1565,9 +1569,9 @@ def admin_main():
                 if isinstance(order.get(date_field), str):
                     try:
                         if date_field == 'service_date':
-                           order[date_field] = datetime.datetime.strptime(order[date_field], '%Y-%m-%d')
+                           order[date_field] = datetime.strptime(order[date_field], '%Y-%m-%d')
                         else:
-                           order[date_field] = datetime.datetime.strptime(order[date_field], '%Y-%m-%d %H:%M:%S')
+                           order[date_field] = datetime.strptime(order[date_field], '%Y-%m-%d %H:%M:%S')
                     except ValueError:
                         app.logger.error(f"Invalid {date_field} format for order ID {order.get('_id')}: {order.get(date_field)}")
                         order[date_field] = None  # Handle invalid date formats as needed
@@ -1658,9 +1662,9 @@ def view_order(order_id):
             if isinstance(order.get(date_field), str):
                 try:
                     if date_field == 'service_date':
-                       order[date_field] = datetime.datetime.strptime(order[date_field], '%Y-%m-%d')
+                       order[date_field] = datetime.strptime(order[date_field], '%Y-%m-%d')
                     else:
-                     order[date_field] = datetime.datetime.strptime(order[date_field], '%Y-%m-%d %H:%M:%S')
+                     order[date_field] = datetime.strptime(order[date_field], '%Y-%m-%d %H:%M:%S')
                 except ValueError:
                     app.logger.error(f"Invalid {date_field} format for order ID {order.get('_id')}: {order.get(date_field)}")
                     order[date_field] = None  # Handle invalid date formats as needed
@@ -1709,9 +1713,9 @@ def edit_order(order_id):
             
             # **4. Handle Service Date Conversion**
             service_date = form.service_date.data  # This is a datetime.date object
-            if isinstance(service_date, datetime.date) and not isinstance(service_date, datetime.datetime):
+            if isinstance(service_date, datetime.date) and not isinstance(service_date, datetime):
                 # Combine with a default time, e.g., midnight
-                service_datetime = datetime.datetime.combine(service_date, datetime.time.min)
+                service_datetime = datetime.combine(service_date, datetime.time.min)
             else:
                 service_datetime = service_date  # Already a datetime.datetime object
             
@@ -1768,7 +1772,7 @@ def view_user(user_id):
     # Ensure creation_date is a datetime object
     if 'creation_date' in user and isinstance(user['creation_date'], str):
         # If it's stored as a string, parse it back to datetime
-        user['creation_date'] = datetime.datetime.strptime(user['creation_date'], '%Y-%m-%d %H:%M:%S')
+        user['creation_date'] = datetime.strptime(user['creation_date'], '%Y-%m-%d %H:%M:%S')
 
     return render_template('admin/view_user.html', user=user)
 
@@ -1861,7 +1865,7 @@ def format_time_filter(time_str):
     Converts a 'HH:MM' string into 'h:MM AM/PM' format.
     """
     try:
-        time_obj = datetime.datetime.strptime(time_str, '%H:%M')
+        time_obj = datetime.strptime(time_str, '%H:%M')
         return time_obj.strftime('%I:%M %p').lstrip('0')  # Removes leading zero
     except (ValueError, TypeError):
         return 'Invalid Time'
