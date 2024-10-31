@@ -52,7 +52,7 @@
         <p><strong>Order Date:</strong> {{ order.order_date.strftime('%Y-%m-%d %H:%M:%S') }}</p>
         <p><strong>Service Date:</strong> {{ order.service_date.strftime('%Y-%m-%d') }}</p>
         
-        <h3>Shipping Address:</h3>
+        <h3>Address:</h3>
         <p>
             {{ order.guest_address.street_address }}<br>
             {% if order.guest_address.unit_apt %}

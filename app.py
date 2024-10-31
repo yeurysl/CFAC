@@ -14,7 +14,8 @@ from pymongo.errors import DuplicateKeyError
 from urllib.parse import urlparse, urljoin, quote_plus
 from bson.decimal128 import Decimal128, create_decimal128_context
 import decimal
-from datetime import datetime, date, time
+import time
+from datetime import datetime, date
 from dateutil import parser
 import phonenumbers
 from phonenumbers import NumberParseException
@@ -380,7 +381,7 @@ def send_admin_notification_email(salesperson_id, order, selected_products):
 
 def send_tech_notification_email(order, selected_products):
     """
-    Sends a notification email to all techs when an order is scheduled.
+    Sends individual notification emails to each tech when an order is scheduled.
 
     :param order: The order document.
     :param selected_products: A list of product documents that were ordered.
@@ -388,17 +389,9 @@ def send_tech_notification_email(order, selected_products):
     try:
         # Fetch all tech users
         techs = list(users_collection.find({'user_type': 'tech'}))
-        tech_emails = [tech.get('email') for tech in techs if tech.get('email')]
-        if not tech_emails:
-            app.logger.error("No tech emails found to send notification.")
+        if not techs:
+            app.logger.error("No tech users found to send notification.")
             return  # Or handle as appropriate
-
-        # Prepare email content
-        msg = Message(
-            subject="New Order Scheduled",
-            recipients=tech_emails,
-            # sender defaults to MAIL_DEFAULT_SENDER
-        )
 
         # Determine if the order is a guest order or a customer order
         is_guest = order.get('is_guest', False)
@@ -412,37 +405,60 @@ def send_tech_notification_email(order, selected_products):
             customer_email = user.get('email', 'N/A') if user else 'N/A'
             customer_phone = user.get('phone_number', 'N/A') if user else 'N/A'
 
-        # **Generate the URL to the tech dashboard**
+        # Generate the URL to the tech dashboard
         dashboard_url = url_for('tech_main', _external=True)
 
-        # Render the email body using an HTML template
-        msg.html = render_template(
-            'emails/tech_order_notification.html',
-            order=order,
-            products=selected_products,
-            customer_name=customer_name,
-            customer_email=customer_email,
-            customer_phone=customer_phone,
-            dashboard_url=dashboard_url,  # Pass the URL to the template
-            current_year=datetime.utcnow().year
-        )
+        # Loop over each tech and send an email individually
+        for tech in techs:
+            tech_email = tech.get('email')
+            if not tech_email:
+                app.logger.warning(f"Tech user {tech.get('_id')} has no email address.")
+                continue  # Skip techs without an email address
 
-        # Optionally, render a plain-text version
-        msg.body = render_template(
-            'emails/tech_order_notification.txt',
-            order=order,
-            products=selected_products,
-            customer_name=customer_name,
-            customer_email=customer_email,
-            customer_phone=customer_phone,
-            dashboard_url=dashboard_url
-        )
+            # **Get the tech's name inside the loop**
+            tech_name = tech.get('name', 'Technician')
 
-        # Send the email
-        mail.send(msg)
-        app.logger.info(f"Tech notification email sent to {', '.join(tech_emails)}")
+            # Prepare email content
+            msg = Message(
+                subject="New Order Available to be Scheduled",
+                recipients=[tech_email],  # Send to individual tech
+                # sender defaults to MAIL_DEFAULT_SENDER
+            )
+
+            # Render the email body using an HTML template
+            msg.html = render_template(
+                'emails/tech_order_notification.html',
+                tech_name=tech_name,
+                order=order,
+                products=selected_products,
+                customer_name=customer_name,
+                customer_email=customer_email,
+                customer_phone=customer_phone,
+                dashboard_url=dashboard_url,
+                current_year=datetime.utcnow().year
+            )
+
+            # Optionally, render a plain-text version
+            msg.body = render_template(
+                'emails/tech_order_notification.txt',
+                tech_name=tech_name,
+                order=order,
+                products=selected_products,
+                customer_name=customer_name,
+                customer_email=customer_email,
+                customer_phone=customer_phone,
+                dashboard_url=dashboard_url
+            )
+
+            # Send the email
+            mail.send(msg)
+            app.logger.info(f"Tech notification email sent to {tech_email}")
+
+            time.sleep(0.5)
+
     except Exception as e:
         app.logger.error(f"Failed to send tech notification email: {e}", exc_info=True)
+
 
 #FORCART
 def calculate_cart_total(products):

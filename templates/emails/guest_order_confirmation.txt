@@ -11,7 +11,7 @@ Order Details:
 - Order Date: {{ order.order_date.strftime('%Y-%m-%d %H:%M:%S') }}
 - Service Date: {{ order.service_date.strftime('%Y-%m-%d') }}
 
-Shipping Address:
+Address:
 {{ order.guest_address.street_address }}
 {% if order.guest_address.unit_apt %}
 {{ order.guest_address.unit_apt }}
