@@ -21,11 +21,12 @@
                 {% for order in orders %}
                     <div class="card mb-4 shadow-sm">
                         <div class="card-header bg-primary text-white">
-                            <div class="d-flex justify-content-between align-items-center">
+                            <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center">
                                 <h5 class="card-title mb-0">Order ID: {{ order._id }}</h5>
-                                <small>Placed on {{ order.order_date.strftime('%B %d, %Y %I:%M %p') }}</small>
+                                <small class="mt-2 mt-sm-0">Placed on {{ order.order_date.strftime('%B %d, %Y %I:%M %p') }}</small>
                             </div>
                         </div>
+                        
                         <div class="card-body">
                             <div class="row mb-3">
                                 <div class="col-md-6">
