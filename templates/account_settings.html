@@ -15,7 +15,6 @@
             <label for="email">
                 Email Address {% if not user.email %}<span class="text-danger">*</span>{% endif %}
             </label>
-            {% if user.user_type == 'customer' %}
                 {% if user.email %}
                     <input type="email" class="form-control" id="email" value="{{ user.email }}" readonly>
                 {% else %}
