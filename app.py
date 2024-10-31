@@ -1520,6 +1520,7 @@ def customer_login():
 #My Orders Page Routes 
 @app.route('/customer/my_orders')
 @login_required
+@customer_required
 def my_orders():
     user_id = current_user.id
     user_type = current_user.user_type
