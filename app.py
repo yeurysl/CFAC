@@ -1712,7 +1712,7 @@ def admin_main():
                     try:
                         salesperson_obj_id = ObjectId(salesperson_id)
                         salesperson = users_collection.find_one({'_id': salesperson_obj_id, 'user_type': 'sales'})
-                        order['salesperson_name'] = salesperson.get('name', 'Unknown') if salesperson else 'Unknown'
+                        order['salesperson_name'] = salesperson.get('full_name', 'Unknown') if salesperson else 'Unknown'
                     except InvalidId:
                         order['salesperson_name'] = 'Unknown'
                 else:
