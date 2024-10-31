@@ -377,6 +377,73 @@ def send_admin_notification_email(salesperson_id, order, selected_products):
     except Exception as e:
         app.logger.error(f"Failed to send admin notification email: {e}")
 
+
+def send_tech_notification_email(order, selected_products):
+    """
+    Sends a notification email to all techs when an order is scheduled.
+
+    :param order: The order document.
+    :param selected_products: A list of product documents that were ordered.
+    """
+    try:
+        # Fetch all tech users
+        techs = list(users_collection.find({'user_type': 'tech'}))
+        tech_emails = [tech.get('email') for tech in techs if tech.get('email')]
+        if not tech_emails:
+            app.logger.error("No tech emails found to send notification.")
+            return  # Or handle as appropriate
+
+        # Prepare email content
+        msg = Message(
+            subject="New Order Scheduled",
+            recipients=tech_emails,
+            # sender defaults to MAIL_DEFAULT_SENDER
+        )
+
+        # Determine if the order is a guest order or a customer order
+        is_guest = order.get('is_guest', False)
+        if is_guest:
+            customer_name = order.get('guest_name', 'Guest')
+            customer_email = order.get('guest_email', 'N/A')
+            customer_phone = order.get('guest_phone_number', 'N/A')
+        else:
+            user = users_collection.find_one({'_id': ObjectId(order['user'])})
+            customer_name = user.get('name', 'Customer') if user else 'Customer'
+            customer_email = user.get('email', 'N/A') if user else 'N/A'
+            customer_phone = user.get('phone_number', 'N/A') if user else 'N/A'
+
+        # **Generate the URL to the tech dashboard**
+        dashboard_url = url_for('tech_main', _external=True)
+
+        # Render the email body using an HTML template
+        msg.html = render_template(
+            'emails/tech_order_notification.html',
+            order=order,
+            products=selected_products,
+            customer_name=customer_name,
+            customer_email=customer_email,
+            customer_phone=customer_phone,
+            dashboard_url=dashboard_url,  # Pass the URL to the template
+            current_year=datetime.utcnow().year
+        )
+
+        # Optionally, render a plain-text version
+        msg.body = render_template(
+            'emails/tech_order_notification.txt',
+            order=order,
+            products=selected_products,
+            customer_name=customer_name,
+            customer_email=customer_email,
+            customer_phone=customer_phone,
+            dashboard_url=dashboard_url
+        )
+
+        # Send the email
+        mail.send(msg)
+        app.logger.info(f"Tech notification email sent to {', '.join(tech_emails)}")
+    except Exception as e:
+        app.logger.error(f"Failed to send tech notification email: {e}", exc_info=True)
+
 #FORCART
 def calculate_cart_total(products):
     total = sum(product['price'] for product in products)
@@ -986,6 +1053,11 @@ def schedule_guest_order():
                 order=order,
                 selected_products=selected_products
             )
+            #Send notification to tech
+            send_tech_notification_email(
+                order=order,
+                selected_products=selected_products
+            )
             
             # Flash success message and redirect
             flash(f"Guest order scheduled successfully by {current_user.id}!", 'success')
@@ -1363,6 +1435,17 @@ def checkout():
         except Exception as e:
             logger.error(f"Failed to send confirmation email: {e}")
             flash('Your order has been placed, but we could not send a confirmation email.', 'warning')
+
+        send_admin_notification_email(
+                salesperson_id=current_user.id,
+                order=order,
+                selected_products=selected_products
+            )
+            #Send notification to tech
+        send_tech_notification_email(
+                order=order,
+                selected_products=selected_products
+            )
 
         # Clear the cart
         session.pop('cart', None)

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>New Order Available to be Scheduled</title>
+</head>
+<body>
+    <p>Dear Technician,</p>
+
+    <p>A new order has been added. Open your dashboard to add it to your schedule.</p>
+   <!-- **Include the Link to the Tech Dashboard** -->
+   <p><a href="{{ dashboard_url }}">Go to Tech Dashboard</a></p>
+
+    <h3>Order Details:</h3>
+    <ul>
+        <li><strong>Order ID:</strong> {{ order['_id'] }}</li>
+        <li><strong>Customer Name:</strong> {{ customer_name }}</li>
+        <li><strong>Customer Email:</strong> {{ customer_email }}</li>
+        <li><strong>Customer Phone Number:</strong> {{ customer_phone }}</li>
+        <li><strong>Service Date:</strong> {{ order['service_date'].strftime('%B %d, %Y') }}</li>
+        <li><strong>Total Amount:</strong> {{ order['total'] | currency }}</li>
+    </ul>
+
+    <h3>Products Ordered:</h3>
+    <ul>
+        {% for product in products %}
+            <li>{{ product['name'] }} - {{ product['price'] | currency }}</li>
+        {% endfor %}
+    </ul>
+
+    <p>Please check the tech dashboard for more details.</p>
+
+ 
+    <p>Best regards,<br>
+    Central Florida Auto Care System</p>
+
+    <p style="font-size: smaller;">&copy; {{ current_year }} CFAC AutoCare</p>
+</body>
+</html>
