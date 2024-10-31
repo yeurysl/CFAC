@@ -3,11 +3,19 @@
 {% block title %}Customer Page{% endblock %}
 
 {% block content %}
-  
+    <h1>Welcome to the Customer Page</h1>
+
+
 
     <div class="container">
+        <h1 class="my-4 text-center">Order Now</h1>
         
-     
+        <!-- Product Selection Button -->
+        <div class="text-center mb-4">
+            <button id="select-product-btn" class="btn btn-primary">
+                Select a Different Service
+            </button>
+        </div>
     
         <!-- Product Display Area -->
         <div class="row justify-content-center" id="product-display">
@@ -58,12 +66,7 @@
         </div>
     </div>
     
-       <!-- Product Selection Button -->
-       <div class="text-center mb-4">
-        <button id="select-product-btn" class="btn btn-primary">
-            Select a Different Vehicle Type
-        </button>
-    </div>
+    
     
     <!-- Product Selection Modal -->
     <div id="product-list-modal" class="modal">

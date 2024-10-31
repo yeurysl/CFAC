@@ -1252,7 +1252,7 @@ def sales_view_order(order_id):
         flash('An error occurred while fetching the order details.', 'danger')
         return redirect(url_for('sales_main'))
 #Sales profile route
-@app.route('/sales/profile', methods=['GET', 'POST'])
+@app.route('/sales/profile')
 @login_required
 @sales_required
 def sales_profile():
@@ -1268,46 +1268,7 @@ def sales_profile():
         flash('User not found.', 'danger')
         return redirect(url_for('sales_main'))
 
-    form = SalesProfileForm()
-
-    if request.method == 'POST':
-        if form.validate_on_submit():
-            # Extract form data
-            full_name = form.full_name.data.strip()
-            email = form.email.data.lower().strip()
-            phone_number = form.phone_number.data.strip()
-            # Additional fields can be added here
-
-            # Prepare update fields
-            update_fields = {
-                'full_name': full_name,
-                'email': email,
-                'phone_number': phone_number,
-                # Add other fields as needed
-            }
-
-            try:
-                users_collection.update_one(
-                    {'_id': ObjectId(user_id)},
-                    {'$set': update_fields}
-                )
-                flash('Profile updated successfully.', 'success')
-                return redirect(url_for('sales_profile'))
-            except Exception as e:
-                flash('An error occurred while updating your profile. Please try again.', 'danger')
-                current_app.logger.error(f"Error updating salesperson profile: {e}")
-        else:
-            # Handle form validation errors
-            flash('Please correct the errors in the form.', 'danger')
-    else:
-        # Pre-populate form with existing user data
-        form.full_name.data = user.get('full_name', '')
-        form.email.data = user.get('email', '')
-        form.phone_number.data = user.get('phone_number', '')
-        # Populate additional fields as needed
-
-    return render_template('sales/profile.html', form=form, user=user)
-
+    return render_template('sales/profile.html', user=user)
 
 #Routes for Customers\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 #Customer Page Route

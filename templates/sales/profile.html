@@ -5,44 +5,28 @@
 {% block content %}
 <div class="container">
     <h1 class="my-4">My Profile</h1>
-    <form method="POST" action="{{ url_for('sales_profile') }}">
-        <!-- Include the CSRF token -->
-        {{ form.hidden_tag() }}
 
-        <!-- Full Name -->
-        <div class="form-group">
-            <label for="full_name">Full Name <span class="text-danger">*</span></label>
-            {{ form.full_name(class="form-control", id="full_name") }}
-            {% for error in form.full_name.errors %}
-                <span class="text-danger">{{ error }}</span>
-            {% endfor %}
+    <!-- Profile Information -->
+    <div class="card">
+        <div class="card-body">
+            <!-- Full Name -->
+            <h5 class="card-title">Full Name</h5>
+            <p class="card-text">{{ user.full_name or 'N/A' }}</p>
+            <hr>
+
+            <!-- Email Address -->
+            <h5 class="card-title">Email Address</h5>
+            <p class="card-text">{{ user.email or 'N/A' }}</p>
+            <hr>
+
+            <!-- Phone Number -->
+            <h5 class="card-title">Phone Number</h5>
+            <p class="card-text">{{ user.phone_number or 'N/A' }}</p>
+            <hr>
+
+            <!-- Additional Fields -->
+            <!-- Add other fields as needed -->
         </div>
-
-        <!-- Email Address -->
-        <div class="form-group">
-            <label for="email">Email Address <span class="text-danger">*</span></label>
-            {{ form.email(class="form-control", id="email") }}
-            {% for error in form.email.errors %}
-                <span class="text-danger">{{ error }}</span>
-            {% endfor %}
-        </div>
-
-        <!-- Phone Number -->
-        <div class="form-group">
-            <label for="phone_number">Phone Number <span class="text-danger">*</span></label>
-            {{ form.phone_number(class="form-control", id="phone_number") }}
-            {% for error in form.phone_number.errors %}
-                <span class="text-danger">{{ error }}</span>
-            {% endfor %}
-        </div>
-
-        <!-- Additional Fields -->
-        <!-- Add other fields here -->
-
-        <!-- Submit Button -->
-        <div class="text-center">
-            {{ form.submit(class="btn btn-primary") }}
-        </div>
-    </form>
+    </div>
 </div>
 {% endblock %}
