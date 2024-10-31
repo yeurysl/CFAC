@@ -323,6 +323,60 @@ def send_order_confirmation_email(user, order_details):
     except Exception as e:
         logger.error(f"Failed to send order confirmation email: {e}")
 
+def send_admin_notification_email(salesperson_id, order, selected_products):
+    """
+    Sends a notification email to all admins when a guest order is scheduled by a salesperson.
+
+    :param salesperson_id: The ID of the salesperson who created the order.
+    :param order: The order document.
+    :param selected_products: A list of product documents that were ordered.
+    """
+    try:
+        # Fetch salesperson details
+        salesperson = users_collection.find_one({'_id': ObjectId(salesperson_id)})
+        if not salesperson:
+            app.logger.error(f"Salesperson with ID {salesperson_id} not found.")
+            salesperson_name = 'Unknown Salesperson'
+        else:
+            salesperson_name = salesperson.get('name', 'Unknown Salesperson')
+        
+        # Fetch all admin users
+        admins = list(users_collection.find({'user_type': 'admin'}))
+        admin_emails = [admin.get('email') for admin in admins if admin.get('email')]
+        if not admin_emails:
+            app.logger.error("No admin emails found to send notification.")
+            return  # Or handle as appropriate
+
+        # Prepare email content
+        msg = Message(
+            subject="New Guest Order Scheduled",
+            recipients=admin_emails,
+            # sender defaults to MAIL_DEFAULT_SENDER
+        )
+
+        # Render the email body using an HTML template
+        msg.html = render_template(
+            'emails/admin_guest_order_notification.html',
+            order=order,
+            products=selected_products,
+            salesperson_name=salesperson_name,
+            current_year=datetime.utcnow().year
+        )
+
+        # Optionally, render a plain-text version
+        msg.body = render_template(
+            'emails/admin_guest_order_notification.txt',
+            order=order,
+            products=selected_products,
+            salesperson_name=salesperson_name
+        )
+
+        # Send the email
+        mail.send(msg)
+        app.logger.info(f"Admin notification email sent to {', '.join(admin_emails)}")
+    except Exception as e:
+        app.logger.error(f"Failed to send admin notification email: {e}")
+
 #FORCART
 def calculate_cart_total(products):
     total = sum(product['price'] for product in products)
@@ -926,6 +980,12 @@ def schedule_guest_order():
                 order=order,
                 selected_products=selected_products
             )
+            #Send notification to admin
+            send_admin_notification_email(
+                salesperson_id=current_user.id,
+                order=order,
+                selected_products=selected_products
+            )
             
             # Flash success message and redirect
             flash(f"Guest order scheduled successfully by {current_user.id}!", 'success')
@@ -939,7 +999,6 @@ def schedule_guest_order():
 
 
 #Guest Order Email Route
-
 def send_guest_order_confirmation_email(guest_email, guest_phone_number, order, selected_products):
     """
     Sends a confirmation email and/or SMS to the guest after scheduling an order.

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>New Guest Order Scheduled</title>
+</head>
+<body>
+    <p>Dear Admin,</p>
+
+    <p>A new guest order has been scheduled by {{ salesperson_name }}.</p>
+
+    <h3>Order Details:</h3>
+    <ul>
+        <li><strong>Order ID:</strong> {{ order['_id'] }}</li>
+        <li><strong>Guest Name:</strong> {{ order['guest_name'] }}</li>
+        <li><strong>Guest Email:</strong> {{ order.get('guest_email', 'N/A') }}</li>
+        <li><strong>Guest Phone Number:</strong> {{ order.get('guest_phone_number', 'N/A') }}</li>
+        <li><strong>Service Date:</strong> {{ order['service_date'].strftime('%Y-%m-%d') }}</li>
+        <li><strong>Total Amount:</strong> {{ order['total'] | currency }}</li>
+    </ul>
+
+    <h3>Products Ordered:</h3>
+    <ul>
+        {% for product in products %}
+            <li>{{ product['name'] }} - {{ product['price'] | currency }}</li>
+        {% endfor %}
+    </ul>
+
+    <p>Please log in to the admin dashboard to view more details.</p>
+
+    <p>Best regards,<br>
+    Your CFAC System</p>
+
+    <p style="font-size: smaller;">&copy; {{ current_year }} CFAC AutoCare</p>
+</body>
+</html>
