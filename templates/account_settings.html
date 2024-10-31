@@ -11,20 +11,21 @@
         {{ form.hidden_tag() }}
         
         <!-- Email Address -->
-        <div class="form-group">
-            <label for="email">
-                Email Address {% if not user.email %}<span class="text-danger">*</span>{% endif %}
-            </label>
-                {% if user.email %}
-                    <input type="email" class="form-control" id="email" value="{{ user.email }}" readonly>
-                {% else %}
-                    {{ form.email(class="form-control", id="email", placeholder="Enter your email address") }}
-                    {% for error in form.email.errors %}
-                        <span class="text-danger">{{ error }}</span>
-                    {% endfor %}
-                {% endif %}
-            {% endif %}
-        </div>
+        <!-- Email Address -->
+<div class="form-group">
+    <label for="email">
+        Email Address {% if not user.email %}<span class="text-danger">*</span>{% endif %}
+    </label>
+    {% if user.email %}
+        <input type="email" class="form-control" id="email" value="{{ user.email }}" readonly>
+    {% else %}
+        {{ form.email(class="form-control", id="email", placeholder="Enter your email address") }}
+        {% for error in form.email.errors %}
+            <span class="text-danger">{{ error }}</span>
+        {% endfor %}
+    {% endif %}
+</div>
+
         
         <!-- Full Name -->
         <div class="form-group">
