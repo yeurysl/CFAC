@@ -373,3 +373,12 @@ class EditOrderForm(FlaskForm):
 
 class DeleteOrderForm(FlaskForm):
     submit = SubmitField('Delete')
+
+
+class SalesProfileForm(FlaskForm):
+    full_name = StringField('Full Name', validators=[DataRequired(), Length(min=2, max=50)])
+    email = StringField('Email Address', validators=[DataRequired(), Email()])
+    phone_number = StringField('Phone Number', validators=[DataRequired(), Length(min=10, max=15)])
+    # Add other fields as needed
+
+    submit = SubmitField('Update Profile')

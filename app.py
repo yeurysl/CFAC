@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_wtf import CSRFProtect
 from flask_wtf.csrf import generate_csrf
-from forms import RegistrationForm, RemoveFromCartForm, CustomerLoginForm, EmployeeLoginForm, UpdateAccountForm, GuestOrderForm, PasswordResetRequestForm, PasswordResetForm, EditOrderForm, DeleteOrderForm
+from forms import RegistrationForm, RemoveFromCartForm, CustomerLoginForm, EmployeeLoginForm, UpdateAccountForm, GuestOrderForm, PasswordResetRequestForm, PasswordResetForm, EditOrderForm, DeleteOrderForm, SalesProfileForm
 from functools import wraps
 from flask_mail import Mail, Message
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -1251,6 +1251,62 @@ def sales_view_order(order_id):
         app.logger.error(f"Error in sales_view_order route: {e}")
         flash('An error occurred while fetching the order details.', 'danger')
         return redirect(url_for('sales_main'))
+#Sales profile route
+@app.route('/sales/profile', methods=['GET', 'POST'])
+@login_required
+@sales_required
+def sales_profile():
+    user_id = current_user.id  # Get the current user's ID
+
+    # Fetch the salesperson's data from the database
+    try:
+        user = users_collection.find_one({'_id': ObjectId(user_id)})
+    except (InvalidId, TypeError):
+        user = None
+
+    if not user:
+        flash('User not found.', 'danger')
+        return redirect(url_for('sales_main'))
+
+    form = SalesProfileForm()
+
+    if request.method == 'POST':
+        if form.validate_on_submit():
+            # Extract form data
+            full_name = form.full_name.data.strip()
+            email = form.email.data.lower().strip()
+            phone_number = form.phone_number.data.strip()
+            # Additional fields can be added here
+
+            # Prepare update fields
+            update_fields = {
+                'full_name': full_name,
+                'email': email,
+                'phone_number': phone_number,
+                # Add other fields as needed
+            }
+
+            try:
+                users_collection.update_one(
+                    {'_id': ObjectId(user_id)},
+                    {'$set': update_fields}
+                )
+                flash('Profile updated successfully.', 'success')
+                return redirect(url_for('sales_profile'))
+            except Exception as e:
+                flash('An error occurred while updating your profile. Please try again.', 'danger')
+                current_app.logger.error(f"Error updating salesperson profile: {e}")
+        else:
+            # Handle form validation errors
+            flash('Please correct the errors in the form.', 'danger')
+    else:
+        # Pre-populate form with existing user data
+        form.full_name.data = user.get('full_name', '')
+        form.email.data = user.get('email', '')
+        form.phone_number.data = user.get('phone_number', '')
+        # Populate additional fields as needed
+
+    return render_template('sales/profile.html', form=form, user=user)
 
 
 #Routes for Customers\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
