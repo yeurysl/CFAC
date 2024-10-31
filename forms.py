@@ -1,7 +1,7 @@
 
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField, SelectField, HiddenField, SelectMultipleField, DateField, RadioField, BooleanField, DecimalField, TimeField
-from wtforms.validators import DataRequired, Email, EqualTo, Length, Regexp, Optional
+from wtforms.validators import DataRequired, Email, EqualTo, Length, Regexp, Optional, NumberRange
 from wtforms.widgets import ListWidget, CheckboxInput
 import phonenumbers
 
@@ -332,12 +332,42 @@ class PasswordResetForm(FlaskForm):
 
 
 class EditOrderForm(FlaskForm):
-    status = SelectField('Status', choices=[('ordered', 'Ordered'), ('scheduled', 'Scheduled')], validators=[DataRequired()])
-    payment_method = StringField('Payment Method', validators=[DataRequired()])
-    total_amount = DecimalField('Total Amount', validators=[DataRequired()])
-    service_date = DateField('Schedule Date', format='%Y-%m-%d', validators=[DataRequired()])
-
-
+    status = SelectField(
+        'Status',
+        choices=[
+            ('Ordered', 'Ordered'),
+            ('Scheduled', 'Scheduled'),
+            ('Completed', 'Completed'),
+            ('Cancelled', 'Cancelled')
+        ],
+        validators=[DataRequired()]
+    )
+    
+    payment_method = SelectField(
+        'Payment Method',
+        choices=[
+            ('Cash', 'Cash'),
+            ('Card', 'Card'),
+            ('Zelle', 'Zelle')
+        ],
+        validators=[DataRequired()]
+    )
+    
+    total_amount = DecimalField(
+        'Total Amount',
+        validators=[
+            DataRequired(),
+            NumberRange(min=0, message="Total amount must be positive.")
+        ]
+    )
+    
+    service_date = DateField(
+        'Schedule Date',
+        format='%Y-%m-%d',
+        validators=[DataRequired()]
+    )
+    
+    submit = SubmitField('Save Changes')
 
 
 

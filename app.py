@@ -1684,6 +1684,9 @@ def view_order(order_id):
 
 # Edit Order Route
 
+
+  
+
 @app.route('/admin/edit_order/<order_id>', methods=['GET', 'POST'])
 @login_required
 @admin_required
@@ -1693,55 +1696,78 @@ def edit_order(order_id):
         if not ObjectId.is_valid(order_id):
             flash('Invalid order ID.', 'danger')
             return redirect(url_for('admin_main'))
-        
+
         order_obj_id = ObjectId(order_id)
         order = orders_collection.find_one({'_id': order_obj_id})
         if not order:
             flash('Order not found.', 'danger')
             return redirect(url_for('admin_main'))
-        
-        # **2. Initialize the Form with Existing Order Data**
-        form = EditOrderForm(obj=order)
-        
-        if form.validate_on_submit():
-            # **3. Handle Total Amount Conversion**
-            try:
-                total_float = float(form.total_amount.data)
-            except (ValueError, TypeError):
-                flash('Invalid total amount.', 'danger')
-                return redirect(url_for('edit_order', order_id=order_id))
-            
-            # **4. Handle Service Date Conversion**
-            service_date = form.service_date.data  # This is a datetime.date object
-            if isinstance(service_date, datetime.date) and not isinstance(service_date, datetime):
-                # Combine with a default time, e.g., midnight
-                service_datetime = datetime.combine(service_date, datetime.time.min)
+
+        # **2. Initialize the Form**
+        if request.method == 'POST':
+            # **3. Handle Form Submission**
+            form = EditOrderForm()
+            if form.validate_on_submit():
+                # **4. Handle Total Amount Conversion**
+                try:
+                    total_float = float(form.total_amount.data)
+                except (ValueError, TypeError):
+                    flash('Invalid total amount.', 'danger')
+                    return redirect(url_for('edit_order', order_id=order_id))
+
+                # **5. Handle Service Date Conversion**
+                service_date = form.service_date.data  # This is a datetime.date object
+                if isinstance(service_date, date) and not isinstance(service_date, datetime):
+                    # Combine with a default time, e.g., midnight
+                    service_datetime = datetime.combine(service_date, time.min)
+                else:
+                    service_datetime = service_date  # Already a datetime.datetime object
+
+                # **6. Update the Order in MongoDB**
+                update_result = orders_collection.update_one(
+                    {'_id': order_obj_id},
+                    {'$set': {
+                        'status': form.status.data,
+                        'payment_method': form.payment_method.data,
+                        'total': total_float,
+                        'service_date': service_datetime  # Now a datetime.datetime object
+                    }}
+                )
+
+                if update_result.modified_count:
+                    flash('Order updated successfully.', 'success')
+                else:
+                    flash('No changes made to the order.', 'info')
+
+                return redirect(url_for('view_order', order_id=order_id))
             else:
-                service_datetime = service_date  # Already a datetime.datetime object
-            
-            # **5. Update the Order in MongoDB**
-            update_result = orders_collection.update_one(
-                {'_id': order_obj_id},
-                {'$set': {
-                    'status': form.status.data,
-                    'payment_method': form.payment_method.data,
-                    'total': total_float,
-                    'service_date': service_datetime  # Now a datetime.datetime object
-                }}
-            )
-            
-            if update_result.modified_count:
-                flash('Order updated successfully.', 'success')
+                # **7. Log Validation Errors**
+                current_app.logger.warning(f"Form validation failed: {form.errors}")
+                flash('Please correct the errors in the form.', 'danger')
+        else:
+            # **8. Pre-populate Form Fields on GET Request**
+            form = EditOrderForm()
+            # Manually set form fields from order data
+            form.status.data = order.get('status', '')
+            form.payment_method.data = order.get('payment_method', '')
+            form.total_amount.data = order.get('total', '')
+            # Ensure the date is a date object
+            service_date = order.get('service_date', None)
+            if service_date:
+                if isinstance(service_date, datetime):
+                    form.service_date.data = service_date.date()
+                elif isinstance(service_date, date):
+                    form.service_date.data = service_date
+                else:
+                    form.service_date.data = None
             else:
-                flash('No changes made to the order.', 'info')
-            
-            return redirect(url_for('view_order', order_id=order_id))
-        
-        # **6. Render the Edit Order Template**
+                form.service_date.data = None
+
+        # **9. Render the Edit Order Template**
         return render_template('admin/edit_order.html', form=form, order=order)
-    
+
     except Exception as e:
-        app.logger.error(f"Error in edit_order route: {e}", exc_info=True)
+        current_app.logger.error(f"Error in edit_order route: {e}", exc_info=True)
         flash('An error occurred while editing the order.', 'danger')
         return redirect(url_for('admin_main'))
 
