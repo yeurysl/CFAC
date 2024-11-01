@@ -1007,6 +1007,9 @@ def schedule_guest_order():
             
             # Capture order information
             service_date = form.service_date.data
+
+            #Capture Paynent information
+            payment_time = form.payment_time.data
             # Convert service_date from date to datetime
             service_datetime = datetime.combine(service_date, datetime.min.time())
             selected_product_ids = form.products.data  # List of product ID strings
@@ -1045,6 +1048,7 @@ def schedule_guest_order():
                     'country': country,
                     'zip_code': zip_code
                 },
+                'payment_time': payment_time,
                 'products': selected_product_ids,  # Store as list of string IDs
                 'total': total_amount,
                 'order_date': datetime.utcnow(),

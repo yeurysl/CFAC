@@ -131,6 +131,22 @@
             </div>
         </div>
         
+
+        <div class="card mb-4">
+            <div class="card-header bg-secondary text-white">
+                Payments
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    {{ form.payment_time.label(class="form-label") }}
+                    {{ form.payment_time(class="form-select", id="payment_time") }}
+                    {% for error in form.payment_time.errors %}
+                        <div class="text-danger">{{ error }}</div>
+                    {% endfor %}
+                    <small class="form-text text-muted">Select when the guest will make the payment.</small>
+                </div>
+            </div>
+        </div>
         <!-- Submit Button -->
         <div class="d-flex justify-content-between">
             <button type="submit" id="submit-btn" class="btn btn-primary">Schedule Order</button>
@@ -165,8 +181,8 @@
             'country',
             'zip_code',
             'service_date',
-            'service_time',  // Added Time Field
-            // 'products' is now multiple checkboxes, handled separately
+            'service_time', 
+            'payment_time',
         ];
 
         // Function to save form data to Local Storage

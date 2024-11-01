@@ -301,6 +301,14 @@ class GuestOrderForm(FlaskForm):
         coerce=str  # Ensure this matches the data type of product IDs
     )
     
+    payment_time = SelectField(
+        'Payment Time',
+        choices=[
+            ('pay_now', 'Pay Now'),
+            ('pay_after_completion', 'Pay After Completion')
+        ],
+        validators=[DataRequired(message="Please select a payment time.")]
+    )
     submit = SubmitField('Schedule Guest Order')
     
     def validate(self, *args, **kwargs):
