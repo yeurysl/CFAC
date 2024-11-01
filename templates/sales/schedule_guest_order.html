@@ -7,7 +7,7 @@
 {% block content %}
 <div class="container my-5">
     <h2 class="mb-4">Schedule Guest Order</h2>
-    <form method="POST" action="{{ url_for('schedule_guest_order') }}" id="guestOrderForm">
+    <form method="POST" action="{{ url_for('schedule_guest_order') }}" id="guestOrderForm" onsubmit="disableSubmitButton()">
         {{ form.hidden_tag() }}
         
         <!-- Guest Information -->
@@ -133,10 +133,22 @@
         
         <!-- Submit Button -->
         <div class="d-flex justify-content-between">
-            <button type="submit" class="btn btn-primary">Schedule Order</button>
+            <button type="submit" id="submit-btn" class="btn btn-primary">Schedule Order</button>
             <a href="{{ url_for('sales_main') }}" class="btn btn-secondary">Cancel</a>
         </div>
     </form>
+</div>
+
+
+
+
+
+
+<!-- Loading Overlay -->
+<div id="loading-overlay">
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
 </div>
 
 <!-- JavaScript for Local Storage Handling -->
@@ -230,6 +242,20 @@
             clearFormData();
         });
     });
+
+
+
+    function disableSubmitButton() {
+    // Disable the submit button
+    document.getElementById('submit-btn').disabled = true;
+
+    // Optionally, you can prevent further interaction with the form by overlaying the loading screen
+    // Show the loading overlay
+    document.getElementById('loading-overlay').style.display = 'flex';
+}
+
+
+
 </script>
 
 {% endblock %}

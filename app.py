@@ -773,7 +773,7 @@ def schedule_order(order_id):
         scheduled_by_username = updated_order.get('scheduled_by')
         if scheduled_by_username:
             tech_user = users_collection.find_one({'username': scheduled_by_username})
-            tech_name = tech_user.get('name', 'Technician') if tech_user else 'Technician'
+            tech_name = tech_user.get('full_name', 'Technician') if tech_user else 'Technician'
         else:
             tech_name = 'Technician'  # Default value if not found
 
@@ -986,6 +986,7 @@ def sales_main():
 @login_required
 @sales_required  # Ensure this decorator is defined
 def schedule_guest_order():
+    current_app.logger.info("schedule_guest_order route called")
     form = GuestOrderForm()
     
     # Populate product choices from the database
