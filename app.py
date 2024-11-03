@@ -864,7 +864,36 @@ def tech_admin_login():
     return render_template('tech_admin_login.html', form=form)
 
 
+@app.route('/payments/tech_view_order/<order_id>', methods=['GET'])
+@login_required
+@tech_required
+def tech_view_order(order_id):
+    try:
+        # Fetch the order by ID
+        order = orders_collection.find_one({'_id': ObjectId(order_id)})
 
+        if not order:
+            flash('Order not found.', 'danger')
+            return redirect(url_for('collecting_payments'))
+
+        # Check if the current technician is the one who scheduled the order
+        if order.get('scheduled_by') != current_user.id:
+            flash('You do not have permission to view this order.', 'danger')
+            return redirect(url_for('collecting_payments'))
+
+        # Fetch product details
+        product_ids = [ObjectId(pid) for pid in order.get('products', [])]
+        products = list(products_collection.find({'_id': {'$in': product_ids}}))
+        products_dict = {str(product['_id']): product for product in products}
+
+        return render_template('payments/tech_view_order.html', order=order, products_dict=products_dict)
+    except InvalidId:
+        flash('Invalid Order ID.', 'danger')
+        return redirect(url_for('collecting_payments'))
+    except Exception as e:
+        app.logger.error(f"Error accessing order {order_id}: {e}")
+        flash('An error occurred while accessing the order.', 'danger')
+        return redirect(url_for('collecting_payments'))
 
 #Routes for Sales\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
