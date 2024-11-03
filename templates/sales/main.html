@@ -23,6 +23,7 @@
                     <!-- Switched 'Order Date' and 'Service Date' columns -->
                     <th>Service Date</th>
                     <th>Status</th>
+                    <th>Payment Status</th>
                     <th>Order Type</th>
                     <th>Guest/Customer Name</th>
                     <th>Email</th>
@@ -46,6 +47,9 @@
 
                     <!-- Status -->
                     <td>{{ order.status | capitalize }}</td>
+
+                    <!-- Payment Status -->
+                    <td>{{ order.payment_status | capitalize }}</td>
 
                     <!-- Order Type -->
                     <td>{{ order.order_type }}</td>

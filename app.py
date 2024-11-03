@@ -292,6 +292,15 @@ def sales_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+def tech_or_sales_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if current_user.user_type not in ['tech', 'sales']:
+            flash('Access denied: Techs and Sales personnel only.', 'danger')
+            return redirect(url_for('index'))
+        return f(*args, **kwargs)
+    return decorated_function
+
 def customer_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -981,10 +990,9 @@ def sales_main():
 
 
 #Schedule Guest Order Route
-
 @app.route('/sales/schedule_guest_order', methods=['GET', 'POST'])
 @login_required
-@sales_required  # Ensure this decorator is defined
+@sales_required
 def schedule_guest_order():
     current_app.logger.info("schedule_guest_order route called")
     form = GuestOrderForm()
@@ -1007,11 +1015,12 @@ def schedule_guest_order():
             
             # Capture order information
             service_date = form.service_date.data
-
-            #Capture Paynent information
-            payment_time = form.payment_time.data
-            # Convert service_date from date to datetime
-            service_datetime = datetime.combine(service_date, datetime.min.time())
+            service_time = form.service_time.data
+            payment_time = form.payment_time.data  # 'pay_now' or 'pay_after_completion'
+            
+            # Combine service date and time into a datetime object
+            service_datetime = datetime.combine(service_date, service_time)
+            
             selected_product_ids = form.products.data  # List of product ID strings
             
             # Convert product IDs to ObjectId if any products are selected
@@ -1034,6 +1043,9 @@ def schedule_guest_order():
                     return redirect(url_for('schedule_guest_order'))
                 total_amount = sum(product.get('price', 0) for product in selected_products)
             
+            # Set payment_status to 'Unpaid'
+            payment_status = 'Unpaid'
+            
             # Create the order document
             order = {
                 'user': None,  # No user associated since it's a guest order
@@ -1049,46 +1061,55 @@ def schedule_guest_order():
                     'zip_code': zip_code
                 },
                 'payment_time': payment_time,
+                'payment_status': payment_status,
                 'products': selected_product_ids,  # Store as list of string IDs
                 'total': total_amount,
                 'order_date': datetime.utcnow(),
-                'service_date': service_datetime,  # Use datetime object
-                'status': 'ordered',  # Changed from 'scheduled' to 'ordered'
-                'salesperson': str(current_user.id),  # Ensure it's string if necessary
+                'service_date': service_datetime,  # Use combined datetime object
+                'status': 'ordered',
+                'salesperson': str(current_user.id),
                 'creation_date': datetime.utcnow()
             }
             
             # Insert the order into the database
             inserted_order = orders_collection.insert_one(order)
             
-            # **Send confirmation email and/or SMS to guest**
+            # Send confirmation email and/or SMS to guest
             send_guest_order_confirmation_email(
                 guest_email=guest_email,
                 guest_phone_number=guest_phone_number,
                 order=order,
                 selected_products=selected_products
             )
-            #Send notification to admin
+            # Send notification to admin
             send_admin_notification_email(
                 salesperson_id=current_user.id,
                 order=order,
                 selected_products=selected_products
             )
-            #Send notification to tech
+            # Send notification to tech
             send_tech_notification_email(
                 order=order,
                 selected_products=selected_products
             )
             
-            # Flash success message and redirect
+            # Flash success message
             flash(f"Guest order scheduled successfully by {current_user.id}!", 'success')
-            return redirect(url_for('sales_main'))
+            
+            # **Redirect based on payment_time**
+            if payment_time == 'pay_now':
+                # Redirect to collecting payments page
+                return redirect(url_for('collecting_payments'))
+            else:
+                # Redirect to sales dashboard or appropriate page
+                return redirect(url_for('sales_main'))
         except Exception as e:
             current_app.logger.error(f"Error scheduling guest order: {e}")
             flash('An error occurred while scheduling the guest order. Please try again.', 'danger')
             return render_template('sales/schedule_guest_order.html', form=form)
     
     return render_template('sales/schedule_guest_order.html', form=form)
+
 
 
 #Guest Order Email Route
@@ -2042,6 +2063,68 @@ def manage_users():
         app.logger.error(f"Error in manage_users route: {e}")
         flash('An error occurred while fetching users.', 'danger')
         return redirect(url_for('admin_main'))
+
+
+
+
+#Collecting Payments\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+@app.route('/payments/collecting_payments', methods=['GET', 'POST'])
+@login_required
+@tech_or_sales_required
+def collecting_payments():
+    # Get the current user's ID
+    salesperson_id = str(current_user.id)
+    
+    if current_user.user_type == 'sales':
+        # Salesperson sees only their unpaid orders
+        unpaid_orders_cursor = orders_collection.find({
+            'payment_status': 'Unpaid',
+            'salesperson': salesperson_id
+        })
+    elif current_user.user_type == 'tech':
+        # Technicians see all unpaid orders
+        unpaid_orders_cursor = orders_collection.find({
+            'payment_status': 'Unpaid'
+        })
+    else:
+        # In case of an unexpected user_type, redirect
+        flash('Access denied: Invalid user role.', 'danger')
+        return redirect(url_for('index'))  # Replace 'index' with your actual home route
+    
+    # Convert the Cursor to a List
+    unpaid_orders = list(unpaid_orders_cursor)
+    
+    return render_template('payments/collecting_payments.html', orders=unpaid_orders)
+
+@app.route('/collect_payment/<order_id>', methods=['GET', 'POST'])
+@login_required
+@tech_or_sales_required
+def collect_payment(order_id):
+    try:
+        order = orders_collection.find_one({'_id': ObjectId(order_id)})
+    except Exception as e:
+        flash('Invalid Order ID.', 'danger')
+        return redirect(url_for('collecting_payments'))
+    
+    if not order:
+        flash('Order not found.', 'danger')
+        return redirect(url_for('collecting_payments'))
+    
+    if order['payment_status'] == 'Paid':
+        flash('Payment has already been collected for this order.', 'info')
+        return redirect(url_for('collecting_payments'))
+    
+    if request.method == 'POST':
+        # Process the payment here (e.g., integrate with a payment gateway)
+        # For now, we'll just update the payment_status
+        orders_collection.update_one(
+            {'_id': ObjectId(order_id)},
+            {'$set': {'payment_status': 'Paid'}}
+        )
+        flash('Payment collected successfully.', 'success')
+        return redirect(url_for('collecting_payments'))
+    
+    return render_template('payments/collect_payment.html', order=order)
 
 #Extra
 
