@@ -1873,14 +1873,18 @@ def view_order(order_id):
             order['user_phone'] = user.get('phone_number', 'N/A') if user else 'N/A'
             order['user_address'] = user.get('address', {})
 
-        # Fetch the user who scheduled the order using username
-        scheduled_by_username = order.get('scheduled_by')
-        if scheduled_by_username:
-            scheduled_by_user = users_collection.find_one({'username': scheduled_by_username})
-            if scheduled_by_user:
-                order['scheduled_by_name'] = scheduled_by_user.get('name', 'Unknown')
-                order['scheduled_by_email'] = scheduled_by_user.get('email', 'Unknown')
-            else:
+          # Fetch the user who scheduled the order using _id
+        scheduled_by_id = order.get('scheduled_by')
+        if scheduled_by_id:
+            try:
+                scheduled_by_user = users_collection.find_one({'_id': ObjectId(scheduled_by_id)})
+                if scheduled_by_user:
+                    order['scheduled_by_name'] = scheduled_by_user.get('name', 'Unknown')
+                    order['scheduled_by_email'] = scheduled_by_user.get('email', 'Unknown')
+                else:
+                    order['scheduled_by_name'] = 'Unknown'
+                    order['scheduled_by_email'] = 'Unknown'
+            except InvalidId:
                 order['scheduled_by_name'] = 'Unknown'
                 order['scheduled_by_email'] = 'Unknown'
         else:
