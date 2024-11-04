@@ -3,11 +3,24 @@ from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField, SelectField, HiddenField, SelectMultipleField, DateField, RadioField, BooleanField, DecimalField, TimeField
 from wtforms.validators import DataRequired, Email, EqualTo, Length, Regexp, Optional, NumberRange
 from wtforms.widgets import ListWidget, CheckboxInput
+from utility import format_us_phone_number
 import phonenumbers
 
 
 
 
+def validate_us_phone(form, field):
+    """
+    Custom validator to ensure phone numbers are 10 digits.
+    """
+    phone = field.data
+    if phone:
+        # Remove any non-digit characters
+        digits = ''.join(filter(str.isdigit, phone))
+        if len(digits) != 10:
+            raise ValidationError('Phone number must contain exactly 10 digits.')
+        # Optionally, you can store the digits without formatting or with formatting as needed
+        field.data = digits  # Store as digits for backend processing
 
 
 
@@ -253,11 +266,17 @@ class GuestOrderForm(FlaskForm):
         Email(message="Invalid email address."),
         Length(max=100, message="Guest Email must be less than 100 characters.")
     ])
-    guest_phone_number = StringField('Guest Phone Number', validators=[
-        Optional(),
-        Regexp(r'^\+?1?\d{9,15}$', message="Phone number must be entered in the format: '+999999999'. Up to 15 digits allowed."),
-        Length(max=20, message="Guest Phone Number must be less than 20 characters.")
-    ])
+    guest_phone_number = StringField(
+        'Phone Number',
+        validators=[
+            Optional(),
+            Regexp(
+                regex=r'^\+?1?\d{10}$',
+                message='Phone number must be a 10-digit US number, optionally prefixed with +1.'
+            ),
+            validate_us_phone
+        ]
+    )
     
     # Guest Address
     street_address = StringField('Street Address', validators=[
@@ -390,3 +409,6 @@ class SalesProfileForm(FlaskForm):
     # Add other fields as needed
 
     submit = SubmitField('Update Profile')
+
+
+

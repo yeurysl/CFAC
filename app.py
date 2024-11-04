@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from pymongo import MongoClient
 from flask_bcrypt import Bcrypt
 from dotenv import load_dotenv
+from utility import format_us_phone_number
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_wtf import CSRFProtect
 from flask_wtf.csrf import generate_csrf
@@ -93,6 +94,12 @@ AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
 AWS_DEFAULT_REGION = os.getenv('AWS_DEFAULT_REGION')
 
+
+
+# Initialize SNS client
+sns_client = boto3.client('sns')
+
+
 # Initialize the SNS client
 sns_client = boto3.client(
     'sns',
@@ -101,6 +108,9 @@ sns_client = boto3.client(
     region_name=AWS_DEFAULT_REGION
 )
 
+# Define SMS Sender ID and Type
+SMS_SENDER_ID = "CFAC"  # Customize as per your region's requirements
+SMS_TYPE = "Transactional"  # or "Promotional"
 
 
 # Session cookie settings for enhanced security
@@ -1019,6 +1029,9 @@ def sales_main():
 
 
 #Schedule Guest Order Route
+
+
+
 @app.route('/sales/schedule_guest_order', methods=['GET', 'POST'])
 @login_required
 @sales_required
@@ -1032,6 +1045,9 @@ def schedule_guest_order():
     
     if form.validate_on_submit():
         try:
+            # Log the entire form data
+            current_app.logger.info(f"Form Data: {request.form}")
+            
             # Capture guest information
             guest_name = form.guest_name.data.strip()
             guest_email = form.guest_email.data.strip().lower() if form.guest_email.data else None
@@ -1047,8 +1063,13 @@ def schedule_guest_order():
             service_time = form.service_time.data
             payment_time = form.payment_time.data  # 'pay_now' or 'pay_after_completion'
             
+            # Log the captured service_date and service_time
+            current_app.logger.info(f"Service Date: {service_date}")
+            current_app.logger.info(f"Service Time: {service_time}")
+            
             # Combine service date and time into a datetime object
             service_datetime = datetime.combine(service_date, service_time)
+            current_app.logger.info(f"Combined Service Datetime: {service_datetime}")
             
             selected_product_ids = form.products.data  # List of product ID strings
             
@@ -1075,6 +1096,11 @@ def schedule_guest_order():
             # Set payment_status to 'Unpaid'
             payment_status = 'Unpaid'
             
+              # Format the phone number to E.164
+            if guest_phone_number:
+                guest_phone_number = format_us_phone_number(guest_phone_number)
+                current_app.logger.info(f"Formatted Phone Number: {guest_phone_number}")
+            
             # Create the order document
             order = {
                 'user': None,  # No user associated since it's a guest order
@@ -1097,8 +1123,12 @@ def schedule_guest_order():
                 'service_date': service_datetime,  # Use combined datetime object
                 'status': 'ordered',
                 'salesperson': str(current_user.id),
-                'creation_date': datetime.utcnow()
+                'creation_date': datetime.utcnow(),
+                'scheduled_by': str(current_user.id)  # Ensure scheduled_by is set
             }
+            
+            # Log the order document before insertion
+            current_app.logger.info(f"Inserting Order: {order}")
             
             # Insert the order into the database
             inserted_order = orders_collection.insert_one(order)
@@ -1142,6 +1172,7 @@ def schedule_guest_order():
 
 
 #Guest Order Email Route
+
 def send_guest_order_confirmation_email(guest_email, guest_phone_number, order, selected_products):
     """
     Sends a confirmation email and/or SMS to the guest after scheduling an order.
@@ -1182,14 +1213,18 @@ def send_guest_order_confirmation_email(guest_email, guest_phone_number, order, 
 
                 # Send the email
                 mail.send(msg)
-                app.logger.info(f"Confirmation email sent to {guest_email}")
+                current_app.logger.info(f"Confirmation email sent to {guest_email}")
                 email_sent = True
             except Exception as e:
-                app.logger.error(f"Failed to send confirmation email to {guest_email}: {e}")
+                current_app.logger.error(f"Failed to send confirmation email to {guest_email}: {e}")
 
         # **2. Send SMS if guest_phone_number is provided**
         if guest_phone_number:
             try:
+                # Validate phone number format using regex
+                if not re.match(r'^\+\d{10,15}$', guest_phone_number):
+                    raise ValueError("Phone number is not in E.164 format.")
+
                 # Compose the SMS message
                 sms_message = render_template(
                     'sms/guest_order_confirmation.txt',
@@ -1201,21 +1236,32 @@ def send_guest_order_confirmation_email(guest_email, guest_phone_number, order, 
                 # Send the SMS via AWS SNS
                 response = sns_client.publish(
                     PhoneNumber=guest_phone_number,
-                    Message=sms_message
+                    Message=sms_message,
+                    MessageAttributes={
+                        'AWS.SNS.SMS.SenderID': {
+                            'DataType': 'String',
+                            'StringValue': SMS_SENDER_ID
+                        },
+                        'AWS.SNS.SMS.SMSType': {
+                            'DataType': 'String',
+                            'StringValue': SMS_TYPE
+                        }
+                    }
                 )
 
                 message_id = response.get('MessageId')
-                app.logger.info(f"SMS sent successfully to {guest_phone_number}. Message ID: {message_id}")
+                current_app.logger.info(f"SMS sent successfully to {guest_phone_number}. Message ID: {message_id}")
                 sms_sent = True
             except Exception as e:
-                app.logger.error(f"Failed to send SMS to {guest_phone_number}: {e}")
+                current_app.logger.error(f"Failed to send SMS to {guest_phone_number}: {e}")
 
         # **3. Log the results**
         if not email_sent and not sms_sent:
-            app.logger.warning("No confirmation messages were sent to the guest.")
+            current_app.logger.warning("No confirmation messages were sent to the guest.")
 
     except Exception as e:
-        app.logger.error(f"Error in send_guest_order_confirmation_email: {e}")
+        current_app.logger.error(f"Error in send_guest_order_confirmation_email: {e}")
+                 
 
 @app.route('/sales/view_order/<order_id>')
 @login_required

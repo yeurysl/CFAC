@@ -34,10 +34,11 @@
                 
                 <div class="mb-3">
                     {{ form.guest_phone_number.label(class="form-label") }}
-                    {{ form.guest_phone_number(class="form-control", id="guest_phone_number") }}
+                    {{ form.guest_phone_number(class="form-control", id="guest_phone_number", placeholder="e.g., +18138609587 or 8138609587") }}
                     {% for error in form.guest_phone_number.errors %}
                         <div class="text-danger">{{ error }}</div>
                     {% endfor %}
+                    <small class="form-text text-muted">Enter a 10-digit US phone number. You can include the country code (+1) or omit it.</small>
                 </div>
             </div>
         </div>

@@ -11,20 +11,20 @@
             <strong>Order ID:</strong> {{ order._id }}
         </div>
         <div class="card-body">
-            <h5 class="card-title">Customer Information</h5>
+
+            <h5 class="card-title mt-4">Customer Information</h5>
             <p class="card-text"><strong>Name:</strong> {{ order.guest_name or order.user_name or 'N/A' }}</p>
             <p class="card-text"><strong>Email:</strong> {{ order.guest_email or 'N/A' }}</p>
             <p class="card-text"><strong>Phone Number:</strong> {{ order.guest_phone_number or 'N/A' }}</p>
 
             <h5 class="card-title mt-4">Service Details</h5>
-            <p class="card-text"><strong>Service Date:</strong> 
+            <p class="card-text"><strong>Service Date and Time:</strong> 
                 {% if order.service_date %}
-                    {{ order.service_date.strftime('%Y-%m-%d %H:%M') }}
+                {{ order.service_date.strftime('%B %d, %Y at %I:%M %p') }}
                 {% else %}
                     N/A
                 {% endif %}
             </p>
-            <p class="card-text"><strong>Service Time:</strong> {{ order.service_time or 'N/A' }}</p>
 
             <h5 class="card-title mt-4">Address</h5>
             <p class="card-text">

@@ -41,18 +41,18 @@
             
             <p><strong>Order Date:</strong> 
                 {% if order.order_date %}
-                    {{ order.order_date.strftime('%Y-%m-%d %H:%M:%S') }}
+                    {{ order.order_date.strftime('%B %d, %Y at %I:%M %p') }}
                 {% else %}
                     N/A
                 {% endif %}
             </p>
-            <p><strong>Service Date:</strong> 
+            <p><strong>Service Date & Time:</strong> 
                 {% if order.service_date %}
-                    {{ order.service_date.strftime('%Y-%m-%d') }}
+                    {{ order.service_date.strftime('%B %d, %Y at %I:%M %p') }}
                 {% else %}
                     N/A
                 {% endif %}
-            </p>
+            </p>            
             <p><strong>Total Amount:</strong> {{ order.total | currency }}</p>
             <p><strong>Payment Method:</strong> {{ order.payment_method | default('N/A') }}</p>
             
@@ -64,7 +64,6 @@
             </ul>
             
             <h4>Additional Information:</h4>
-            <p><strong>Service Time:</strong> {{ order.service_time | default('N/A') }}</p>
             <p><strong>Status:</strong> {{ order.status | capitalize }}</p>
             <!-- Add more fields as necessary -->
 
