@@ -2196,6 +2196,33 @@ def manage_users():
 
 
 
+@app.route('/admin/view_user/<user_id>')
+@login_required
+@admin_required  # Ensure this decorator is defined to restrict access to admins
+def view_user(user_id):
+    try:
+        user_obj_id = ObjectId(user_id)
+    except InvalidId:
+        flash('Invalid user ID.', 'danger')
+        app.logger.warning(f"Invalid ObjectId for view_user: {user_id}")
+        return redirect(url_for('manage_users'))
+
+    user = users_collection.find_one({'_id': user_obj_id})
+    if not user:
+        flash('User not found.', 'danger')
+        app.logger.warning(f"User not found: {user_id}")
+        return redirect(url_for('manage_users'))
+
+    # Ensure creation_date is a datetime object
+    if 'creation_date' in user and isinstance(user['creation_date'], str):
+        try:
+            user['creation_date'] = datetime.strptime(user['creation_date'], '%Y-%m-%d %H:%M:%S')
+        except ValueError:
+            app.logger.error(f"Invalid creation_date format for user ID {user_id}: {user['creation_date']}")
+            user['creation_date'] = None  # Handle invalid date formats as needed
+
+    app.logger.info(f"Displaying user details for user ID: {user_id}")
+    return render_template('admin/view_user.html', user=user)
 
 #Collecting Payments\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 @app.route('/payments/collecting_payments', methods=['GET', 'POST'])
