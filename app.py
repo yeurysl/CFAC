@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from pymongo import MongoClient
+import stripe
 from flask_bcrypt import Bcrypt
 from dotenv import load_dotenv
 from utility import format_us_phone_number
@@ -36,6 +37,10 @@ ENV = os.getenv('ENV', 'development')
 load_dotenv()
 
 app = Flask(__name__)
+
+# Configure Stripe
+stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
+STRIPE_PUBLISHABLE_KEY = os.getenv('STRIPE_PUBLISHABLE_KEY')
 
 # Apply ProxyFix to handle Heroku's proxy headers
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
