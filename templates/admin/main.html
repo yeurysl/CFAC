@@ -19,20 +19,24 @@
             <thead class="table-dark">
                 <tr>
                     <th>Status</th>
+                    <th>Tech</th>
                     <th>Order Type</th>
                     <th>Salesperson</th>
                     <th>User Email</th>
-                    <th>Order Date</th>
                     <th>Service Date</th>
                     <th>Products</th>
                     <th>Total</th>
                     <th>Actions</th>
+                    <th>Order Date</th>
                 </tr>
             </thead>
             <tbody>
                 {% for order in orders %}
                 <tr>
                     <td>{{ order.status | capitalize }}</td>
+                    <td>
+                        {{ order.tech_name }}
+                    </td>
                     <td>{{ order.order_type }}</td>
                     <td>
                         {% if order.order_type == 'Guest Order' %}
@@ -48,13 +52,7 @@
                             Guest
                         {% endif %}
                     </td>
-                    <td>
-                        {% if order.order_date %}
-                            {{ order.order_date | format_date }}
-                        {% else %}
-                            N/A
-                        {% endif %}
-                    </td>
+                  
                     <td>
                         {% if order.service_date %}
                             {{ order.service_date | format_date }}
@@ -74,6 +72,13 @@
                         <a href="{{ url_for('view_order', order_id=order['_id']) }}" class="btn btn-primary btn-sm">
                             View Order
                         </a>
+                    </td>
+                    <td>
+                        {% if order.order_date %}
+                            {{ order.order_date | format_date }}
+                        {% else %}
+                            N/A
+                        {% endif %}
                     </td>
                 </tr>
                 {% endfor %}

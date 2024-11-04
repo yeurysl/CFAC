@@ -1894,6 +1894,17 @@ def admin_main():
             products = list(products_collection.find({'_id': {'$in': product_ids}}))
             order['product_details'] = products
 
+
+            # Fetch technician details if the order has been scheduled
+            scheduled_by = order.get('scheduled_by')
+            if scheduled_by:
+                 tech = users_collection.find_one({'_id': ObjectId(scheduled_by)})
+                 order['tech_name'] = tech['name'] if tech else 'Unknown Tech'
+            else:
+                order['tech_name'] = 'Not Scheduled Yet'
+        
+        orders.append(order)
+
         # **6. Pass Variables to the Template**
         return render_template(
             'admin/main.html',
