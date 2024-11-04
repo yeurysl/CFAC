@@ -1,4 +1,3 @@
-<!-- templates/employee/main.html -->
 
 {% extends 'base.html' %}
 
@@ -22,7 +21,9 @@
                     <div class="card mb-4 shadow-sm">
                         <div class="card-header bg-primary text-white">
                             <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center">
-                                <h5 class="card-title mb-0">Order ID: {{ order._id }}</h5>
+                                <h5 class="card-title mb-0">
+                                    Location: {{ order.guest_address.city }}, {{ order.guest_address.zip_code }}
+                                </h5>  
                                 <small class="mt-2 mt-sm-0">Placed on {{ order.order_date.strftime('%B %d, %Y %I:%M %p') }}</small>
                             </div>
                         </div>
