@@ -39,7 +39,7 @@
                                             {{ order.user_display }}
                                         {% endif %}
                                     </p>
-                                    <p><strong>Service Date:</strong> {{ order.service_date.strftime('%B %d, %Y') }}</p>
+                                    <p><strong>Service Date and Time:</strong> {{ order.service_date.strftime('%B %d, %Y at %I:%M %p') }}</p>
                                     {% if order.status %}
                                         <p><strong>Status:</strong> 
                                             <span class="badge 

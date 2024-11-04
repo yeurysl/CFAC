@@ -2,7 +2,6 @@ Hello {{ order.guest_name }},
 
 Thank you for your order! Your order has been add to our schedule for {{ order.service_date.strftime('%B %d, %Y') }}.
 
-Total: {{ order.total | currency }}
 
 If you have any questions, contact us at support@cfac.com.
 
