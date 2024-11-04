@@ -1847,12 +1847,8 @@ def admin_main():
         total_pages = (total_orders + per_page - 1) // per_page  # Ceiling division to get total pages
 
         # **4. Fetch Orders for the Current Page**
-        orders = list(
-            orders_collection.find()
-            .sort('order_date', -1)  # Sort by order_date descending
-            .skip((page - 1) * per_page)  # Skip orders for previous pages
-            .limit(per_page)  # Limit to orders per page
-        )
+        orders_cursor = orders_collection.find().sort('order_date', -1).skip((page - 1) * per_page).limit(per_page)
+        orders = list(orders_cursor)
 
         # **5. Enrich Orders with Additional Details**
         for order in orders:
@@ -1874,36 +1870,46 @@ def admin_main():
                     order['salesperson_name'] = 'Not Assigned'
             else:
                 # For customer orders, fetch the user's email
-                user = users_collection.find_one({'email': order.get('user')})
-                order['user_email'] = user['email'] if user else 'Unknown'
+                user_email = order.get('user')
+                if user_email:
+                    user = users_collection.find_one({'email': user_email})
+                    if user:
+                        order['user_email'] = user.get('email', 'Unknown')
+                    else:
+                        order['user_email'] = 'Unknown'
+                else:
+                    order['user_email'] = 'Unknown'
 
             # Ensure dates are datetime objects
             for date_field in ['order_date', 'service_date']:
-                if isinstance(order.get(date_field), str):
+                date_value = order.get(date_field)
+                if isinstance(date_value, str):
                     try:
                         if date_field == 'service_date':
-                           order[date_field] = datetime.strptime(order[date_field], '%Y-%m-%d')
+                            order[date_field] = datetime.strptime(date_value, '%Y-%m-%d')
                         else:
-                           order[date_field] = datetime.strptime(order[date_field], '%Y-%m-%d %H:%M:%S')
+                            order[date_field] = datetime.strptime(date_value, '%Y-%m-%d %H:%M:%S')
                     except ValueError:
-                        app.logger.error(f"Invalid {date_field} format for order ID {order.get('_id')}: {order.get(date_field)}")
+                        app.logger.error(f"Invalid {date_field} format for order ID {order.get('_id')}: {date_value}")
                         order[date_field] = None  # Handle invalid date formats as needed
 
             # Get product details
-            product_ids = [ObjectId(pid) for pid in order.get('products', [])]
-            products = list(products_collection.find({'_id': {'$in': product_ids}}))
-            order['product_details'] = products
-
+            product_ids = [pid for pid in order.get('products', []) if ObjectId.is_valid(pid)]
+            try:
+                product_ids = [ObjectId(pid) for pid in product_ids]
+                products = list(products_collection.find({'_id': {'$in': product_ids}}))
+                order['product_details'] = products
+            except Exception as e:
+                app.logger.error(f"Error fetching products for order ID {order.get('_id')}: {e}")
+                order['product_details'] = []
 
             # Fetch technician details if the order has been scheduled
             scheduled_by = order.get('scheduled_by')
-            if scheduled_by:
-                 tech = users_collection.find_one({'_id': ObjectId(scheduled_by)})
-                 order['tech_name'] = tech['name'] if tech else 'Unknown Tech'
+            if scheduled_by and ObjectId.is_valid(scheduled_by):
+                tech = users_collection.find_one({'_id': ObjectId(scheduled_by)})
+                order['tech_name'] = tech.get('name', 'Unknown Tech') if tech else 'Unknown Tech'
             else:
                 order['tech_name'] = 'Not Scheduled Yet'
-        
-        orders.append(order)
 
         # **6. Pass Variables to the Template**
         return render_template(
@@ -1915,7 +1921,7 @@ def admin_main():
             total_pages=total_pages
         )
     except Exception as e:
-        app.logger.error(f"Error in admin_main route: {e}")
+        app.logger.error(f"Error in admin_main route: {e}", exc_info=True)
         flash('An error occurred while fetching orders.', 'danger')
         return redirect(url_for('home'))
 
