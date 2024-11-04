@@ -2260,6 +2260,7 @@ def collecting_payments():
     return render_template('payments/collecting_payments.html', orders=unpaid_orders)
 
 #Collect payment
+
 @app.route('/collect_payment/<order_id>', methods=['GET', 'POST'])
 @login_required
 @tech_or_sales_required
@@ -2278,7 +2279,7 @@ def collect_payment(order_id):
         flash('Payment has already been collected for this order.', 'info')
         return redirect(url_for('collecting_payments'))
     
-    form = PaymentForm()  # Instantiate the form
+    form = PaymentForm()  # Instantiate the PaymentForm
     
     if request.method == 'POST' and form.validate_on_submit():
         # Retrieve the payment token submitted by the form
@@ -2289,51 +2290,139 @@ def collect_payment(order_id):
             return redirect(url_for('collect_payment', order_id=order_id))
         
         try:
-            # Create a charge: this will charge the user's card
-            charge = stripe.Charge.create(
+            # Create a PaymentIntent
+            payment_intent = stripe.PaymentIntent.create(
                 amount=int(order['total'] * 100),  # Amount in cents
                 currency='usd',
+                payment_method_types=['card_present'],  # For in-person payments
                 description=f"Payment for Order {order_id}",
-                source=token,
             )
             
-            # Update the payment status in the database
+            # Here, you would typically confirm the PaymentIntent on the client side
+            # using Stripe.js or the Stripe Terminal SDK.
+            
+            # For demonstration, we'll assume the PaymentIntent is successfully confirmed
+            # and update the order's payment status.
+            
             orders_collection.update_one(
                 {'_id': ObjectId(order_id)},
-                {'$set': {'payment_status': 'Paid', 'charge_id': charge.id}}
+                {'$set': {'payment_status': 'Paid', 'payment_intent_id': payment_intent.id}}
             )
             
             flash('Payment collected successfully.', 'success')
             return redirect(url_for('collecting_payments'))
         
         except stripe.error.CardError as e:
-            # Since it's a decline, stripe.error.CardError will be caught
             flash(f"Card declined: {e.user_message}", 'danger')
         except stripe.error.RateLimitError:
-            # Too many requests made to the API too quickly
             flash("Rate limit error. Please try again.", 'danger')
         except stripe.error.InvalidRequestError:
-            # Invalid parameters were supplied to Stripe's API
             flash("Invalid payment parameters.", 'danger')
         except stripe.error.AuthenticationError:
-            # Authentication with Stripe's API failed
             flash("Authentication with payment gateway failed.", 'danger')
         except stripe.error.APIConnectionError:
-            # Network communication with Stripe failed
             flash("Network error. Please try again.", 'danger')
         except stripe.error.StripeError:
-            # Display a very generic error to the user
             flash("An error occurred while processing your payment.", 'danger')
         except Exception as e:
-            # Something else happened, unrelated to Stripe
             flash("An unexpected error occurred.", 'danger')
     
     return render_template('payments/collect_payment.html', order=order, form=form, stripe_publishable_key=STRIPE_PUBLISHABLE_KEY)
 
 
-            
+@app.route('/stripe_terminal_connection_token', methods=['POST'])
+@login_required
+def stripe_terminal_connection_token():
+    # Generate a connection token using Stripe's API
+    connection_token = stripe.terminal.ConnectionToken.create()
+    return {'secret': connection_token.secret}
 
-#Extra
+@app.route('/stripe_webhook', methods=['POST'])
+def stripe_webhook():
+    payload = request.data
+    sig_header = request.headers.get('Stripe-Signature')
+    endpoint_secret = os.getenv('STRIPE_WEBHOOK_SECRET')  # Set this in your environment variables
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, endpoint_secret
+        )
+    except ValueError:
+        # Invalid payload
+        return 'Invalid payload', 400
+    except stripe.error.SignatureVerificationError:
+        # Invalid signature
+        return 'Invalid signature', 400
+
+    # Handle the event
+    if event['type'] == 'payment_intent.succeeded':
+        payment_intent = event['data']['object']
+        order_id = payment_intent.metadata.get('order_id')
+        if order_id:
+            orders_collection.update_one(
+                {'_id': ObjectId(order_id)},
+                {'$set': {'payment_status': 'Paid', 'payment_intent_id': payment_intent.id}}
+            )
+    elif event['type'] == 'payment_intent.payment_failed':
+        payment_intent = event['data']['object']
+        order_id = payment_intent.metadata.get('order_id')
+        if order_id:
+            orders_collection.update_one(
+                {'_id': ObjectId(order_id)},
+                {'$set': {'payment_status': 'Failed', 'payment_intent_id': payment_intent.id}}
+            )
+    # ... handle other event types as needed
+
+    return '', 200
+
+
+
+@app.route('/create_payment_intent', methods=['POST'])
+@login_required
+def create_payment_intent():
+    data = request.get_json()
+    order_id = data.get('order_id')
+    
+    try:
+        order = orders_collection.find_one({'_id': ObjectId(order_id)})
+    except InvalidId:
+        return {'error': 'Invalid Order ID.'}, 400
+    
+    if not order:
+        return {'error': 'Order not found.'}, 404
+    
+    if order['payment_status'] == 'Paid':
+        return {'error': 'Order already paid.'}, 400
+    
+    # Create a PaymentIntent
+    payment_intent = stripe.PaymentIntent.create(
+        amount=int(order['total'] * 100),  # Amount in cents
+        currency='usd',
+        payment_method_types=['card_present'],
+        description=f"Payment for Order {order_id}",
+    )
+    
+    return {'client_secret': payment_intent.client_secret}
+
+@app.route('/update_order/<order_id>', methods=['POST'])
+@login_required
+def update_order(order_id):
+    # Fetch the PaymentIntent status
+    payment_intent_id = request.form.get('payment_intent_id')
+    payment_intent = stripe.PaymentIntent.retrieve(payment_intent_id)
+    
+    if payment_intent.status == 'succeeded':
+        orders_collection.update_one(
+            {'_id': ObjectId(order_id)},
+            {'$set': {'payment_status': 'Paid', 'payment_intent_id': payment_intent.id}}
+        )
+        flash('Payment collected successfully.', 'success')
+    else:
+        flash('Payment not successful.', 'danger')
+    
+    return redirect(url_for('collecting_payments'))
+
+#Extra\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
 
 
