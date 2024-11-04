@@ -1,6 +1,6 @@
 
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SubmitField, SelectField, HiddenField, SelectMultipleField, DateField, RadioField, BooleanField, DecimalField, TimeField
+from wtforms import StringField, PasswordField, SubmitField, SelectField, HiddenField, SelectMultipleField, DateField, RadioField, BooleanField, DecimalField, TimeField, ValidationError
 from wtforms.validators import DataRequired, Email, EqualTo, Length, Regexp, Optional, NumberRange
 from wtforms.widgets import ListWidget, CheckboxInput
 from utility import format_us_phone_number
