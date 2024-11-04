@@ -2101,34 +2101,31 @@ def edit_order(order_id):
 
 
 
-
 @app.route('/admin/delete_order/<order_id>', methods=['POST'])
 @login_required
 @admin_required
 def delete_order(order_id):
-    delete_form = DeleteOrderForm()
-    if delete_form.validate_on_submit():  # CSRF validation
-        orders_collection.delete_one({'_id': ObjectId(order_id)})
-        flash('Order deleted successfully.', 'success')
+    form = DeleteOrderForm()
+    if form.validate_on_submit():
+        try:
+            order_obj_id = ObjectId(order_id)
+        except InvalidId:
+            flash('Invalid order ID.', 'danger')
+            current_app.logger.warning(f"Delete attempt with invalid order ID: {order_id}")
+            return redirect(url_for('admin_main'))
+
+        result = orders_collection.delete_one({'_id': order_obj_id})
+        if result.deleted_count == 1:
+            flash('Order deleted successfully.', 'success')
+            current_app.logger.info(f"Order {order_id} deleted successfully.")
+        else:
+            flash('Order not found.', 'warning')
+            current_app.logger.warning(f"Attempted to delete non-existent order: {order_id}")
     else:
         flash('Invalid CSRF token.', 'danger')
+        current_app.logger.warning(f"Invalid CSRF token when attempting to delete order: {order_id}")
+    
     return redirect(url_for('admin_main'))
-#View Users Route
-@app.route('/admin/view_user/<user_id>')
-@login_required
-@admin_required
-def view_user(user_id):
-    user = users_collection.find_one({'_id': ObjectId(user_id)})
-    if not user:
-        flash('User not found.', 'danger')
-        return redirect(url_for('manage_users'))
-
-    # Ensure creation_date is a datetime object
-    if 'creation_date' in user and isinstance(user['creation_date'], str):
-        # If it's stored as a string, parse it back to datetime
-        user['creation_date'] = datetime.strptime(user['creation_date'], '%Y-%m-%d %H:%M:%S')
-
-    return render_template('admin/view_user.html', user=user)
 
 #Delete User Route
 @app.route('/admin/delete/<user_id>', methods=['POST'])
