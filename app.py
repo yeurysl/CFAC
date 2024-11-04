@@ -884,17 +884,54 @@ def tech_view_order(order_id):
 
         if not order:
             flash('Order not found.', 'danger')
-            return redirect(url_for('collecting_payments'))
+            return redirect(url_for('my_schedule'))
 
         # Check if the current technician is the one who scheduled the order
         if order.get('scheduled_by') != current_user.id:
             flash('You do not have permission to view this order.', 'danger')
-            return redirect(url_for('collecting_payments'))
+            return redirect(url_for('my_schedule'))
 
         # Fetch product details
         product_ids = [ObjectId(pid) for pid in order.get('products', [])]
         products = list(products_collection.find({'_id': {'$in': product_ids}}))
         products_dict = {str(product['_id']): product for product in products}
+    
+            # Ensure dates are datetime objects
+        if isinstance(order['order_date'], str):
+                order['order_date'] = datetime.strptime(order['order_date'], '%Y-%m-%d %H:%M:%S')
+        if isinstance(order['service_date'], str):
+                order['service_date'] = datetime.strptime(order['service_date'], '%Y-%m-%d')
+
+            # Include address details
+        if order.get('guest_address'):
+                # For guest orders
+                order['address'] = order['guest_address']
+        elif order.get('user'):
+                # For registered user orders, fetch the user's address from the users_collection
+                user = users_collection.find_one({'email': order['user']})
+                if user and 'address' in user:
+                    order['address'] = user['address']
+                else:
+                    order['address'] = None
+        else:
+                order['address'] = None  # Or handle as needed
+
+            # Construct full address string
+        if order['address']:
+                address_components = [
+                    order['address'].get('street_address'),
+                    order['address'].get('unit_apt'),
+                    order['address'].get('city'),
+                    order['address'].get('country'),
+                    order['address'].get('zip_code')
+                ]
+                # Filter out empty components and join them
+                full_address = ', '.join(filter(None, address_components))
+                order['full_address'] = full_address
+        else:
+                order['full_address'] = None
+
+         
 
         return render_template('payments/tech_view_order.html', order=order, products_dict=products_dict)
     except InvalidId:

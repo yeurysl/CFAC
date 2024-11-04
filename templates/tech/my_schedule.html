@@ -17,14 +17,14 @@
                 {% for order in orders %}
                     <div class="card mb-4 shadow-sm">
                         <div class="card-header bg-secondary text-white">
-                            <h5 class="card-title mb-0">Order ID: {{ order._id }}</h5>
+                            <h5 class="card-title mb-0">Service Date and Time: {{ order.service_date.strftime('%B %d, %Y at %I:%M %p') }}
+                            </h5>
                         </div>
                         <div class="card-body">
                             <div class="row mb-3">
                                 <div class="col-md-6">
                                     <!-- Repositioned "Placed on" to appear above "Service Date" -->
                                     <p><strong>Placed on:</strong> {{ order.order_date.strftime('%B %d, %Y %I:%M %p') }}</p>
-                                    <p><strong>Service Date:</strong> {{ order.service_date.strftime('%B %d, %Y') }}</p>
                                     <p><strong>Status:</strong> 
                                         <span class="badge 
                                             {% if order.status.lower() == 'ordered' %}

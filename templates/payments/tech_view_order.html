@@ -26,15 +26,28 @@
                 {% endif %}
             </p>
 
-            <h5 class="card-title mt-4">Address</h5>
-            <p class="card-text">
-                {{ order.guest_address.street_address or 'N/A' }}, 
-                {{ order.guest_address.unit_apt or '' }},
-                {{ order.guest_address.city or 'N/A' }},
-                {{ order.guest_address.country or 'N/A' }},
-                {{ order.guest_address.zip_code or 'N/A' }}
-            </p>
 
+
+
+            {% if order.full_address %}
+            <p>
+                <strong>Address:</strong> {{ order.full_address }}
+            </p>
+            <p>
+                <strong>Directions:</strong>
+                <a href="https://www.google.com/maps/search/?api=1&query={{ order.full_address | urlencode }}" target="_blank">Google Maps</a> |
+                <a href="http://maps.apple.com/?address={{ order.full_address | urlencode }}" target="_blank">Apple Maps</a>
+            </p>
+        {% else %}
+            <p><strong>Address:</strong> Not provided</p>
+        {% endif %}
+
+
+
+
+
+
+            
             <h5 class="card-title mt-4">Order Details</h5>
             <p class="card-text"><strong>Total Amount:</strong> ${{ '%.2f'|format(order.total) }}</p>
             <p class="card-text"><strong>Payment Time:</strong> {{ order.payment_time.replace('_', ' ').title() }}</p>
