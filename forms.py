@@ -412,3 +412,5 @@ class SalesProfileForm(FlaskForm):
 
 
 
+class PaymentForm(FlaskForm):
+    submit = SubmitField('Submit Payment')

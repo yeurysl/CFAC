@@ -1,0 +1,109 @@
+<!-- templates/payments/collect_payment.html -->
+{% extends 'base.html' %}
+
+{% block title %}Collect Payment{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="mb-4">Collect Payment for Order {{ order._id }}</h1>
+
+    <div class="card">
+        <div class="card-header">
+            Order Details
+        </div>
+        <div class="card-body">
+            <p><strong>Customer Name:</strong> {{ order.guest_name or order.user_name or 'N/A' }}</p>
+            <p><strong>Service Date:</strong> 
+                {% if order.service_date %}
+                    {{ order.service_date.strftime('%Y-%m-%d %H:%M') }}
+                {% else %}
+                    N/A
+                {% endif %}
+            </p>
+            <p><strong>Total Amount:</strong> ${{ '%.2f'|format(order.total) }}</p>
+            <p><strong>Payment Status:</strong> {{ order.payment_status }}</p>
+        </div>
+    </div>
+
+    <form id="payment-form" action="{{ url_for('collect_payment', order_id=order._id) }}" method="POST">
+        {{ form.hidden_tag() }}
+        <div class="form-row">
+            <label for="card-element">
+                Credit or debit card
+            </label>
+            <div id="card-element">
+                <!-- A Stripe Element will be inserted here. -->
+            </div>
+
+            <!-- Used to display form errors. -->
+            <div id="card-errors" role="alert"></div>
+        </div>
+
+        <button class="btn btn-primary mt-3">Submit Payment</button>
+    </form>
+</div>
+
+<!-- Include Stripe.js -->
+<script src="https://js.stripe.com/v3/"></script>
+<script>
+    // Initialize Stripe
+    var stripe = Stripe('{{ stripe_publishable_key }}');
+    var elements = stripe.elements();
+
+    // Custom styling can be passed to options when creating an Element.
+    var style = {
+        base: {
+            // Add your base input styles here. For example:
+            fontSize: '16px',
+            color: '#32325d',
+        },
+    };
+
+    // Create an instance of the card Element.
+    var card = elements.create('card', {style: style});
+
+    // Add an instance of the card Element into the `card-element` <div>.
+    card.mount('#card-element');
+
+    // Handle real-time validation errors from the card Element.
+    card.on('change', function(event) {
+        var displayError = document.getElementById('card-errors');
+        if (event.error) {
+            displayError.textContent = event.error.message;
+        } else {
+            displayError.textContent = '';
+        }
+    });
+
+    // Handle form submission.
+    var form = document.getElementById('payment-form');
+    form.addEventListener('submit', function(event) {
+        event.preventDefault();
+
+        stripe.createToken(card).then(function(result) {
+            if (result.error) {
+                // Inform the user if there was an error.
+                var errorElement = document.getElementById('card-errors');
+                errorElement.textContent = result.error.message;
+            } else {
+                // Send the token to your server.
+                stripeTokenHandler(result.token);
+            }
+        });
+    });
+
+    // Submit the form with the token ID.
+    function stripeTokenHandler(token) {
+        // Insert the token ID into the form so it gets submitted to the server
+        var form = document.getElementById('payment-form');
+        var hiddenInput = document.createElement('input');
+        hiddenInput.setAttribute('type', 'hidden');
+        hiddenInput.setAttribute('name', 'stripeToken');
+        hiddenInput.setAttribute('value', token.id);
+        form.appendChild(hiddenInput);
+
+        // Submit the form
+        form.submit();
+    }
+</script>
+{% endblock %}

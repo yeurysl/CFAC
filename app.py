@@ -7,7 +7,7 @@ from utility import format_us_phone_number
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_wtf import CSRFProtect
 from flask_wtf.csrf import generate_csrf
-from forms import RegistrationForm, RemoveFromCartForm, CustomerLoginForm, EmployeeLoginForm, UpdateAccountForm, GuestOrderForm, PasswordResetRequestForm, PasswordResetForm, EditOrderForm, DeleteOrderForm, SalesProfileForm
+from forms import RegistrationForm, RemoveFromCartForm, CustomerLoginForm, EmployeeLoginForm, UpdateAccountForm, GuestOrderForm, PasswordResetRequestForm, PasswordResetForm, EditOrderForm, DeleteOrderForm, SalesProfileForm, PaymentForm
 from functools import wraps
 from flask_mail import Mail, Message
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -2230,6 +2230,7 @@ def view_user(user_id):
     return render_template('admin/view_user.html', user=user)
 
 #Collecting Payments\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
 @app.route('/payments/collecting_payments', methods=['GET', 'POST'])
 @login_required
 @tech_or_sales_required
@@ -2258,13 +2259,14 @@ def collecting_payments():
     
     return render_template('payments/collecting_payments.html', orders=unpaid_orders)
 
+#Collect payment
 @app.route('/collect_payment/<order_id>', methods=['GET', 'POST'])
 @login_required
 @tech_or_sales_required
 def collect_payment(order_id):
     try:
         order = orders_collection.find_one({'_id': ObjectId(order_id)})
-    except Exception as e:
+    except InvalidId:
         flash('Invalid Order ID.', 'danger')
         return redirect(url_for('collecting_payments'))
     
@@ -2276,17 +2278,60 @@ def collect_payment(order_id):
         flash('Payment has already been collected for this order.', 'info')
         return redirect(url_for('collecting_payments'))
     
-    if request.method == 'POST':
-        # Process the payment here (e.g., integrate with a payment gateway)
-        # For now, we'll just update the payment_status
-        orders_collection.update_one(
-            {'_id': ObjectId(order_id)},
-            {'$set': {'payment_status': 'Paid'}}
-        )
-        flash('Payment collected successfully.', 'success')
-        return redirect(url_for('collecting_payments'))
+    form = PaymentForm()  # Instantiate the form
     
-    return render_template('payments/collect_payment.html', order=order)
+    if request.method == 'POST' and form.validate_on_submit():
+        # Retrieve the payment token submitted by the form
+        token = request.form.get('stripeToken')
+        
+        if not token:
+            flash('Payment token not provided.', 'danger')
+            return redirect(url_for('collect_payment', order_id=order_id))
+        
+        try:
+            # Create a charge: this will charge the user's card
+            charge = stripe.Charge.create(
+                amount=int(order['total'] * 100),  # Amount in cents
+                currency='usd',
+                description=f"Payment for Order {order_id}",
+                source=token,
+            )
+            
+            # Update the payment status in the database
+            orders_collection.update_one(
+                {'_id': ObjectId(order_id)},
+                {'$set': {'payment_status': 'Paid', 'charge_id': charge.id}}
+            )
+            
+            flash('Payment collected successfully.', 'success')
+            return redirect(url_for('collecting_payments'))
+        
+        except stripe.error.CardError as e:
+            # Since it's a decline, stripe.error.CardError will be caught
+            flash(f"Card declined: {e.user_message}", 'danger')
+        except stripe.error.RateLimitError:
+            # Too many requests made to the API too quickly
+            flash("Rate limit error. Please try again.", 'danger')
+        except stripe.error.InvalidRequestError:
+            # Invalid parameters were supplied to Stripe's API
+            flash("Invalid payment parameters.", 'danger')
+        except stripe.error.AuthenticationError:
+            # Authentication with Stripe's API failed
+            flash("Authentication with payment gateway failed.", 'danger')
+        except stripe.error.APIConnectionError:
+            # Network communication with Stripe failed
+            flash("Network error. Please try again.", 'danger')
+        except stripe.error.StripeError:
+            # Display a very generic error to the user
+            flash("An error occurred while processing your payment.", 'danger')
+        except Exception as e:
+            # Something else happened, unrelated to Stripe
+            flash("An unexpected error occurred.", 'danger')
+    
+    return render_template('payments/collect_payment.html', order=order, form=form, stripe_publishable_key=STRIPE_PUBLISHABLE_KEY)
+
+
+            
 
 #Extra
 
