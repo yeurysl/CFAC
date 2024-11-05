@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_from_directory
 from pymongo import MongoClient
 import stripe
 from flask_bcrypt import Bcrypt
@@ -2462,7 +2462,14 @@ def format_time_filter(time_str):
 
 
 
-
+# Route to serve the Apple Pay verification file
+@app.route('/.well-known/apple-developer-merchantid-domain-association')
+def apple_pay_verification():
+    return send_from_directory(
+        os.path.join(app.root_path, '.well-known'),
+        'apple-developer-merchantid-domain-association',
+        mimetype='application/pkcs7-mime'
+    )
 
 
 
