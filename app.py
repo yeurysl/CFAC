@@ -116,6 +116,8 @@ sns_client = boto3.client(
 # Define SMS Sender ID and Type
 SMS_SENDER_ID = "CFAC"  # Customize as per your region's requirements
 SMS_TYPE = "Transactional"  # or "Promotional"
+DEFAULT_SENDER = (os.getenv('DEFAULT_SENDER_NAME'), os.getenv('DEFAULT_SENDER_EMAIL'))
+SUPPORT_SENDER = (os.getenv('SUPPORT_SENDER_NAME'), os.getenv('SUPPORT_SENDER_EMAIL'))
 
 
 # Session cookie settings for enhanced security
@@ -125,13 +127,12 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'       # Mitigates CSRF attacks
 
 
 # Flask-Mail SETUP
-app.config['MAIL_SERVER'] = 'smtp.gmail.com'
-app.config['MAIL_PORT'] = 587
+app.config['MAIL_SERVER'] = 'email-smtp.us-east-1.amazonaws.com'  # SES SMTP endpoint for us-east-1
+app.config['MAIL_PORT'] = 587  # Use 465 for SSL
 app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USE_SSL'] = False
-app.config['MAIL_USERNAME'] = os.getenv('EMAIL_USER')  # Get email username from environment
-app.config['MAIL_PASSWORD'] = os.getenv('EMAIL_PASSWORD')  # Get email password from environment
-app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('EMAIL_USER')
+app.config['MAIL_USERNAME'] = os.getenv('SES_SMTP_USERNAME')  # SES SMTP Username
+app.config['MAIL_PASSWORD'] = os.getenv('SES_SMTP_PASSWORD')  # SES SMTP Password
+app.config['MAIL_DEFAULT_SENDER'] = ('Central Florida Auto Care', 'care@cfautocare.biz')  # Default sender
 
 mail = Mail(app)
 
@@ -2606,6 +2607,12 @@ def apple_pay_verification():
         mimetype='application/pkcs7-mime'
     )
 
+
+@app.route('/test_env')
+def test_env():
+    username = os.getenv('SES_SMTP_USERNAME')
+    password = os.getenv('SES_SMTP_PASSWORD')
+    return f"Username: {username}, Password Length: {len(password) if password else 'Not Set'}"
 
 
 if __name__ == '__main__':
