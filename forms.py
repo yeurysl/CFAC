@@ -412,5 +412,10 @@ class SalesProfileForm(FlaskForm):
 
 
 
-class PaymentForm(FlaskForm):
+class CollectPaymentForm(FlaskForm):
+    payment_method = RadioField('Payment Method', choices=[
+        ('cash', 'Cash'),
+        ('card', 'Manual Card Payment')
+    ], default='cash', validators=[DataRequired()])
+
     submit = SubmitField('Submit Payment')

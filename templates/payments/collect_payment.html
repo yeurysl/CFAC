@@ -25,89 +25,81 @@
         </div>
     </div>
 
-    <!-- Payment Method Selection Buttons -->
-    <div class="btn-group mb-4" role="group" aria-label="Payment Methods">
-        <button type="button" class="btn btn-outline-primary" id="manual-payment-btn">Manual Entry</button>
-        <button type="button" class="btn btn-outline-success" id="apple-pay-btn">Apple Pay</button>
-        <button type="button" class="btn btn-outline-info" id="simulate-payment-btn">Simulate Payment</button>
-    </div>
+    <!-- Payment Method Selection Form -->
+    <form id="payment-form" action="{{ url_for('collect_payment', order_id=order._id) }}" method="POST">
+        {{ form.hidden_tag() }}
 
-    <!-- Payment Request Button Section (Apple Pay) -->
-    <div id="payment-request-button" style="display: none; margin-bottom: 20px;"></div>
-
-    <!-- Manual Payment Section -->
-    <div id="manual-payment-section" style="display: none;">
-        <form id="payment-form" action="{{ url_for('collect_payment', order_id=order._id) }}" method="POST">
-            {{ form.hidden_tag() }}
-            <div class="form-row">
-                <label for="card-element">
-                    Credit or debit card
+        <!-- Payment Method Options -->
+        <div class="form-group">
+            <label>Select Payment Method:</label>
+            <div class="btn-group btn-group-toggle d-flex" data-toggle="buttons">
+                <label class="btn btn-outline-primary flex-fill" id="btn-cash">
+                    <input type="radio" name="payment_method" value="cash" autocomplete="off" checked>
+                    <i class="fas fa-money-bill-wave fa-lg"></i> Cash
                 </label>
-                <div id="card-element">
-                    <!-- A Stripe Element will be inserted here. -->
-                </div>
+                <label class="btn btn-outline-info flex-fill" id="btn-card">
+                    <input type="radio" name="payment_method" value="card" autocomplete="off">
+                    <i class="fas fa-credit-card fa-lg"></i> Manual Card
+                </label>
+            </div>
+        </div>
 
-                <!-- Used to display form errors. -->
-                <div id="card-errors" role="alert" class="text-danger"></div>
+        <!-- Manual Card Payment Section (Initially Hidden) -->
+        <div class="form-group" id="card-payment-section" style="display: none;">
+            <label for="card-element">
+                Credit or Debit Card
+            </label>
+            <div id="card-element">
+                <!-- A Stripe Element will be inserted here. -->
             </div>
 
-            <button class="btn btn-primary mt-3">Submit Payment</button>
-        </form>
-    </div>
+            <!-- Used to display form errors. -->
+            <div id="card-errors" role="alert" class="text-danger"></div>
+        </div>
 
-    <!-- Simulation Payment Section -->
-    <div id="simulate-payment-section" style="display: none;">
-        <button id="simulate-payment-button" class="btn btn-warning">Simulate Payment Success</button>
-        <button id="simulate-payment-fail-button" class="btn btn-danger">Simulate Payment Failure</button>
-
-        <!-- Display Simulation Status -->
-        <div id="simulation-status" class="alert" style="display: none;"></div>
-    </div>
+        <!-- Submit Button -->
+        <button type="submit" class="btn btn-primary">Submit Payment</button>
+    </form>
 </div>
+
+<!-- Include Font Awesome for Icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
 
 <!-- Include Stripe.js -->
 <script src="https://js.stripe.com/v3/"></script>
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Payment Method Selection Buttons
-        const manualPaymentBtn = document.getElementById('manual-payment-btn');
-        const applePayBtn = document.getElementById('apple-pay-btn');
-        const simulatePaymentBtn = document.getElementById('simulate-payment-btn');
-        const manualPaymentSection = document.getElementById('manual-payment-section');
-        const paymentRequestButtonSection = document.getElementById('payment-request-button');
-        const simulatePaymentSection = document.getElementById('simulate-payment-section');
+        console.log('DOM fully loaded and parsed');
 
-        manualPaymentBtn.addEventListener('click', () => {
-            manualPaymentSection.style.display = 'block';
-            paymentRequestButtonSection.style.display = 'none';
-            simulatePaymentSection.style.display = 'none';
-            manualPaymentBtn.classList.add('active');
-            applePayBtn.classList.remove('active');
-            simulatePaymentBtn.classList.remove('active');
+        // Payment Method Toggle Buttons
+        const paymentMethodRadios = document.getElementsByName('payment_method');
+        const cardPaymentSection = document.getElementById('card-payment-section');
+
+        // Function to handle payment method selection
+        function handlePaymentMethodChange() {
+            const selectedMethod = document.querySelector('input[name="payment_method"]:checked').value;
+            console.log('Selected Payment Method:', selectedMethod);
+
+            if (selectedMethod === 'card') {
+                cardPaymentSection.style.display = 'block';
+            } else { // cash
+                cardPaymentSection.style.display = 'none';
+            }
+        }
+
+        // Attach event listeners to all radio buttons
+        paymentMethodRadios.forEach(radio => {
+            radio.addEventListener('change', handlePaymentMethodChange);
         });
 
-        applePayBtn.addEventListener('click', () => {
-            manualPaymentSection.style.display = 'none';
-            paymentRequestButtonSection.style.display = 'block';
-            simulatePaymentSection.style.display = 'none';
-            applePayBtn.classList.add('active');
-            manualPaymentBtn.classList.remove('active');
-            simulatePaymentBtn.classList.remove('active');
-        });
+        // Initialize the form based on the default selected payment method
+        handlePaymentMethodChange();
 
-        simulatePaymentBtn.addEventListener('click', () => {
-            manualPaymentSection.style.display = 'none';
-            paymentRequestButtonSection.style.display = 'none';
-            simulatePaymentSection.style.display = 'block';
-            simulatePaymentBtn.classList.add('active');
-            manualPaymentBtn.classList.remove('active');
-            applePayBtn.classList.remove('active');
-        });
-
-        // Initialize Stripe for Manual Payment
-        const stripeManual = Stripe('{{ stripe_publishable_key }}');
-        const elements = stripeManual.elements();
+        // Initialize Stripe for Manual Card Payment
+        const stripePublishableKey = "{{ stripe_publishable_key }}";
+        const stripe = Stripe(stripePublishableKey);
+        const elements = stripe.elements();
 
         const style = {
             base: {
@@ -125,10 +117,12 @@
 
         const card = elements.create('card', {style: style});
         card.mount('#card-element');
+        console.log('Stripe Card Element mounted');
 
         card.on('change', function(event) {
             const displayError = document.getElementById('card-errors');
             if (event.error) {
+                console.log('Card Element Error:', event.error.message);
                 displayError.textContent = event.error.message;
             } else {
                 displayError.textContent = '';
@@ -137,21 +131,29 @@
 
         const form = document.getElementById('payment-form');
         form.addEventListener('submit', function(event) {
-            event.preventDefault();
+            const selectedPaymentMethod = document.querySelector('input[name="payment_method"]:checked').value;
+            if (selectedPaymentMethod === 'card') {
+                event.preventDefault();
+                console.log('Payment form submitted for Card Payment');
 
-            stripeManual.createToken(card).then(function(result) {
-                if (result.error) {
-                    // Inform the user if there was an error
-                    const errorElement = document.getElementById('card-errors');
-                    errorElement.textContent = result.error.message;
-                } else {
-                    // Send the token to your server
-                    stripeTokenHandler(result.token);
-                }
-            });
+                stripe.createToken(card).then(function(result) {
+                    if (result.error) {
+                        console.log('Stripe Token Creation Error:', result.error.message);
+                        // Inform the user if there was an error
+                        const errorElement = document.getElementById('card-errors');
+                        errorElement.textContent = result.error.message;
+                    } else {
+                        console.log('Stripe Token created:', result.token);
+                        // Send the token to your server
+                        stripeTokenHandler(result.token);
+                    }
+                });
+            }
+            // For Cash, no action needed; form will submit normally
         });
 
         function stripeTokenHandler(token) {
+            console.log('Handling Stripe Token:', token.id);
             // Insert the token ID into the form so it gets submitted to the server
             const form = document.getElementById('payment-form');
             const hiddenInput = document.createElement('input');
@@ -163,144 +165,6 @@
             // Submit the form
             form.submit();
         }
-
-        // Initialize Stripe Payment Request Button (Apple Pay)
-        const stripePRB = Stripe('{{ stripe_publishable_key }}');
-        const paymentRequest = stripePRB.paymentRequest({
-            country: 'US',
-            currency: 'usd',
-            total: {
-                label: 'Total',
-                amount: {{ order.total * 100 }}, // amount in cents
-            },
-            requestPayerName: true,
-            requestPayerEmail: true,
-        });
-
-        const prElements = stripePRB.elements();
-        const prButton = prElements.create('paymentRequestButton', {
-            paymentRequest: paymentRequest,
-        });
-
-        // Check the availability of the PRB
-        paymentRequest.canMakePayment().then(function(result) {
-            if (result) {
-                paymentRequestButtonSection.style.display = 'block';
-                prButton.mount('#payment-request-button');
-            } else {
-                console.log('Payment Request Button not available.');
-            }
-        });
-
-        // Handle the PRB payment
-        paymentRequest.on('paymentmethod', async (ev) => {
-            try {
-                // Create a PaymentIntent on the server
-                const response = await fetch('/create_payment_intent', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': '{{ csrf_token() }}' // Include CSRF token
-                    },
-                    body: JSON.stringify({ order_id: '{{ order._id }}' }),
-                });
-                const data = await response.json();
-
-                if (data.error) {
-                    ev.complete('fail');
-                    alert(data.error);
-                    return;
-                }
-
-                // Confirm the PaymentIntent with the payment method from PRB
-                const { error } = await stripePRB.confirmCardPayment(
-                    data.client_secret,
-                    {
-                        payment_method: ev.paymentMethod.id,
-                    },
-                    { handleActions: false }
-                );
-
-                if (error) {
-                    ev.complete('fail');
-                    alert(error.message);
-                    return;
-                }
-
-                // Check the PaymentIntent status
-                const paymentIntent = await stripePRB.retrievePaymentIntent(data.client_secret);
-                if (paymentIntent.status === 'succeeded') {
-                    ev.complete('success');
-                    alert('Payment successful!');
-                    // Optionally, redirect or update the UI
-                    setTimeout(() => {
-                        window.location.href = "{{ url_for('collecting_payments') }}";
-                    }, 2000);
-                } else {
-                    ev.complete('fail');
-                    alert('Payment failed.');
-                }
-            } catch (err) {
-                console.error(err);
-                ev.complete('fail');
-                alert('An unexpected error occurred.');
-            }
-        });
-
-        // Simulation Payment Buttons
-        const simulatePaymentButton = document.getElementById('simulate-payment-button');
-        const simulatePaymentFailButton = document.getElementById('simulate-payment-fail-button');
-        const simulationStatusDiv = document.getElementById('simulation-status');
-
-        simulatePaymentButton.addEventListener('click', () => {
-            simulatePayment('succeeded');
-        });
-
-        simulatePaymentFailButton.addEventListener('click', () => {
-            simulatePayment('failed');
-        });
-
-        function simulatePayment(status) {
-            // Create a mock PaymentIntent
-            const mockPaymentIntent = {
-                status: status,
-                id: `pi_mock_${Math.random().toString(36).substring(2, 15)}`,
-                metadata: {
-                    order_id: '{{ order._id }}'
-                },
-                last_payment_error: {
-                    message: 'Simulated payment error.' // Only relevant for failed payments
-                }
-            };
-
-            // Simulate receiving a webhook event
-            handleMockWebhookEvent(mockPaymentIntent);
-
-            // Update the simulation status
-            if (status === 'succeeded') {
-                simulationStatusDiv.className = 'alert alert-success';
-                simulationStatusDiv.innerText = 'Simulated Payment Succeeded!';
-            } else {
-                simulationStatusDiv.className = 'alert alert-danger';
-                simulationStatusDiv.innerText = 'Simulated Payment Failed.';
-            }
-            simulationStatusDiv.style.display = 'block';
-        }
-
-        function handleMockWebhookEvent(paymentIntent) {
-            // Directly update the order status in the frontend
-            // In a real scenario, the webhook would be sent to the backend to update the database
-            if (paymentIntent.status === 'succeeded') {
-                alert('Simulated Payment Succeeded! The order status will be updated.');
-                // Optionally, refresh the page or fetch updated order data
-                setTimeout(() => {
-                    window.location.href = "{{ url_for('collecting_payments') }}";
-                }, 2000);
-            } else if (paymentIntent.status === 'failed') {
-                alert('Simulated Payment Failed: ' + paymentIntent.last_payment_error.message);
-            }
-        }
     });
-    
 </script>
 {% endblock %}

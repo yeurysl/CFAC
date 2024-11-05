@@ -7,7 +7,7 @@ from utility import format_us_phone_number
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_wtf import CSRFProtect
 from flask_wtf.csrf import generate_csrf
-from forms import RegistrationForm, RemoveFromCartForm, CustomerLoginForm, EmployeeLoginForm, UpdateAccountForm, GuestOrderForm, PasswordResetRequestForm, PasswordResetForm, EditOrderForm, DeleteOrderForm, SalesProfileForm, PaymentForm
+from forms import RegistrationForm, RemoveFromCartForm, CustomerLoginForm, EmployeeLoginForm, UpdateAccountForm, GuestOrderForm, PasswordResetRequestForm, PasswordResetForm, EditOrderForm, DeleteOrderForm, SalesProfileForm, CollectPaymentForm
 from functools import wraps
 from flask_mail import Mail, Message
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -2260,11 +2260,10 @@ def collecting_payments():
     return render_template('payments/collecting_payments.html', orders=unpaid_orders)
 
 #Collect payment
-
 @app.route('/collect_payment/<order_id>', methods=['GET', 'POST'])
 @login_required
-@tech_or_sales_required
 def collect_payment(order_id):
+    form = CollectPaymentForm()
     try:
         order = orders_collection.find_one({'_id': ObjectId(order_id)})
     except InvalidId:
@@ -2275,74 +2274,91 @@ def collect_payment(order_id):
         flash('Order not found.', 'danger')
         return redirect(url_for('collecting_payments'))
     
-    if order['payment_status'] == 'Paid':
-        flash('Payment has already been collected for this order.', 'info')
-        return redirect(url_for('collecting_payments'))
-    
-    form = PaymentForm()  # Instantiate the PaymentForm
-    
-    if request.method == 'POST' and form.validate_on_submit():
-        # Retrieve the payment token submitted by the form
-        token = request.form.get('stripeToken')
+    if form.validate_on_submit():
+        payment_method = form.payment_method.data
+        payment_data = {'payment_method': payment_method}
         
-        if not token:
-            flash('Payment token not provided.', 'danger')
-            return redirect(url_for('collect_payment', order_id=order_id))
-        
-        try:
-            # Create a PaymentIntent
-            payment_intent = stripe.PaymentIntent.create(
-                amount=int(order['total'] * 100),  # Amount in cents
-                currency='usd',
-                payment_method_types=['card_present'],  # For in-person payments
-                description=f"Payment for Order {order_id}",
-            )
+        if payment_method == 'card':
+            stripe_token = request.form.get('stripeToken')
+            if not stripe_token:
+                flash('Payment token not provided.', 'danger')
+                return redirect(request.url)
+            payment_data['stripe_token'] = stripe_token
+            # Process the card payment using Stripe
+            try:
+                payment_intent = stripe.PaymentIntent.create(
+                    amount=int(order['total'] * 100),  # Amount in cents
+                    currency='usd',
+                    payment_method=stripe_token,
+                    confirmation_method='automatic',
+                    confirm=True,
+                    metadata={'order_id': str(order['_id'])}
+                )
+                if payment_intent.status == 'succeeded':
+                    payment_data['payment_status'] = 'Paid'
+                    flash('Payment successful!', 'success')
+                else:
+                    payment_data['payment_status'] = 'Pending'
+                    flash('Payment processing.', 'info')
+            except stripe.error.CardError as e:
+                # Since it's a decline, stripe.error.CardError will be caught
+                payment_data['payment_status'] = 'Failed'
+                flash(f"Card Error: {e.user_message}", 'danger')
+            except stripe.error.StripeError as e:
+                # Display a very generic error to the user, and maybe send
+                # yourself an email
+                payment_data['payment_status'] = 'Failed'
+                flash("Payment processing error. Please try again.", 'danger')
+            except Exception as e:
+                payment_data['payment_status'] = 'Failed'
+                flash("An unexpected error occurred. Please try again.", 'danger')
             
-            # Here, you would typically confirm the PaymentIntent on the client side
-            # using Stripe.js or the Stripe Terminal SDK.
-            
-            # For demonstration, we'll assume the PaymentIntent is successfully confirmed
-            # and update the order's payment status.
-            
+            # Update the order in the database with payment details
+            update_fields = {}
+            if payment_method == 'card':
+                update_fields['payment_method'] = 'card'
+                update_fields['payment_status'] = payment_data['payment_status']
+                if payment_intent.status == 'succeeded':
+                    update_fields['stripe_payment_intent_id'] = payment_intent.id
+            # Update other relevant fields as needed
             orders_collection.update_one(
                 {'_id': ObjectId(order_id)},
-                {'$set': {'payment_status': 'Paid', 'payment_intent_id': payment_intent.id}}
+                {'$set': update_fields}
             )
             
-            flash('Payment collected successfully.', 'success')
             return redirect(url_for('collecting_payments'))
         
-        except stripe.error.CardError as e:
-            flash(f"Card declined: {e.user_message}", 'danger')
-        except stripe.error.RateLimitError:
-            flash("Rate limit error. Please try again.", 'danger')
-        except stripe.error.InvalidRequestError:
-            flash("Invalid payment parameters.", 'danger')
-        except stripe.error.AuthenticationError:
-            flash("Authentication with payment gateway failed.", 'danger')
-        except stripe.error.APIConnectionError:
-            flash("Network error. Please try again.", 'danger')
-        except stripe.error.StripeError:
-            flash("An error occurred while processing your payment.", 'danger')
-        except Exception as e:
-            flash("An unexpected error occurred.", 'danger')
+        elif payment_method == 'cash':
+            payment_data['payment_status'] = 'Paid'
+            # Update the order in the database with payment details
+            update_fields = {
+                'payment_method': 'cash',
+                'payment_status': 'Paid'
+            }
+            orders_collection.update_one(
+                {'_id': ObjectId(order_id)},
+                {'$set': update_fields}
+            )
+            flash('Payment marked as paid (Cash).', 'success')
+            return redirect(url_for('collecting_payments'))
     
-    return render_template('payments/collect_payment.html', order=order, form=form, stripe_publishable_key=STRIPE_PUBLISHABLE_KEY)
+    return render_template(
+        'payments/collect_payment.html',
+        order=order,
+        form=form,
+        stripe_publishable_key=STRIPE_PUBLISHABLE_KEY
+    )
 
-
-
-# app.py
-
+#Stripe webhook
 @app.route('/stripe_webhook', methods=['POST'])
-@csrf.exempt  # Exempted from CSRF protection
+@csrf.exempt  # Exempt webhook route from CSRF protection
 def stripe_webhook():
     payload = request.data
     sig_header = request.headers.get('Stripe-Signature')
-    endpoint_secret = os.getenv('STRIPE_WEBHOOK_SECRET')  # Ensure this is set
 
     try:
         event = stripe.Webhook.construct_event(
-            payload, sig_header, endpoint_secret
+            payload, sig_header, STRIPE_WEBHOOK_SECRET
         )
     except ValueError:
         # Invalid payload
@@ -2358,19 +2374,22 @@ def stripe_webhook():
         if order_id:
             orders_collection.update_one(
                 {'_id': ObjectId(order_id)},
-                {'$set': {'payment_status': 'Paid', 'payment_intent_id': payment_intent.id}}
+                {'$set': {'payment_status': 'Paid', 'stripe_payment_intent_id': payment_intent.id}}
             )
+            logging.info(f"PaymentIntent {payment_intent.id} succeeded for Order {order_id}")
     elif event['type'] == 'payment_intent.payment_failed':
         payment_intent = event['data']['object']
         order_id = payment_intent.metadata.get('order_id')
         if order_id:
             orders_collection.update_one(
                 {'_id': ObjectId(order_id)},
-                {'$set': {'payment_status': 'Failed', 'payment_intent_id': payment_intent.id}}
+                {'$set': {'payment_status': 'Failed', 'stripe_payment_intent_id': payment_intent.id}}
             )
+            logging.info(f"PaymentIntent {payment_intent.id} failed for Order {order_id}")
     # ... handle other event types as needed
 
     return '', 200
+
 
 
 
