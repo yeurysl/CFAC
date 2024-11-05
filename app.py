@@ -2330,18 +2330,15 @@ def collect_payment(order_id):
     return render_template('payments/collect_payment.html', order=order, form=form, stripe_publishable_key=STRIPE_PUBLISHABLE_KEY)
 
 
-@app.route('/stripe_terminal_connection_token', methods=['POST'])
-@login_required
-def stripe_terminal_connection_token():
-    # Generate a connection token using Stripe's API
-    connection_token = stripe.terminal.ConnectionToken.create()
-    return {'secret': connection_token.secret}
+
+# app.py
 
 @app.route('/stripe_webhook', methods=['POST'])
+@csrf.exempt  # Exempted from CSRF protection
 def stripe_webhook():
     payload = request.data
     sig_header = request.headers.get('Stripe-Signature')
-    endpoint_secret = os.getenv('STRIPE_WEBHOOK_SECRET')  # Set this in your environment variables
+    endpoint_secret = os.getenv('STRIPE_WEBHOOK_SECRET')  # Ensure this is set
 
     try:
         event = stripe.Webhook.construct_event(
@@ -2377,6 +2374,7 @@ def stripe_webhook():
 
 
 
+
 @app.route('/create_payment_intent', methods=['POST'])
 @login_required
 def create_payment_intent():
@@ -2386,23 +2384,27 @@ def create_payment_intent():
     try:
         order = orders_collection.find_one({'_id': ObjectId(order_id)})
     except InvalidId:
-        return {'error': 'Invalid Order ID.'}, 400
+        return jsonify({'error': 'Invalid Order ID.'}), 400
     
     if not order:
-        return {'error': 'Order not found.'}, 404
+        return jsonify({'error': 'Order not found.'}), 404
     
     if order['payment_status'] == 'Paid':
-        return {'error': 'Order already paid.'}, 400
+        return jsonify({'error': 'Order already paid.'}), 400
     
-    # Create a PaymentIntent
+    # Create a PaymentIntent with payment_method_types=['card']
     payment_intent = stripe.PaymentIntent.create(
         amount=int(order['total'] * 100),  # Amount in cents
         currency='usd',
-        payment_method_types=['card_present'],
+        payment_method_types=['card'],  # Apple Pay uses 'card' payment method
         description=f"Payment for Order {order_id}",
+        metadata={'order_id': order_id},
     )
     
-    return {'client_secret': payment_intent.client_secret}
+    logging.info(f"Created PaymentIntent {payment_intent.id} for Order {order_id}")
+    
+    return jsonify({'client_secret': payment_intent.client_secret})
+
 
 @app.route('/update_order/<order_id>', methods=['POST'])
 @login_required

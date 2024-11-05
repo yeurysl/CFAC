@@ -25,11 +25,15 @@
         </div>
     </div>
 
-    <!-- Payment Method Selection -->
+    <!-- Payment Method Selection Buttons -->
     <div class="btn-group mb-4" role="group" aria-label="Payment Methods">
         <button type="button" class="btn btn-outline-primary" id="manual-payment-btn">Manual Entry</button>
-        <button type="button" class="btn btn-outline-secondary" id="terminal-payment-btn">Card Reader</button>
+        <button type="button" class="btn btn-outline-success" id="apple-pay-btn">Apple Pay</button>
+        <button type="button" class="btn btn-outline-info" id="simulate-payment-btn">Simulate Payment</button>
     </div>
+
+    <!-- Payment Request Button Section (Apple Pay) -->
+    <div id="payment-request-button" style="display: none; margin-bottom: 20px;"></div>
 
     <!-- Manual Payment Section -->
     <div id="manual-payment-section" style="display: none;">
@@ -51,49 +55,57 @@
         </form>
     </div>
 
-    <!-- Terminal Payment Section -->
-    <div id="terminal-payment-section" style="display: none;">
-        <button id="connect-button" class="btn btn-secondary mb-3">Connect Card Reader</button>
-        <button id="collect-button" class="btn btn-primary mb-3" disabled>Collect Payment</button>
+    <!-- Simulation Payment Section -->
+    <div id="simulate-payment-section" style="display: none;">
+        <button id="simulate-payment-button" class="btn btn-warning">Simulate Payment Success</button>
+        <button id="simulate-payment-fail-button" class="btn btn-danger">Simulate Payment Failure</button>
 
-        <!-- Display Connection and Payment Status -->
-        <div id="status" class="alert alert-info" style="display: none;"></div>
+        <!-- Display Simulation Status -->
+        <div id="simulation-status" class="alert" style="display: none;"></div>
     </div>
 </div>
 
-<!-- Hidden Elements for Camera Access (If Needed for Future Features) -->
-<!-- <video id="video" width="400" height="250" autoplay style="display:none;"></video>
-<canvas id="canvas" width="400" height="250" style="display:none;"></canvas> -->
-
 <!-- Include Stripe.js -->
 <script src="https://js.stripe.com/v3/"></script>
-
-<!-- Include Stripe Terminal JS SDK -->
-<script src="https://js.stripe.com/terminal/v1/"></script>
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Payment Method Selection Buttons
         const manualPaymentBtn = document.getElementById('manual-payment-btn');
-        const terminalPaymentBtn = document.getElementById('terminal-payment-btn');
+        const applePayBtn = document.getElementById('apple-pay-btn');
+        const simulatePaymentBtn = document.getElementById('simulate-payment-btn');
         const manualPaymentSection = document.getElementById('manual-payment-section');
-        const terminalPaymentSection = document.getElementById('terminal-payment-section');
+        const paymentRequestButtonSection = document.getElementById('payment-request-button');
+        const simulatePaymentSection = document.getElementById('simulate-payment-section');
 
         manualPaymentBtn.addEventListener('click', () => {
             manualPaymentSection.style.display = 'block';
-            terminalPaymentSection.style.display = 'none';
+            paymentRequestButtonSection.style.display = 'none';
+            simulatePaymentSection.style.display = 'none';
             manualPaymentBtn.classList.add('active');
-            terminalPaymentBtn.classList.remove('active');
+            applePayBtn.classList.remove('active');
+            simulatePaymentBtn.classList.remove('active');
         });
 
-        terminalPaymentBtn.addEventListener('click', () => {
+        applePayBtn.addEventListener('click', () => {
             manualPaymentSection.style.display = 'none';
-            terminalPaymentSection.style.display = 'block';
-            terminalPaymentBtn.classList.add('active');
+            paymentRequestButtonSection.style.display = 'block';
+            simulatePaymentSection.style.display = 'none';
+            applePayBtn.classList.add('active');
             manualPaymentBtn.classList.remove('active');
+            simulatePaymentBtn.classList.remove('active');
         });
 
-        // Initialize Stripe Elements for Manual Payment
+        simulatePaymentBtn.addEventListener('click', () => {
+            manualPaymentSection.style.display = 'none';
+            paymentRequestButtonSection.style.display = 'none';
+            simulatePaymentSection.style.display = 'block';
+            simulatePaymentBtn.classList.add('active');
+            manualPaymentBtn.classList.remove('active');
+            applePayBtn.classList.remove('active');
+        });
+
+        // Initialize Stripe for Manual Payment
         const stripeManual = Stripe('{{ stripe_publishable_key }}');
         const elements = stripeManual.elements();
 
@@ -152,116 +164,143 @@
             form.submit();
         }
 
-        // Initialize Stripe Terminal for Physical Card Reader
-        const terminal = StripeTerminal.create({
-            onFetchConnectionToken: async () => {
-                try {
-                    const response = await fetch('/stripe_terminal_connection_token', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        }
-                    });
-                    const data = await response.json();
-                    if (data.error) {
-                        throw new Error(data.error);
-                    }
-                    return data.secret;
-                } catch (error) {
-                    console.error('Error fetching connection token:', error);
-                    alert('Failed to connect to the card reader. Please try again.');
-                }
+        // Initialize Stripe Payment Request Button (Apple Pay)
+        const stripePRB = Stripe('{{ stripe_publishable_key }}');
+        const paymentRequest = stripePRB.paymentRequest({
+            country: 'US',
+            currency: 'usd',
+            total: {
+                label: 'Total',
+                amount: {{ order.total * 100 }}, // amount in cents
             },
-            onUnexpectedReaderDisconnect: () => {
-                updateStatus('Reader disconnected.', 'warning');
-                document.getElementById('collect-button').disabled = true;
-            },
+            requestPayerName: true,
+            requestPayerEmail: true,
         });
 
-        let selectedReader;
+        const prElements = stripePRB.elements();
+        const prButton = prElements.create('paymentRequestButton', {
+            paymentRequest: paymentRequest,
+        });
 
-        // Connect Reader Button
-        const connectButton = document.getElementById('connect-button');
-        const collectButton = document.getElementById('collect-button');
-        const statusDiv = document.getElementById('status');
-
-        connectButton.addEventListener('click', async () => {
-            updateStatus('Discovering readers...', 'info');
-            try {
-                const availableReaders = await terminal.discoverReaders();
-                if (availableReaders.length === 0) {
-                    updateStatus('No available readers found.', 'danger');
-                    return;
-                }
-
-                // For simplicity, select the first available reader
-                selectedReader = availableReaders[0];
-
-                await terminal.connectReader(selectedReader);
-
-                updateStatus(`Connected to ${selectedReader.label}.`, 'success');
-                collectButton.disabled = false;
-            } catch (error) {
-                console.error('Error connecting to reader:', error);
-                updateStatus('Failed to connect to the card reader.', 'danger');
+        // Check the availability of the PRB
+        paymentRequest.canMakePayment().then(function(result) {
+            if (result) {
+                paymentRequestButtonSection.style.display = 'block';
+                prButton.mount('#payment-request-button');
+            } else {
+                console.log('Payment Request Button not available.');
             }
         });
 
-        // Collect Payment Button
-        collectButton.addEventListener('click', async () => {
-            if (!selectedReader) {
-                alert('Please connect a card reader first.');
-                return;
-            }
-
-            // Create a PaymentIntent on the server
-            let paymentIntentClientSecret = '';
+        // Handle the PRB payment
+        paymentRequest.on('paymentmethod', async (ev) => {
             try {
+                // Create a PaymentIntent on the server
                 const response = await fetch('/create_payment_intent', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token() }}' // Include CSRF token
                     },
                     body: JSON.stringify({ order_id: '{{ order._id }}' }),
                 });
                 const data = await response.json();
+
                 if (data.error) {
-                    throw new Error(data.error);
+                    ev.complete('fail');
+                    alert(data.error);
+                    return;
                 }
-                paymentIntentClientSecret = data.client_secret;
-            } catch (error) {
-                console.error('Error creating PaymentIntent:', error);
-                updateStatus('Failed to create PaymentIntent.', 'danger');
-                return;
-            }
 
-            // Collect payment via Terminal
-            try {
-                updateStatus('Collecting payment...', 'info');
-                const paymentResult = await terminal.collectPaymentMethod(paymentIntentClientSecret);
+                // Confirm the PaymentIntent with the payment method from PRB
+                const { error } = await stripePRB.confirmCardPayment(
+                    data.client_secret,
+                    {
+                        payment_method: ev.paymentMethod.id,
+                    },
+                    { handleActions: false }
+                );
 
-                if (paymentResult.paymentIntent.status === 'succeeded') {
-                    updateStatus('Payment succeeded!', 'success');
-                    // Optionally, redirect or refresh the orders list
+                if (error) {
+                    ev.complete('fail');
+                    alert(error.message);
+                    return;
+                }
+
+                // Check the PaymentIntent status
+                const paymentIntent = await stripePRB.retrievePaymentIntent(data.client_secret);
+                if (paymentIntent.status === 'succeeded') {
+                    ev.complete('success');
+                    alert('Payment successful!');
+                    // Optionally, redirect or update the UI
                     setTimeout(() => {
                         window.location.href = "{{ url_for('collecting_payments') }}";
                     }, 2000);
                 } else {
-                    updateStatus(`Payment failed: ${paymentResult.paymentIntent.last_payment_error.message}`, 'danger');
+                    ev.complete('fail');
+                    alert('Payment failed.');
                 }
-            } catch (error) {
-                console.error('Error collecting payment:', error);
-                updateStatus('Payment failed due to an unexpected error.', 'danger');
+            } catch (err) {
+                console.error(err);
+                ev.complete('fail');
+                alert('An unexpected error occurred.');
             }
         });
 
-        // Function to update the status message
-        function updateStatus(message, type) {
-            statusDiv.innerText = message;
-            statusDiv.className = ''; // Reset classes
-            statusDiv.classList.add('alert', `alert-${type}`);
-            statusDiv.style.display = 'block';
+        // Simulation Payment Buttons
+        const simulatePaymentButton = document.getElementById('simulate-payment-button');
+        const simulatePaymentFailButton = document.getElementById('simulate-payment-fail-button');
+        const simulationStatusDiv = document.getElementById('simulation-status');
+
+        simulatePaymentButton.addEventListener('click', () => {
+            simulatePayment('succeeded');
+        });
+
+        simulatePaymentFailButton.addEventListener('click', () => {
+            simulatePayment('failed');
+        });
+
+        function simulatePayment(status) {
+            // Create a mock PaymentIntent
+            const mockPaymentIntent = {
+                status: status,
+                id: `pi_mock_${Math.random().toString(36).substring(2, 15)}`,
+                metadata: {
+                    order_id: '{{ order._id }}'
+                },
+                last_payment_error: {
+                    message: 'Simulated payment error.' // Only relevant for failed payments
+                }
+            };
+
+            // Simulate receiving a webhook event
+            handleMockWebhookEvent(mockPaymentIntent);
+
+            // Update the simulation status
+            if (status === 'succeeded') {
+                simulationStatusDiv.className = 'alert alert-success';
+                simulationStatusDiv.innerText = 'Simulated Payment Succeeded!';
+            } else {
+                simulationStatusDiv.className = 'alert alert-danger';
+                simulationStatusDiv.innerText = 'Simulated Payment Failed.';
+            }
+            simulationStatusDiv.style.display = 'block';
+        }
+
+        function handleMockWebhookEvent(paymentIntent) {
+            // Directly update the order status in the frontend
+            // In a real scenario, the webhook would be sent to the backend to update the database
+            if (paymentIntent.status === 'succeeded') {
+                alert('Simulated Payment Succeeded! The order status will be updated.');
+                // Optionally, refresh the page or fetch updated order data
+                setTimeout(() => {
+                    window.location.href = "{{ url_for('collecting_payments') }}";
+                }, 2000);
+            } else if (paymentIntent.status === 'failed') {
+                alert('Simulated Payment Failed: ' + paymentIntent.last_payment_error.message);
+            }
         }
     });
+    
 </script>
 {% endblock %}
