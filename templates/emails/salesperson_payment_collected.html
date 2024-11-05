@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Payment Collected - CFAC</title>
+</head>
+<body>
+    <p>Dear {{ salesperson_name }},</p>
+    <p>You have successfully collected a payment of ${{ '%.2f'|format(order.total) }} for Order {{ order._id }} via {{ payment_method.capitalize() }}.</p>
+    <p>Service Date: {{ order.service_date.strftime('%Y-%m-%d %H:%M') if order.service_date else 'N/A' }}</p>
+    <p>Thank you for your excellent service!</p>
+    <p>Best regards,<br>CFAC AutoCare Team</p>
+</body>
+</html>

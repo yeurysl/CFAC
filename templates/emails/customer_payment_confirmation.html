@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Payment Confirmation - CFAC</title>
+</head>
+<body>
+    <p>Dear {{ customer_name }},</p>
+    <p>Thank you for your payment of ${{ '%.2f'|format(order.total) }} for Order {{ order._id }}.</p>
+    <p>Payment Method: {{ payment_method.capitalize() }}</p>
+    <p>Service Date: {{ order.service_date.strftime('%Y-%m-%d %H:%M') if order.service_date else 'N/A' }}</p>
+    <p>We appreciate your business!</p>
+    <p>Best regards,<br>CFAC AutoCare Team</p>
+</body>
+</html>
