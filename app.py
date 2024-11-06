@@ -7,7 +7,7 @@ from utility import format_us_phone_number
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_wtf import CSRFProtect
 from flask_wtf.csrf import generate_csrf
-from forms import RegistrationForm, RemoveFromCartForm, CustomerLoginForm, EmployeeLoginForm, UpdateAccountForm, GuestOrderForm, PasswordResetRequestForm, PasswordResetForm, EditOrderForm, DeleteOrderForm, SalesProfileForm, CollectPaymentForm
+from forms import RegistrationForm, RemoveFromCartForm, CustomerLoginForm, EmployeeLoginForm, UpdateAccountForm, GuestOrderForm, PasswordResetRequestForm, PasswordResetForm, EditOrderForm, DeleteOrderForm, SalesProfileForm, CollectPaymentForm, UpdateCompensationStatusForm
 from functools import wraps
 from flask_mail import Mail, Message
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -1970,6 +1970,9 @@ def admin_main():
             is_guest = order.get('is_guest', False)
             order['order_type'] = 'Guest Order' if is_guest else 'Customer Order'
 
+            # **5.1. Handle Payment Status**
+            order['payment_status'] = order.get('payment_status', 'Unpaid')  # Default to 'Unpaid' if missing
+
             if is_guest:
                 # For guest orders, fetch the salesperson's details using _id
                 salesperson_id = order.get('salesperson')
@@ -1994,7 +1997,7 @@ def admin_main():
                 else:
                     order['user_email'] = 'Unknown'
 
-            # Ensure dates are datetime objects
+            # **5.2. Convert Date Fields**
             for date_field in ['order_date', 'service_date']:
                 date_value = order.get(date_field)
                 if isinstance(date_value, str):
@@ -2007,7 +2010,7 @@ def admin_main():
                         app.logger.error(f"Invalid {date_field} format for order ID {order.get('_id')}: {date_value}")
                         order[date_field] = None  # Handle invalid date formats as needed
 
-            # Get product details
+            # **5.3. Get Product Details**
             product_ids = [pid for pid in order.get('products', []) if ObjectId.is_valid(pid)]
             try:
                 product_ids = [ObjectId(pid) for pid in product_ids]
@@ -2017,7 +2020,7 @@ def admin_main():
                 app.logger.error(f"Error fetching products for order ID {order.get('_id')}: {e}")
                 order['product_details'] = []
 
-            # Fetch technician details if the order has been scheduled
+            # **5.4. Fetch Technician Details if Scheduled**
             scheduled_by = order.get('scheduled_by')
             if scheduled_by and ObjectId.is_valid(scheduled_by):
                 tech = users_collection.find_one({'_id': ObjectId(scheduled_by)})
@@ -2038,7 +2041,6 @@ def admin_main():
         app.logger.error(f"Error in admin_main route: {e}", exc_info=True)
         flash('An error occurred while fetching orders.', 'danger')
         return redirect(url_for('home'))
-
 
     
 #View order Route
@@ -2337,6 +2339,122 @@ def view_user(user_id):
 
     app.logger.info(f"Displaying user details for user ID: {user_id}")
     return render_template('admin/view_user.html', user=user)
+
+
+
+
+# Compensation Route
+@app.route('/admin/compensation')
+@login_required
+@admin_required
+def compensation_page():
+    try:
+        # **1. Pagination Parameters**
+        page = request.args.get('page', 1, type=int)  # Current page number
+        per_page = 20  # Number of orders per page
+
+        # **2. Fetch Total Number of Orders**
+        total_orders = orders_collection.count_documents({})
+        total_pages = (total_orders + per_page - 1) // per_page  # Ceiling division to get total pages
+
+        # **3. Fetch Orders for the Current Page**
+        orders_cursor = orders_collection.find().sort('service_date', -1).skip((page - 1) * per_page).limit(per_page)
+        orders = list(orders_cursor)
+
+        # **4. Enrich Orders with Technician and Salesperson Details**
+        for order in orders:
+            # **Convert ObjectId to string**
+            order['_id'] = str(order['_id'])
+            
+            # Fetch Technician Details
+            tech_id = order.get('technician_id')
+            if tech_id and ObjectId.is_valid(str(tech_id)):
+                technician = users_collection.find_one({'_id': ObjectId(tech_id)})
+                order['technician_name'] = technician.get('name', 'Unknown') if technician else 'Unknown'
+            else:
+                order['technician_name'] = 'Not Assigned'
+
+            # Fetch Salesperson Details
+            salesperson_id = order.get('salesperson_id')
+            if salesperson_id and ObjectId.is_valid(str(salesperson_id)):
+                salesperson = users_collection.find_one({'_id': ObjectId(salesperson_id)})
+                order['salesperson_name'] = salesperson.get('name', 'Unknown') if salesperson else 'Unknown'
+            else:
+                order['salesperson_name'] = 'Not Assigned'
+
+            # Convert service_date to datetime object if it's a string
+            service_date = order.get('service_date')
+            if isinstance(service_date, str):
+                try:
+                    order['service_date'] = datetime.strptime(service_date, '%Y-%m-%d')
+                except ValueError:
+                    app.logger.error(f"Invalid service_date format for order ID {order.get('_id')}: {service_date}")
+                    order['service_date'] = None  # Handle invalid date formats as needed
+
+        # **5. Create Separate Form Instances for Each Order**
+        forms = {order['_id']: UpdateCompensationStatusForm(prefix=order['_id']) for order in orders}
+
+        # **6. Pass Variables to the Template**
+        return render_template(
+            'admin/compensation.html',
+            orders=orders,
+            page=page,
+            per_page=per_page,
+            total_pages=total_pages,
+            forms=forms  # Pass the forms dictionary to the template
+        )
+    except Exception as e:
+        app.logger.error(f"Error in compensation_page route: {e}", exc_info=True)
+        flash('An error occurred while fetching compensation data.', 'danger')
+        return redirect(url_for('admin_main'))
+
+# Update Compensation Status Route
+@app.route('/admin/update_compensation', methods=['POST'])
+@login_required
+@admin_required
+def update_compensation_status():
+    form = UpdateCompensationStatusForm()
+
+    if form.validate_on_submit():
+        try:
+            order_id = form.order_id.data
+            employee_type = form.employee_type.data
+            new_status = form.new_status.data
+
+            # Validate employee type and status choices
+            if employee_type not in ['tech', 'salesperson'] or new_status not in ['Paid', 'Failed']:
+                flash('Invalid request parameters.', 'danger')
+                return redirect(url_for('compensation_page'))
+
+            # Set the field to update based on employee type
+            update_field = 'tech_compensation_status' if employee_type == 'tech' else 'salesperson_compensation_status'
+
+            # Update the order document in the database
+            result = orders_collection.update_one(
+                {'_id': ObjectId(order_id)},
+                {'$set': {update_field: new_status}}
+            )
+
+            # Check if the document was modified
+            if result.modified_count == 1:
+                flash(f"Successfully updated {employee_type} compensation status to '{new_status}'.", 'success')
+            else:
+                flash('No changes were made. Please check the order ID.', 'warning')
+
+            return redirect(url_for('compensation_page'))
+
+        except Exception as e:
+            app.logger.error(f"Error updating compensation status: {e}", exc_info=True)
+            flash('An error occurred while updating compensation status.', 'danger')
+            return redirect(url_for('compensation_page'))
+
+    else:
+        # Log form errors for debugging
+        for field, errors in form.errors.items():
+            for error in errors:
+                app.logger.error(f"Error in {field}: {error}")
+        flash('Invalid form submission.', 'danger')
+        return redirect(url_for('compensation_page'))
 
 #Collecting Payments\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 

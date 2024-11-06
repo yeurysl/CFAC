@@ -28,7 +28,7 @@ Total: ${{ "%.2f"|format(order.total) }}
 No products were selected for this order.
 {% endif %}
 
-If you have any questions or need further assistance, feel free to contact us at support@cfac.com.
+If you have any questions or need further assistance, feel free to contact us at support@cfautocare.biz.
 
 Best regards,
 CFAC Team

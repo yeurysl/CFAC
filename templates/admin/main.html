@@ -1,3 +1,5 @@
+<!-- templates/admin/main.html -->
+
 {% extends 'base.html' %}
 
 {% block title %}Admin Dashboard{% endblock %}
@@ -19,6 +21,7 @@
             <thead class="table-dark">
                 <tr>
                     <th>Status</th>
+                    <th>Payment Status</th> <!-- New Column Header -->
                     <th>Tech</th>
                     <th>Order Type</th>
                     <th>Salesperson</th>
@@ -34,6 +37,24 @@
                 {% for order in orders %}
                 <tr>
                     <td>{{ order.status | capitalize }}</td>
+                    
+                    <!-- Payment Status Column with Badges -->
+                    <td>
+                        {% if order.payment_status %}
+                            {% if order.payment_status == 'Paid' %}
+                                <span class="badge bg-success">{{ order.payment_status }}</span>
+                            {% elif order.payment_status == 'Pending' %}
+                                <span class="badge bg-warning text-dark">{{ order.payment_status }}</span>
+                            {% elif order.payment_status == 'Failed' %}
+                                <span class="badge bg-danger">{{ order.payment_status }}</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ order.payment_status }}</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="badge bg-secondary">Unknown</span>
+                        {% endif %}
+                    </td>
+                    
                     <td>
                         {{ order.tech_name }}
                     </td>

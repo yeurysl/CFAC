@@ -419,3 +419,9 @@ class CollectPaymentForm(FlaskForm):
     ], default='cash', validators=[DataRequired()])
 
     submit = SubmitField('Submit Payment')
+    
+class UpdateCompensationStatusForm(FlaskForm):
+    order_id = HiddenField(validators=[DataRequired()])
+    employee_type = HiddenField(validators=[DataRequired()])
+    new_status = HiddenField(validators=[DataRequired()])
+    submit = SubmitField('Update Status')
