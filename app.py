@@ -1323,7 +1323,6 @@ def schedule_guest_order():
 
 
 #Guest Order Email Route
-
 def send_guest_order_confirmation_email(guest_email, guest_phone_number, order, selected_products):
     """
     Sends a confirmation email and/or SMS to the guest after scheduling an order.
@@ -1337,6 +1336,25 @@ def send_guest_order_confirmation_email(guest_email, guest_phone_number, order, 
         # Initialize flags
         email_sent = False
         sms_sent = False
+
+        # **Fetch Salesperson's Details**
+        salesperson_id = order.get('salesperson')
+        if salesperson_id:
+            try:
+                salesperson = users_collection.find_one({'_id': ObjectId(salesperson_id)})
+                if salesperson:
+                    salesperson_name = salesperson.get('name', 'Salesperson')
+                    salesperson_phone_number = salesperson.get('phone_number', '')
+                else:
+                    salesperson_name = 'Salesperson'
+                    salesperson_phone_number = ''
+            except Exception as e:
+                current_app.logger.error(f"Error fetching salesperson details: {e}")
+                salesperson_name = 'Salesperson'
+                salesperson_phone_number = ''
+        else:
+            salesperson_name = 'Salesperson'
+            salesperson_phone_number = ''
 
         # **1. Send Email if guest_email is provided**
         if guest_email:
@@ -1352,14 +1370,18 @@ def send_guest_order_confirmation_email(guest_email, guest_phone_number, order, 
                     'emails/guest_order_confirmation.html',
                     order=order,
                     products=selected_products,
-                    current_year=datetime.utcnow().year
+                    current_year=datetime.utcnow().year,
+                    salesperson_name=salesperson_name,
+                    salesperson_phone_number=salesperson_phone_number
                 )
 
                 # Optionally, render a plain-text version
                 msg.body = render_template(
                     'emails/guest_order_confirmation.txt',
                     order=order,
-                    products=selected_products
+                    products=selected_products,
+                    salesperson_name=salesperson_name,
+                    salesperson_phone_number=salesperson_phone_number
                 )
 
                 # Send the email
@@ -1381,7 +1403,9 @@ def send_guest_order_confirmation_email(guest_email, guest_phone_number, order, 
                     'sms/guest_order_confirmation.txt',
                     order=order,
                     products=selected_products,
-                    current_year=datetime.utcnow().year
+                    current_year=datetime.utcnow().year,
+                    salesperson_name=salesperson_name,
+                    salesperson_phone_number=salesperson_phone_number
                 )
 
                 # Send the SMS via AWS SNS
@@ -1412,7 +1436,6 @@ def send_guest_order_confirmation_email(guest_email, guest_phone_number, order, 
 
     except Exception as e:
         current_app.logger.error(f"Error in send_guest_order_confirmation_email: {e}")
-                 
 
 @app.route('/sales/view_order/<order_id>')
 @login_required
