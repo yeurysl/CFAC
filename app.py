@@ -1180,9 +1180,6 @@ def sales_main():
 
 
 #Schedule Guest Order Route
-
-
-
 @app.route('/sales/schedule_guest_order', methods=['GET', 'POST'])
 @login_required
 @sales_required

@@ -1,9 +1,32 @@
-Hello {{ order.guest_name }},
+Thank You for Your Order!
 
-Thank you for your order! Your order has been add to our schedule for {{ order.service_date.strftime('%B %d, %Y') }}.
+Dear {{ order.guest_name }},
 
+Thank you for placing an order with Central Florida Auto Care. Here are the details of your order:
 
-If you have any questions, contact us at support@cfac.com.
+Order Details:
+- Order ID: {{ order._id }}
+- Order Date: {{ order.order_date.strftime('%Y-%m-%d %H:%M:%S') }}
+- Service Date: {{ order.service_date.strftime('%Y-%m-%d') }}
 
-Best regards,
-Central Florida Auto Care Team
+Address:
+{{ order.guest_address.street_address }}
+{% if order.guest_address.unit_apt %}
+{{ order.guest_address.unit_apt }}
+{% endif %}
+{{ order.guest_address.city }}, {{ order.guest_address.country }} {{ order.guest_address.zip_code }}
+
+{% if products %}
+Products Ordered:
+{% for product in products %}
+- {{ product.name }}: ${{ "%.2f"|format(product.price) }}
+{% endfor %}
+Total: ${{ "%.2f"|format(order.total) }}
+{% else %}
+No products were selected for this order.
+{% endif %}
+
+If you have any questions or need further assistance, please contact your salesperson {{ salesperson_name }} at {{ salesperson_phone_number }}, or message us at support@cfautocare.biz.
+
+Thank you dor doing business with us,
+CFAC Team
