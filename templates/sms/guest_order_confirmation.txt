@@ -1,9 +1,9 @@
-Hello {{ order.guest_name }},
+Hey {{ order.guest_name }},
 
-Thank you for your order! Your order has been add to our schedule for {{ order.service_date.strftime('%B %d, %Y') }}.
+Thank you for your order! Your detailing has been add to our schedule for {{ order.service_date.strftime('%B %d, %Y') }}.
 
 
-If you have any questions or need further assistance, please contact your salesperson {{ salesperson_name }} at {{ salesperson_phone_number }}, or message us at support@cfautocare.biz.
-
-Thank you dor doing business with us,
-Central Florida Auto Care Team
+If you have any questions or need any further assistance, please contact your salesperson {{ salesperson_name }} at {{ salesperson_phone_number }}, or message us at support@cfautocare.biz.
+Please expect another message from us with a reminder about your detailing and if you need to reschedule please reach out.
+Thank you for doing business with us,
+CFAC Team
