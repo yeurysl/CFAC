@@ -2516,72 +2516,122 @@ def collect_payment(order_id):
     except InvalidId:
         flash('Invalid Order ID.', 'danger')
         return redirect(url_for('collecting_payments'))
-    
+
     if not order:
         flash('Order not found.', 'danger')
         return redirect(url_for('collecting_payments'))
-    
+
     if form.validate_on_submit():
         payment_method = form.payment_method.data
-        payment_data = {'payment_method': payment_method}
-        
+        payment_intent = None  # Initialize the variable
+
         if payment_method == 'card':
-            stripe_token = request.form.get('stripeToken')
-            if not stripe_token:
-                flash('Payment token not provided.', 'danger')
-                return redirect(request.url)
-            payment_data['stripe_token'] = stripe_token
+            payment_method_id = request.form.get('payment_method_id')
+            if not payment_method_id:
+                flash('Payment method ID not provided.', 'danger')
+                return render_template(
+                    'payments/collect_payment.html',
+                    order=order,
+                    form=form,
+                    stripe_publishable_key=STRIPE_PUBLISHABLE_KEY
+                )
+
             # Process the card payment using Stripe
             try:
                 payment_intent = stripe.PaymentIntent.create(
                     amount=int(order['total'] * 100),  # Amount in cents
                     currency='usd',
-                    payment_method=stripe_token,
-                    confirmation_method='automatic',
+                    payment_method=payment_method_id,
+                    payment_method_types=['card'],  # Restrict to card payments
+                    confirmation_method='automatic',  # Automatically confirm the PaymentIntent
                     confirm=True,
                     metadata={'order_id': str(order['_id'])}
+                    # Removed 'automatic_payment_methods' to prevent conflicts
                 )
+                logger.info(f"PaymentIntent created: {payment_intent.id} with status {payment_intent.status}")
+
                 if payment_intent.status == 'succeeded':
-                    payment_data['payment_status'] = 'Paid'
+                    # Update the order in the database with payment details
+                    update_fields = {
+                        'payment_method': 'card',
+                        'payment_status': 'Paid',
+                        'stripe_payment_intent_id': payment_intent.id
+                    }
+                    orders_collection.update_one(
+                        {'_id': ObjectId(order_id)},
+                        {'$set': update_fields}
+                    )
+
+                    # Send notifications as configured
+                    send_payment_collected_notifications(order, payment_method)
+
                     flash('Payment successful!', 'success')
+
+                    # Redirect to the salesman's dashboard
+                    return redirect(url_for('sales_main'))
+
+                elif payment_intent.status == 'requires_action':
+                    # Handle additional authentication if needed
+                    # For simplicity, we'll notify the user and stay on the same page
+                    orders_collection.update_one(
+                        {'_id': ObjectId(order_id)},
+                        {'$set': {'payment_method': 'card', 'payment_status': 'Requires Action'}}
+                    )
+                    flash('Additional authentication required. Please check your payment method.', 'info')
+                    return render_template(
+                        'payments/collect_payment.html',
+                        order=order,
+                        form=form,
+                        stripe_publishable_key=STRIPE_PUBLISHABLE_KEY
+                    )
+
                 else:
-                    payment_data['payment_status'] = 'Pending'
-                    flash('Payment processing.', 'info')
+                    # Payment is pending or failed, stay on the same page
+                    orders_collection.update_one(
+                        {'_id': ObjectId(order_id)},
+                        {'$set': {'payment_method': 'card', 'payment_status': payment_intent.status.capitalize()}}
+                    )
+                    flash('Payment is being processed. Please wait.', 'info')
+                    return render_template(
+                        'payments/collect_payment.html',
+                        order=order,
+                        form=form,
+                        stripe_publishable_key=STRIPE_PUBLISHABLE_KEY
+                    )
+
             except stripe.error.CardError as e:
-                # Since it's a decline, stripe.error.CardError will be caught
-                payment_data['payment_status'] = 'Failed'
+                # Handle card errors (e.g., declined cards)
+                logger.error(f"Stripe CardError: {e.user_message}")
                 flash(f"Card Error: {e.user_message}", 'danger')
+                return render_template(
+                    'payments/collect_payment.html',
+                    order=order,
+                    form=form,
+                    stripe_publishable_key=STRIPE_PUBLISHABLE_KEY
+                )
             except stripe.error.StripeError as e:
-                # Display a very generic error to the user, and maybe send
-                # yourself an email
-                payment_data['payment_status'] = 'Failed'
+                # Handle other Stripe-related errors
+                logger.error(f"StripeError: {e.user_message}")
                 flash("Payment processing error. Please try again.", 'danger')
+                return render_template(
+                    'payments/collect_payment.html',
+                    order=order,
+                    form=form,
+                    stripe_publishable_key=STRIPE_PUBLISHABLE_KEY
+                )
             except Exception as e:
-                payment_data['payment_status'] = 'Failed'
+                # Handle unexpected errors
+                logger.error(f"Unexpected error: {str(e)}")
                 flash("An unexpected error occurred. Please try again.", 'danger')
-            
-            # Update the order in the database with payment details
-            update_fields = {}
-            if payment_method == 'card':
-                update_fields['payment_method'] = 'card'
-                update_fields['payment_status'] = payment_data['payment_status']
-                if payment_intent.status == 'succeeded':
-                    update_fields['stripe_payment_intent_id'] = payment_intent.id
-            # Update other relevant fields as needed
-            orders_collection.update_one(
-                {'_id': ObjectId(order_id)},
-                {'$set': update_fields}
-            )
-            
-            # If payment is successful, send notifications
-            if payment_data['payment_status'] == 'Paid':
-                send_payment_collected_notifications(order, payment_method)
-            
-            return redirect(url_for('collecting_payments'))
-        
+                return render_template(
+                    'payments/collect_payment.html',
+                    order=order,
+                    form=form,
+                    stripe_publishable_key=STRIPE_PUBLISHABLE_KEY
+                )
+
         elif payment_method == 'cash':
-            payment_data['payment_status'] = 'Paid'
-            # Update the order in the database with payment details
+            # Handle cash payment
             update_fields = {
                 'payment_method': 'cash',
                 'payment_status': 'Paid'
@@ -2592,17 +2642,19 @@ def collect_payment(order_id):
             )
             flash('Payment marked as paid (Cash).', 'success')
 
-            # Send notifications
+            # Send notifications as configured
             send_payment_collected_notifications(order, payment_method)
-            
-            return redirect(url_for('collecting_payments'))
-    
+
+            # Redirect to the salesman's dashboard
+            return redirect(url_for('sales_main'))  
+
     return render_template(
         'payments/collect_payment.html',
         order=order,
         form=form,
         stripe_publishable_key=STRIPE_PUBLISHABLE_KEY
     )
+
 
 #Stripe webhook
 @app.route('/stripe_webhook', methods=['POST'])
