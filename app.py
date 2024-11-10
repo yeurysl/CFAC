@@ -884,7 +884,7 @@ def schedule_order(order_id):
             {
                 '$set': {
                     'status': 'scheduled',
-                    'scheduled_by': current_user.id  # Assuming 'id' is username for techs
+                    'added_to_scheduled_by': current_user.id  # Assuming 'id' is username for techs
                 }
             }
         )
@@ -2041,7 +2041,7 @@ def admin_main():
                 order['product_details'] = []
 
             # **5.4. Fetch Technician Details if Scheduled**
-            scheduled_by = order.get('scheduled_by')
+            scheduled_by = order.get('added_to_scheduled_by')
             if scheduled_by and ObjectId.is_valid(scheduled_by):
                 tech = users_collection.find_one({'_id': ObjectId(scheduled_by)})
                 order['tech_name'] = tech.get('name', 'Unknown Tech') if tech else 'Unknown Tech'
