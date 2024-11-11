@@ -1004,7 +1004,7 @@ def tech_view_order(order_id):
             return redirect(url_for('my_schedule'))
 
         # Check if the current technician is the one who scheduled the order
-        if order.get('scheduled_by') != current_user.id:
+        if order.get('added_to_scheduled_by') != current_user.id:
             flash('You do not have permission to view this order.', 'danger')
             return redirect(url_for('my_schedule'))
 
