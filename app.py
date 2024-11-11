@@ -515,85 +515,68 @@ def send_generic_email(recipient_email, subject, html_body, text_body):
     except Exception as e:
         app.logger.error(f"Failed to send email to {recipient_email}: {e}", exc_info=True)
 
+
 def send_tech_notification_email(order, selected_products):
     """
-    Sends individual notification emails to each tech when an order is scheduled.
+    Sends a notification email to all technicians about a new order.
 
-    :param order: The order document.
+    :param order: The order document inserted into the database.
     :param selected_products: A list of product documents that were ordered.
     """
     try:
-        # Fetch all tech users
-        techs = list(users_collection.find({'user_type': 'tech'}))
-        if not techs:
-            app.logger.error("No tech users found to send notification.")
-            return  # Or handle as appropriate
+        # Fetch all technicians from the database
+        techs = users_collection.find({'User Type': 'Tech'})
+        tech_count = 0  # Counter for successful emails
+        failed_techs = []
 
-        # Determine if the order is a guest order or a customer order
-        is_guest = order.get('is_guest', False)
-        if is_guest:
-            customer_name = order.get('guest_name', 'Guest')
-            customer_email = order.get('guest_email', 'N/A')
-            customer_phone = order.get('guest_phone_number', 'N/A')
-        else:
-            user = users_collection.find_one({'_id': ObjectId(order['user'])})
-            customer_name = user.get('name', 'Customer') if user else 'Customer'
-            customer_email = user.get('email', 'N/A') if user else 'N/A'
-            customer_phone = user.get('phone_number', 'N/A') if user else 'N/A'
-
-        # Generate the URL to the tech dashboard
-        dashboard_url = url_for('tech_main', _external=True)
-
-        # Loop over each tech and send an email individually
         for tech in techs:
-            tech_email = tech.get('email')
+            tech_email = tech.get('Email')
+            tech_name = tech.get('name', 'Technician')  # Assuming a 'name' field exists
+
             if not tech_email:
-                app.logger.warning(f"Tech user {tech.get('_id')} has no email address.")
-                continue  # Skip techs without an email address
+                current_app.logger.warning("A technician without an email was found and skipped.")
+                continue
 
-            # **Get the tech's name inside the loop**
-            tech_name = tech.get('name', 'Technician')
-
-            # Prepare email content
             msg = Message(
-                subject="New Order Available to be Scheduled",
-                recipients=[tech_email],  # Send to individual tech
-                # sender defaults to MAIL_DEFAULT_SENDER
+                subject="New Guest Order Scheduled",
+                recipients=[tech_email],
+                # Sender defaults to MAIL_DEFAULT_SENDER
             )
 
-            # Render the email body using an HTML template
+            # Render the email body using HTML and plain-text templates
             msg.html = render_template(
                 'emails/tech_order_notification.html',
-                tech_name=tech_name,
                 order=order,
                 products=selected_products,
-                customer_name=customer_name,
-                customer_email=customer_email,
-                customer_phone=customer_phone,
-                dashboard_url=dashboard_url,
+                tech_name=tech_name,
                 current_year=datetime.utcnow().year
             )
 
-            # Optionally, render a plain-text version
             msg.body = render_template(
                 'emails/tech_order_notification.txt',
-                tech_name=tech_name,
                 order=order,
                 products=selected_products,
-                customer_name=customer_name,
-                customer_email=customer_email,
-                customer_phone=customer_phone,
-                dashboard_url=dashboard_url
+                tech_name=tech_name
             )
 
-            # Send the email
-            mail.send(msg)
-            app.logger.info(f"Tech notification email sent to {tech_email}")
+            try:
+                mail.send(msg)
+                current_app.logger.info(f"Notification email sent to technician: {tech_email}")
+                tech_count += 1
+            except smtplib.SMTPDataError as e:
+                current_app.logger.error(f"SMTPDataError when sending to {tech_email}: {e}")
+                failed_techs.append({'email': tech_email, 'error': str(e)})
+            except Exception as e:
+                current_app.logger.error(f"Failed to send email to {tech_email}: {e}")
+                failed_techs.append({'email': tech_email, 'error': str(e)})
 
-            time.sleep(0.5)
+        current_app.logger.info(f"Total technician emails sent successfully: {tech_count}")
+        if failed_techs:
+            current_app.logger.warning(f"Failed to send emails to the following technicians: {failed_techs}")
 
     except Exception as e:
-        app.logger.error(f"Failed to send tech notification email: {e}", exc_info=True)
+        current_app.logger.error(f"Error in send_tech_notification_email: {e}")
+
 
 
 #FORCART
