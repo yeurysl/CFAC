@@ -1,5 +1,4 @@
 <!-- sales/schedule_guest_order.html -->
-
 {% extends 'base.html' %}
 
 {% block title %}Schedule Guest Order{% endblock %}
@@ -117,10 +116,12 @@
                 <div class="mb-3">
                     <label class="form-label">Products</label>
                     <div class="form-check">
-                        {% for subfield in form.products %}
+                        {% for product, subfield in zip(products, form.products) %}
                             <div class="form-check">
-                                {{ subfield(class="form-check-input", id=subfield.id) }}
-                                {{ subfield.label(class="form-check-label") }}
+                                {{ subfield(class="form-check-input", id=product['_id']) }}
+                                <label class="form-check-label" for="{{ product['_id'] }}">
+                                    {{ product['name'] }} - ${{ "%.2f"|format(product['price']) }}
+                                </label>
                             </div>
                         {% endfor %}
                     </div>
@@ -132,7 +133,20 @@
             </div>
         </div>
         
+        <!-- Card Total -->
+        <div class="card mb-4" id="card-total" style="display: none;">
+            <div class="card-header bg-secondary text-white">
+                Total
+            </div>
+            <div class="card-body">
+                <ul id="selected-products" class="list-group mb-3">
+                    <!-- Selected products will be listed here -->
+                </ul>
+                <h5>Total: $<span id="total-price">0.00</span></h5>
+            </div>
+        </div>
 
+        <!-- Payments -->
         <div class="card mb-4">
             <div class="card-header bg-secondary text-white">
                 Payments
@@ -148,6 +162,7 @@
                 </div>
             </div>
         </div>
+        
         <!-- Submit Button -->
         <div class="d-flex justify-content-between">
             <button type="submit" id="submit-btn" class="btn btn-primary">Schedule Order</button>
@@ -158,9 +173,6 @@
 
 
 
-
-
-
 <!-- Loading Overlay -->
 <div id="loading-overlay">
     <div class="spinner-border text-primary" role="status">
@@ -168,111 +180,149 @@
     </div>
 </div>
 
-<!-- JavaScript for Local Storage Handling -->
+<!-- JavaScript for Local Storage Handling and Total Calculation -->
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const form = document.getElementById('guestOrderForm');
-        const fields = [
-            'guest_name',
-            'guest_email',
-            'guest_phone_number',
-            'street_address',
-            'unit_apt',
-            'city',
-            'country',
-            'zip_code',
-            'service_date',
-            'service_time', 
-            'payment_time',
-        ];
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('guestOrderForm');
+    const fields = [
+        'guest_name',
+        'guest_email',
+        'guest_phone_number',
+        'street_address',
+        'unit_apt',
+        'city',
+        'country',
+        'zip_code',
+        'service_date',
+        'service_time', 
+        'payment_time',
+    ];
 
-        // Function to save form data to Local Storage
-        function saveFormData() {
-            fields.forEach(function(field) {
-                const element = document.getElementById(field);
-                if (element) {
-                    localStorage.setItem(field, element.value);
-                }
-            });
-
-            // Handle products (checkboxes)
-            const productCheckboxes = document.querySelectorAll('input[name="products"]:checked');
-            let selectedProducts = [];
-            productCheckboxes.forEach(function(checkbox) {
-                selectedProducts.push(checkbox.value);
-            });
-            localStorage.setItem('products', JSON.stringify(selectedProducts));
-        }
-
-        // Function to load form data from Local Storage
-        function loadFormData() {
-            fields.forEach(function(field) {
-                const element = document.getElementById(field);
-                if (element) {
-                    const savedData = localStorage.getItem(field);
-                    if (savedData) {
-                        element.value = savedData;
-                    }
-                }
-            });
-
-            // Handle products (checkboxes)
-            const savedProducts = localStorage.getItem('products');
-            if (savedProducts) {
-                const selectedProducts = JSON.parse(savedProducts);
-                selectedProducts.forEach(function(productId) {
-                    const checkbox = document.getElementById(productId);
-                    if (checkbox) {
-                        checkbox.checked = true;
-                    }
-                });
-            }
-        }
-
-        // Function to clear form data from Local Storage
-        function clearFormData() {
-            fields.forEach(function(field) {
-                localStorage.removeItem(field);
-            });
-            localStorage.removeItem('products');
-        }
-
-        // Load saved form data when the page loads
-        loadFormData();
-
-        // Save form data on input change
+    // Function to save form data to Local Storage
+    function saveFormData() {
         fields.forEach(function(field) {
             const element = document.getElementById(field);
             if (element) {
-                element.addEventListener('input', saveFormData);
+                localStorage.setItem(field, element.value);
             }
         });
 
-        // Save products on checkbox change
-        const productCheckboxes = document.querySelectorAll('input[name="products"]');
+        // Handle products (checkboxes)
+        const productCheckboxes = document.querySelectorAll('input[name="products"]:checked');
+        let selectedProducts = [];
         productCheckboxes.forEach(function(checkbox) {
-            checkbox.addEventListener('change', saveFormData);
+            selectedProducts.push(checkbox.value);
+        });
+        localStorage.setItem('products', JSON.stringify(selectedProducts));
+    }
+
+    // Function to load form data from Local Storage
+    function loadFormData() {
+        fields.forEach(function(field) {
+            const element = document.getElementById(field);
+            if (element) {
+                const savedData = localStorage.getItem(field);
+                if (savedData) {
+                    element.value = savedData;
+                }
+            }
         });
 
-        // Clear form data from Local Storage upon successful form submission
-        form.addEventListener('submit', function() {
-            clearFormData();
+        // Handle products (checkboxes)
+        const savedProducts = localStorage.getItem('products');
+        if (savedProducts) {
+            const selectedProducts = JSON.parse(savedProducts);
+            selectedProducts.forEach(function(productId) {
+                const checkbox = document.getElementById(productId);
+                if (checkbox) {
+                    checkbox.checked = true;
+                }
+            });
+        }
+
+        // Update the Card Total based on loaded data
+        updateCardTotal();
+    }
+
+    // Function to clear form data from Local Storage
+    function clearFormData() {
+        fields.forEach(function(field) {
+            localStorage.removeItem(field);
+        });
+        localStorage.removeItem('products');
+    }
+
+    // Load saved form data when the page loads
+    loadFormData();
+
+    // Save form data on input change
+    fields.forEach(function(field) {
+        const element = document.getElementById(field);
+        if (element) {
+            element.addEventListener('input', saveFormData);
+        }
+    });
+
+    // Save products on checkbox change
+    const productCheckboxes = document.querySelectorAll('input[name="products"]');
+    productCheckboxes.forEach(function(checkbox) {
+        checkbox.addEventListener('change', function() {
+            saveFormData();
+            updateCardTotal();
         });
     });
 
+    // Function to update the Card Total
+    const cardTotal = document.getElementById('card-total');
+    const selectedProductsList = document.getElementById('selected-products');
+    const totalPriceElement = document.getElementById('total-price');
 
+    // Create a mapping of product IDs to their prices
+    const productPrices = {
+        {% for product in products %}
+            "{{ product['_id'] }}": {{ product['price'] }}{% if not loop.last %},{% endif %}
+        {% endfor %}
+    };
 
-    function disableSubmitButton() {
+    function updateCardTotal() {
+        const selectedCheckboxes = document.querySelectorAll('input[name="products"]:checked');
+        if (selectedCheckboxes.length > 0) {
+            cardTotal.style.display = 'block';
+        } else {
+            cardTotal.style.display = 'none';
+        }
+
+        selectedProductsList.innerHTML = '';
+        let total = 0;
+        selectedCheckboxes.forEach(function(checkbox) {
+            const productId = checkbox.value;
+            const productName = checkbox.nextElementSibling.textContent.trim().split(' - $')[0];
+            const price = productPrices[productId] || 0;
+            total += price;
+
+            const listItem = document.createElement('li');
+            listItem.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-center');
+            listItem.textContent = productName;
+
+            const span = document.createElement('span');
+            span.classList.add('badge', 'bg-primary', 'rounded-pill');
+            span.textContent = `$${price.toFixed(2)}`;
+
+            listItem.appendChild(span);
+            selectedProductsList.appendChild(listItem);
+        });
+
+        totalPriceElement.textContent = total.toFixed(2);
+    }
+});
+
+function disableSubmitButton() {
     // Disable the submit button
     document.getElementById('submit-btn').disabled = true;
 
-    // Optionally, you can prevent further interaction with the form by overlaying the loading screen
     // Show the loading overlay
     document.getElementById('loading-overlay').style.display = 'flex';
 }
-
-
-
 </script>
 
 {% endblock %}

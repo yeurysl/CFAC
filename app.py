@@ -38,6 +38,9 @@ load_dotenv()
 
 app = Flask(__name__)
 
+# Expose Python's zip function to Jinja2 templates
+app.jinja_env.globals.update(zip=zip)
+
 # Configure Stripe
 stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
 STRIPE_PUBLISHABLE_KEY = os.getenv('STRIPE_PUBLISHABLE_KEY')
@@ -807,7 +810,7 @@ def tech_main():
 def my_schedule():
     try:
         # Fetch scheduled orders assigned to the current employee
-        filter_query = {'status': 'scheduled', 'scheduled_by': current_user.id}
+        filter_query = {'status': 'scheduled', 'added_to_scheduled_by': current_user.id}
         orders = list(orders_collection.find(filter_query).sort('service_date', 1))
 
         # Enrich orders with product and address details
@@ -1177,9 +1180,7 @@ def sales_main():
         flash('An error occurred while fetching your scheduled sales.', 'danger')
         return redirect(url_for('home'))
 
-
-
-#Schedule Guest Order Route
+# Schedule Guest Order Route
 @app.route('/sales/schedule_guest_order', methods=['GET', 'POST'])
 @login_required
 @sales_required
@@ -1244,7 +1245,7 @@ def schedule_guest_order():
             # Set payment_status to 'Unpaid'
             payment_status = 'Unpaid'
             
-              # Format the phone number to E.164
+            # Format the phone number to E.164
             if guest_phone_number:
                 guest_phone_number = format_us_phone_number(guest_phone_number)
                 current_app.logger.info(f"Formatted Phone Number: {guest_phone_number}")
@@ -1313,10 +1314,9 @@ def schedule_guest_order():
         except Exception as e:
             current_app.logger.error(f"Error scheduling guest order: {e}")
             flash('An error occurred while scheduling the guest order. Please try again.', 'danger')
-            return render_template('sales/schedule_guest_order.html', form=form)
+            return render_template('sales/schedule_guest_order.html', form=form, products=products)
     
-    return render_template('sales/schedule_guest_order.html', form=form)
-
+    return render_template('sales/schedule_guest_order.html', form=form, products=products)
 
 
 #Guest Order Email Route
