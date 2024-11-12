@@ -3,7 +3,7 @@ from pymongo import MongoClient
 import stripe
 from flask_bcrypt import Bcrypt
 from dotenv import load_dotenv
-from utility import format_us_phone_number
+from utility import format_us_phone_number, send_postmark_email
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_wtf import CSRFProtect
 from flask_wtf.csrf import generate_csrf
@@ -16,6 +16,7 @@ from pymongo.errors import DuplicateKeyError
 from urllib.parse import urlparse, urljoin, quote_plus
 from bson.decimal128 import Decimal128, create_decimal128_context
 import decimal
+from postmark import PMMail
 import time
 from datetime import datetime, date
 from dateutil import parser
@@ -332,188 +333,9 @@ def customer_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-#FOREMAILSENDING
-def send_order_confirmation_email(user, order_details):
-    if not user or not user.get('email'):
-        logger.error("Attempted to send order confirmation email, but user has no email.")
-        return
 
-    try:
-        subject = "Your Order Confirmation"
-        sender = app.config['MAIL_DEFAULT_SENDER']
-        recipients = [user['email']]
-        
-        # Render the email template with order details
-        body = render_template('emails/order_confirmation_email.html', user=user, order=order_details)
-        
-        msg = Message(subject=subject, sender=sender, recipients=recipients, html=body)
-        mail.send(msg)
-        logger.info(f"Order confirmation email sent to {user['email']}.")
-    except Exception as e:
-        logger.error(f"Failed to send order confirmation email: {e}")
 
-def send_admin_notification_email(salesperson_id, order, selected_products):
-    """
-    Sends a notification email to all admins when a guest order is scheduled by a salesperson.
 
-    :param salesperson_id: The ID of the salesperson who created the order.
-    :param order: The order document.
-    :param selected_products: A list of product documents that were ordered.
-    """
-    try:
-        # Fetch salesperson details
-        salesperson = users_collection.find_one({'_id': ObjectId(salesperson_id)})
-        if not salesperson:
-            app.logger.error(f"Salesperson with ID {salesperson_id} not found.")
-            salesperson_name = 'Unknown Salesperson'
-        else:
-            salesperson_name = salesperson.get('name', 'Unknown Salesperson')
-        
-        # Fetch all admin users
-        admins = list(users_collection.find({'user_type': 'admin'}))
-        admin_emails = [admin.get('email') for admin in admins if admin.get('email')]
-        if not admin_emails:
-            app.logger.error("No admin emails found to send notification.")
-            return  # Or handle as appropriate
-
-        # Prepare email content
-        msg = Message(
-            subject="New Guest Order Scheduled",
-            recipients=admin_emails,
-            # sender defaults to MAIL_DEFAULT_SENDER
-        )
-
-        # Render the email body using an HTML template
-        msg.html = render_template(
-            'emails/admin_guest_order_notification.html',
-            order=order,
-            products=selected_products,
-            salesperson_name=salesperson_name,
-            current_year=datetime.utcnow().year
-        )
-
-        # Optionally, render a plain-text version
-        msg.body = render_template(
-            'emails/admin_guest_order_notification.txt',
-            order=order,
-            products=selected_products,
-            salesperson_name=salesperson_name
-        )
-
-        # Send the email
-        mail.send(msg)
-        app.logger.info(f"Admin notification email sent to {', '.join(admin_emails)}")
-    except Exception as e:
-        app.logger.error(f"Failed to send admin notification email: {e}")
-
-def send_payment_collected_notifications(order, payment_method):
-    """
-    Sends notifications to admins, the salesperson, and the customer when a payment is collected.
-    
-    Args:
-        order (dict): The order document from the database.
-        payment_method (str): The method of payment ('cash' or 'card').
-    """
-    try:
-        # 1. Fetch Customer Information
-        if order.get('is_guest', False):
-            customer_email = order.get('guest_email')
-            customer_phone = order.get('guest_phone_number')
-            customer_name = order.get('guest_name', 'Guest')
-        else:
-            user = users_collection.find_one({'_id': ObjectId(order.get('user'))})
-            if user:
-                customer_email = user.get('email')
-                customer_phone = user.get('phone_number')
-                customer_name = user.get('name', 'Valued Customer')
-            else:
-                customer_email = None
-                customer_phone = None
-                customer_name = 'Valued Customer'
-
-        # 2. Fetch Salesperson Information
-        salesperson_id = order.get('salesperson')  # Stored as string
-        salesperson = users_collection.find_one({'_id': ObjectId(salesperson_id)}) if salesperson_id else None
-        if salesperson:
-            salesperson_email = salesperson.get('email')
-            salesperson_phone = salesperson.get('phone_number')
-            salesperson_name = salesperson.get('name', 'Salesperson')
-        else:
-            salesperson_email = None
-            salesperson_phone = None
-            salesperson_name = 'Salesperson'
-
-        # 3. Fetch All Admin Users
-        admins = list(users_collection.find({'user_type': 'admin'}))
-        admin_emails = [admin.get('email') for admin in admins if admin.get('email')]
-        admin_phones = [admin.get('phone_number') for admin in admins if admin.get('phone_number')]
-
-        # 4. Prepare Notification Messages
-        # Customize these messages or use templates as needed
-        customer_message = f"Dear {customer_name}, your payment for Order {order.get('_id')} has been successfully received via {payment_method.capitalize()}."
-        salesperson_message = f"Dear {salesperson_name}, you have successfully collected a payment for Order {order.get('_id')} via {payment_method.capitalize()}."
-        admin_message = f"A payment for Order {order.get('_id')} has been collected via {payment_method.capitalize()} by Salesperson {salesperson_name}."
-
-        # 5. Send Notifications to Customer
-        if customer_email:
-            send_generic_email(
-                recipient_email=customer_email,
-                subject="Payment Confirmation - CFAC",
-                html_body=render_template('emails/customer_payment_confirmation.html', order=order, payment_method=payment_method, customer_name=customer_name),
-                text_body=render_template('emails/customer_payment_confirmation.txt', order=order, payment_method=payment_method, customer_name=customer_name)
-            )
-        if customer_phone:
-            send_sms(customer_phone, customer_message)
-
-        # 6. Send Notifications to Salesperson
-        if salesperson_email:
-            send_generic_email(
-                recipient_email=salesperson_email,
-                subject="Payment Collected - CFAC",
-                html_body=render_template('emails/salesperson_payment_collected.html', order=order, payment_method=payment_method, salesperson_name=salesperson_name),
-                text_body=render_template('emails/salesperson_payment_collected.txt', order=order, payment_method=payment_method, salesperson_name=salesperson_name)
-            )
-        if salesperson_phone:
-            send_sms(salesperson_phone, salesperson_message)
-
-        # 7. Send Notifications to Admins
-        for admin in admins:
-            admin_email = admin.get('email')
-            admin_phone = admin.get('phone_number')
-            if admin_email:
-                send_generic_email(
-                    recipient_email=admin_email,
-                    subject="Payment Collected - CFAC",
-                    html_body=render_template('emails/admin_payment_collected.html', order=order, payment_method=payment_method, salesperson_name=salesperson_name),
-                    text_body=render_template('emails/admin_payment_collected.txt', order=order, payment_method=payment_method, salesperson_name=salesperson_name)
-                )
-            if admin_phone:
-                send_sms(admin_phone, admin_message)
-
-    except Exception as e:
-        app.logger.error(f"Error sending payment collected notifications: {e}", exc_info=True)
-
-def send_generic_email(recipient_email, subject, html_body, text_body):
-    """
-    Sends an email to the specified recipient with both HTML and plain-text content.
-    
-    Args:
-        recipient_email (str): The recipient's email address.
-        subject (str): The subject of the email.
-        html_body (str): The HTML content of the email.
-        text_body (str): The plain-text content of the email.
-    """
-    try:
-        msg = Message(
-            subject=subject,
-            recipients=[recipient_email],
-            html=html_body,
-            body=text_body
-        )
-        mail.send(msg)
-        app.logger.info(f"Email sent to {recipient_email} with subject '{subject}'.")
-    except Exception as e:
-        app.logger.error(f"Failed to send email to {recipient_email}: {e}", exc_info=True)
 
 
 def send_tech_notification_email(order, selected_products):
@@ -2770,17 +2592,259 @@ def format_time_filter(time_str):
 
 
 
+#Emails\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+def send_email(to_email, subject, message):
+    try:
+        email = PMMail(api_key='POSTMARK_API_TOKEN',
+                       subject=subject,
+                       sender='no-reply@cfautocare.biz',
+                       to=to_email,
+                       text_body=message)
+        email.send()
+        print("Email sent successfully.")
+    except Exception as e:
+        print(f"Error sending email: {e}")
 
-# Route to serve the Apple Pay verification file
-@app.route('/.well-known/apple-developer-merchantid-domain-association')
-def apple_pay_verification():
-    return send_from_directory(
-        os.path.join(app.root_path, '.well-known'),
-        'apple-developer-merchantid-domain-association',
-        mimetype='application/pkcs7-mime'
+#FOREMAILSENDING
+def send_order_confirmation_email(user, order_details):
+    if not user or not user.get('email'):
+        logger.error("Attempted to send order confirmation email, but user has no email.")
+        return
+
+    try:
+        subject = "Your Order Confirmation"
+        sender = os.getenv('POSTMARK_SENDER_EMAIL')  # Ensure this matches your verified sender
+
+        # Render the email templates
+        html_body = render_template('emails/order_confirmation_email.html', user=user, order=order_details)
+        text_body = render_template('emails/order_confirmation_email.txt', user=user, order=order_details)  # Optional
+
+        # Send the email via Postmark
+        send_postmark_email(
+            to_email=user['email'],
+            subject=subject,
+            html_body=html_body,
+            text_body=text_body,
+            sender=sender
+        )
+    except Exception as e:
+        logger.error(f"Failed to send order confirmation email: {e}")
+
+
+def send_admin_notification_email(salesperson_id, order, selected_products):
+    """
+    Sends a notification email to all admins when a guest order is scheduled by a salesperson.
+
+    Args:
+        salesperson_id (str): The ID of the salesperson who created the order.
+        order (dict): The order document.
+        selected_products (list): A list of product documents that were ordered.
+    """
+    try:
+        # Fetch salesperson details
+        salesperson = users_collection.find_one({'_id': ObjectId(salesperson_id)})
+        if not salesperson:
+            app.logger.error(f"Salesperson with ID {salesperson_id} not found.")
+            salesperson_name = 'Unknown Salesperson'
+        else:
+            salesperson_name = salesperson.get('name', 'Unknown Salesperson')
+
+        # Fetch all admin users
+        admins = list(users_collection.find({'user_type': 'admin'}))
+        admin_emails = [admin.get('email') for admin in admins if admin.get('email')]
+        if not admin_emails:
+            app.logger.error("No admin emails found to send notification.")
+            return  # Or handle as appropriate
+
+        subject = "New Guest Order Scheduled"
+        sender = os.getenv('POSTMARK_SENDER_EMAIL')  # Ensure this matches your verified sender
+
+        # Render email templates
+        html_body = render_template(
+            'emails/admin_guest_order_notification.html',
+            order=order,
+            products=selected_products,
+            salesperson_name=salesperson_name,
+            current_year=datetime.utcnow().year
+        )
+        text_body = render_template(
+            'emails/admin_guest_order_notification.txt',
+            order=order,
+            products=selected_products,
+            salesperson_name=salesperson_name
+        )
+
+        # Send email to each admin
+        for admin_email in admin_emails:
+            send_postmark_email(
+                to_email=admin_email,
+                subject=subject,
+                html_body=html_body,
+                text_body=text_body,
+                sender=sender
+            )
+            app.logger.info(f"Admin notification email sent to {admin_email}")
+    except Exception as e:
+        app.logger.error(f"Failed to send admin notification email: {e}")
+
+
+
+
+def send_payment_collected_notifications(order, payment_method):
+    """
+    Sends notifications to admins, the salesperson, and the customer when a payment is collected.
+
+    Args:
+        order (dict): The order document from the database.
+        payment_method (str): The method of payment ('cash' or 'card').
+
+    Returns:
+        None
+    """
+    try:
+        # 1. Fetch Customer Information
+        if order.get('is_guest', False):
+            customer_email = order.get('guest_email')
+            customer_phone = order.get('guest_phone_number')
+            customer_name = order.get('guest_name', 'Guest')
+        else:
+            user = users_collection.find_one({'_id': ObjectId(order.get('user'))})
+            if user:
+                customer_email = user.get('email')
+                customer_phone = user.get('phone_number')
+                customer_name = user.get('name', 'Valued Customer')
+            else:
+                customer_email = None
+                customer_phone = None
+                customer_name = 'Valued Customer'
+
+        # 2. Fetch Salesperson Information
+        salesperson_id = order.get('salesperson')  # Stored as string
+        salesperson = users_collection.find_one({'_id': ObjectId(salesperson_id)}) if salesperson_id else None
+        if salesperson:
+            salesperson_email = salesperson.get('email')
+            salesperson_phone = salesperson.get('phone_number')
+            salesperson_name = salesperson.get('name', 'Salesperson')
+        else:
+            salesperson_email = None
+            salesperson_phone = None
+            salesperson_name = 'Salesperson'
+
+        # 3. Fetch All Admin Users
+        admins = list(users_collection.find({'user_type': 'admin'}))
+        admin_emails = [admin.get('email') for admin in admins if admin.get('email')]
+        admin_phones = [admin.get('phone_number') for admin in admins if admin.get('phone_number')]
+
+        # 4. Prepare Notification Messages
+        customer_subject = "Payment Confirmation - CFAC"
+        salesperson_subject = "Payment Collected - CFAC"
+        admin_subject = "Payment Collected - CFAC"
+
+        # 5. Send Notifications to Customer
+        if customer_email:
+            html_body = render_template(
+                'emails/customer_payment_confirmation.html',
+                order=order,
+                payment_method=payment_method,
+                customer_name=customer_name
+            )
+            text_body = render_template(
+                'emails/customer_payment_confirmation.txt',
+                order=order,
+                payment_method=payment_method,
+                customer_name=customer_name
+            )
+            send_generic_email(
+                recipient_email=customer_email,
+                subject=customer_subject,
+                html_body=html_body,
+                text_body=text_body
+            )
+
+        # 6. Send Notifications to Salesperson
+        if salesperson_email:
+            html_body = render_template(
+                'emails/salesperson_payment_collected.html',
+                order=order,
+                payment_method=payment_method,
+                salesperson_name=salesperson_name
+            )
+            text_body = render_template(
+                'emails/salesperson_payment_collected.txt',
+                order=order,
+                payment_method=payment_method,
+                salesperson_name=salesperson_name
+            )
+            send_generic_email(
+                recipient_email=salesperson_email,
+                subject=salesperson_subject,
+                html_body=html_body,
+                text_body=text_body
+            )
+
+        # 7. Send Notifications to Admins
+        for admin_email in admin_emails:
+            html_body = render_template(
+                'emails/admin_payment_collected.html',
+                order=order,
+                payment_method=payment_method,
+                salesperson_name=salesperson_name
+            )
+            text_body = render_template(
+                'emails/admin_payment_collected.txt',
+                order=order,
+                payment_method=payment_method,
+                salesperson_name=salesperson_name
+            )
+            send_generic_email(
+                recipient_email=admin_email,
+                subject=admin_subject,
+                html_body=html_body,
+                text_body=text_body
+            )
+
+        # 8. Send SMS Notifications (If Applicable)
+        # Assuming you want to continue using AWS SNS for SMS
+        # Ensure phone numbers are in E.164 format
+        if customer_phone:
+            customer_message = f"Dear {customer_name}, your payment for Order {order.get('_id')} has been successfully received via {payment_method.capitalize()}."
+            send_sms(customer_phone, customer_message)
+
+        if salesperson_phone:
+            salesperson_message = f"Dear {salesperson_name}, you have successfully collected a payment for Order {order.get('_id')} via {payment_method.capitalize()}."
+            send_sms(salesperson_phone, salesperson_message)
+
+        for admin_phone in admin_phones:
+            admin_message = f"A payment for Order {order.get('_id')} has been collected via {payment_method.capitalize()} by Salesperson {salesperson_name}."
+            send_sms(admin_phone, admin_message)
+
+    except Exception as e:
+        app.logger.error(f"Error sending payment collected notifications: {e}", exc_info=True)
+
+
+def send_generic_email(recipient_email, subject, html_body, text_body=None):
+    """
+    Sends an email to the specified recipient with both HTML and plain-text content.
+
+    Args:
+        recipient_email (str): The recipient's email address.
+        subject (str): The subject of the email.
+        html_body (str): The HTML content of the email.
+        text_body (str, optional): The plain-text content of the email.
+
+    Returns:
+        None
+    """
+    sender = os.getenv('POSTMARK_SENDER_EMAIL')  # Ensure this matches your verified sender
+    send_postmark_email(
+        to_email=recipient_email,
+        subject=subject,
+        html_body=html_body,
+        text_body=text_body,
+        sender=sender
     )
 
-
+#\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 @app.route('/test_env')
 def test_env():
     username = os.getenv('SES_SMTP_USERNAME')
