@@ -25,7 +25,7 @@ MarkupSafe==2.1.5
 packaging==24.1
 phonenumbers==8.13.48
 platformdirs==4.3.2
-postmark==1.0.0
+postmarker==1.0
 PyJWT==2.9.0
 pymongo==4.3.3
 python-dateutil==2.9.0.post0

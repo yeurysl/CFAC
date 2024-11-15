@@ -16,7 +16,7 @@ from pymongo.errors import DuplicateKeyError
 from urllib.parse import urlparse, urljoin, quote_plus
 from bson.decimal128 import Decimal128, create_decimal128_context
 import decimal
-from postmark import PMMail
+from postmarker.core import PostmarkClient
 import time
 from datetime import datetime, date
 from dateutil import parser
