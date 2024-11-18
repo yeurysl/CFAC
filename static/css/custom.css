@@ -211,3 +211,14 @@ font-size: 20px; /* Reduces the font size */
   width: 3rem;
   height: 3rem;
 }
+
+.dropdown-menu {
+  /* Ensure the dropdown has enough padding */
+  padding: 15px;
+}
+
+/* Ensure images are responsive and centered */
+.dropdown-menu a img {
+  display: block;
+  margin: 0 auto;
+}
