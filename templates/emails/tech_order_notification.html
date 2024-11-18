@@ -107,7 +107,7 @@
                     <p>A new order has been added to your dashboard. You can review the details below and add it to your schedule.</p>
 
                     <!-- Dashboard Button -->
-                    <a href="{{ dashboard_url }}" class="button">Go to Tech Dashboard</a>
+                    <a href="https://cfautocare.biz/tech/main"  class="button">Go to Tech Dashboard</a>
 
                     <!-- Order Details -->
                     <h2>Order Details</h2>
@@ -118,15 +118,15 @@
                         </tr>
                         <tr>
                             <th>Customer Name</th>
-                            <td>{{ guest_name }}</td>
+                            <td>{{ order['guest_name'] }}</td>
                         </tr>
                         <tr>
                             <th>Customer Email</th>
-                            <td><a href="mailto:{{ guest_email }}">{{ guest_email }}</a></td>
+                            <td><a href="mailto:{{ guest_email }}">{{ order.get('guest_email') }}</a></td>
                         </tr>
                         <tr>
                             <th>Customer Phone</th>
-                            <td>{{ guest_phone }}</td>
+                            <td>{{ order.get('guest_phone_number', 'N/A') }}</td>
                         </tr>
                         <tr>
                             <th>Service Date</th>
