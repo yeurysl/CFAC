@@ -2,38 +2,178 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>New Order Available to be Scheduled</title>
+    <title>New Job Available</title>
+    <style>
+        /* General Styles */
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            width: 100%;
+            background-color: #f4f4f4;
+            padding: 20px 0;
+        }
+        .email-wrapper {
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 3px rgba(0,0,0,0.1);
+        }
+        .header {
+            background-color: #07173d; /* Brand Color */
+            padding: 20px;
+            text-align: center;
+            color: #ffffff;
+        }
+        .header img {
+            max-width: 150px;
+            height: auto;
+        }
+        .content {
+            padding: 20px;
+            color: #333333;
+        }
+        .content h2 {
+            color: #000000;
+        }
+        .content p {
+            line-height: 1.6;
+        }
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            margin: 20px 0;
+            background-color: #163351; /* Success Color */
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 2px;
+        }
+        .order-details, .products-ordered {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        .order-details th, .order-details td,
+        .products-ordered th, .products-ordered td {
+            border: 1px solid #dddddd;
+            padding: 10px;
+            text-align: left;
+        }
+        .order-details th, .products-ordered th {
+            background-color: #f8f8f8;
+        }
+        .footer {
+            background-color: #f1f1f1;
+            padding: 15px;
+            text-align: center;
+            font-size: 12px;
+            color: #666666;
+        }
+        /* Responsive Styles */
+        @media only screen and (max-width: 600px) {
+            .email-wrapper {
+                width: 100% !important;
+            }
+            .header, .content, .footer {
+                padding: 15px;
+            }
+            .button {
+                width: 100%;
+                text-align: center;
+            }
+        }
+    </style>
 </head>
 <body>
-    <p>Dear {{ tech_name }},</p>
+    <div class="container">
+        <table class="email-wrapper" cellpadding="0" cellspacing="0">
+            <!-- Header -->
+            <tr>
+                <td class="header">
+                    <img src="https://cfautocare.biz/static/creatives/Logo.svg" alt="CFAC Logo" style="max-width: 150px; height: auto;">
+                </td>
+            </tr>
+            <!-- Body Content -->
+            <tr>
+                <td class="content">
+                    <p>Dear {{ tech_name }},</p>
 
-    <p>A new order has been added. Open your dashboard to add it to your schedule.</p>
-   <!-- **Include the Link to the Tech Dashboard** -->
-   <p><a href="{{ dashboard_url }}">Go to Tech Dashboard</a></p>
+                    <p>A new order has been added to your dashboard. You can review the details below and add it to your schedule.</p>
 
-    <h3>Order Details:</h3>
-    <ul>
-        <li><strong>Order ID:</strong> {{ order['_id'] }}</li>
-        <li><strong>Customer Name:</strong> {{ customer_name }}</li>
-        <li><strong>Customer Email:</strong> {{ customer_email }}</li>
-        <li><strong>Customer Phone Number:</strong> {{ customer_phone }}</li>
-        <li><strong>Service Date:</strong> {{ order['service_date'].strftime('%B %d, %Y') }}</li>
-        <li><strong>Total Amount:</strong> {{ order['total'] | currency }}</li>
-    </ul>
+                    <!-- Dashboard Button -->
+                    <a href="{{ dashboard_url }}" class="button">Go to Tech Dashboard</a>
 
-    <h3>Products Ordered:</h3>
-    <ul>
-        {% for product in products %}
-            <li>{{ product['name'] }} - {{ product['price'] | currency }}</li>
-        {% endfor %}
-    </ul>
+                    <!-- Order Details -->
+                    <h2>Order Details</h2>
+                    <table class="order-details">
+                        <tr>
+                            <th>Order ID</th>
+                            <td>{{ order['_id'] }}</td>
+                        </tr>
+                        <tr>
+                            <th>Customer Name</th>
+                            <td>{{ guest_name }}</td>
+                        </tr>
+                        <tr>
+                            <th>Customer Email</th>
+                            <td><a href="mailto:{{ guest_email }}">{{ guest_email }}</a></td>
+                        </tr>
+                        <tr>
+                            <th>Customer Phone</th>
+                            <td>{{ guest_phone }}</td>
+                        </tr>
+                        <tr>
+                            <th>Service Date</th>
+                            <td>{{ order['service_date'].strftime('%B %d, %Y at %I:%M %p') }}</td>
+                        </tr>
+                        <tr>
+                            <th>Total Amount</th>
+                            <td>{{ order['total'] | currency }}</td>
+                        </tr>
+                    </table>
 
-    <p>Please check the tech dashboard for more details.</p>
+                    <!-- Products Ordered -->
+                    <h2>Products Ordered</h2>
+                    {% if products %}
+                        <table class="products-ordered">
+                            <thead>
+                                <tr>
+                                    <th>Product Name</th>
+                                    <th>Price</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for product in products %}
+                                    <tr>
+                                        <td>{{ product['name'] }}</td>
+                                        <td>{{ product['price'] | currency }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    {% else %}
+                        <p><em>No products were selected for this order.</em></p>
+                    {% endif %}
 
- 
-    <p>Best regards,<br>
-    Central Florida Auto Care System</p>
+                    <p>Please check the tech dashboard for more details and to update the order status as needed.</p>
 
-    <p style="font-size: smaller;">&copy; {{ current_year }} CFAC AutoCare</p>
+                    <p>Best regards,<br>
+                    Central Florida Auto Care System</p>
+                </td>
+            </tr>
+            <!-- Footer -->
+            <tr>
+                <td class="footer">
+                    &copy; {{ current_year }} CENTRALFLORIDAAUTOCARE LLC. All rights reserved.
+                </td>
+            </tr>
+        </table>
+    </div>
 </body>
 </html>

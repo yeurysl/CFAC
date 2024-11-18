@@ -7,7 +7,7 @@ Order Details:
 - Guest Name: {{ order['guest_name'] }}
 - Guest Email: {{ order.get('guest_email', 'N/A') }}
 - Guest Phone Number: {{ order.get('guest_phone_number', 'N/A') }}
-- Service Date: {{ order['service_date'].strftime('%Y-%m-%d') }}
+- Service Date: {{ order['service_date'].strftime('%B %d, %Y at %I:%M %p') }}
 - Total Amount: {{ order['total'] | currency }}
 
 Products Ordered:

@@ -4,10 +4,10 @@ A new order has been scheduled.
 
 Order Details:
 - Order ID: {{ order['_id'] }}
-- Customer Name: {{ customer_name }}
-- Customer Email: {{ customer_email }}
-- Customer Phone Number: {{ customer_phone }}
-- Service Date: {{ order['service_date'].strftime('%B %d, %Y') }}
+- Customer Name: {{ guest_name }}
+- Customer Email: {{ guest_email }}
+- Customer Phone Number: {{ guest_phone }}
+- Service Date: {{ order['service_date'].strftime('%B %d, %Y at %I:%M %p') }}
 - Total Amount: {{ order['total'] | currency }}
 
 Products Ordered:

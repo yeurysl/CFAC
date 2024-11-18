@@ -9,7 +9,6 @@ from flask_wtf import CSRFProtect
 from flask_wtf.csrf import generate_csrf
 from forms import RegistrationForm, RemoveFromCartForm, CustomerLoginForm, EmployeeLoginForm, UpdateAccountForm, GuestOrderForm, PasswordResetRequestForm, PasswordResetForm, EditOrderForm, DeleteOrderForm, SalesProfileForm, CollectPaymentForm, UpdateCompensationStatusForm
 from functools import wraps
-from flask_mail import Mail, Message
 from werkzeug.middleware.proxy_fix import ProxyFix
 from bson.objectid import ObjectId, InvalidId
 from pymongo.errors import DuplicateKeyError
@@ -71,6 +70,9 @@ estimaterequests_collection = db["estimaterequests"]
 products_collection = db["products"]
 orders_collection = db['orders']
 
+POSTMARK_SERVER_TOKEN = os.getenv('POSTMARK_SERVER_TOKEN')
+postmark_client = PostmarkClient(server_token=POSTMARK_SERVER_TOKEN)
+
 
 @app.template_filter('urlencode')
 def urlencode_filter(s):
@@ -129,16 +131,6 @@ app.config['SESSION_COOKIE_SECURE'] = True          # Ensures cookies are sent o
 app.config['SESSION_COOKIE_HTTPONLY'] = True        # Prevents JavaScript access to cookies
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'       # Mitigates CSRF attacks
 
-
-# Flask-Mail SETUP
-app.config['MAIL_SERVER'] = 'email-smtp.us-east-1.amazonaws.com'  # SES SMTP endpoint for us-east-1
-app.config['MAIL_PORT'] = 587  # Use 465 for SSL
-app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = os.getenv('SES_SMTP_USERNAME')  # SES SMTP Username
-app.config['MAIL_PASSWORD'] = os.getenv('SES_SMTP_PASSWORD')  # SES SMTP Password
-app.config['MAIL_DEFAULT_SENDER'] = ('Central Florida Auto Care', 'care@cfautocare.biz')  # Default sender
-
-mail = Mail(app)
 
 
 
@@ -335,9 +327,6 @@ def customer_required(f):
 
 
 
-
-
-
 def send_tech_notification_email(order, selected_products):
     """
     Sends a notification email to all technicians about a new order.
@@ -345,28 +334,36 @@ def send_tech_notification_email(order, selected_products):
     :param order: The order document inserted into the database.
     :param selected_products: A list of product documents that were ordered.
     """
+    logger = logging.getLogger(__name__)
     try:
-        # Fetch all technicians from the database
-        techs = users_collection.find({'User Type': 'Tech'})
+        # Corrected Query: Fetch technicians with 'user_type' as 'tech'
+        techs_cursor = users_collection.find({'user_type': 'tech'})
+        techs = list(techs_cursor)  # Convert cursor to list for multiple iterations if needed
+        num_techs = len(techs)
+        logger.info(f"Number of technicians fetched: {num_techs}")
+
+        if num_techs == 0:
+            logger.warning("No technicians found with 'user_type': 'tech'. Ensure technicians are added to the database.")
+            return
+
         tech_count = 0  # Counter for successful emails
         failed_techs = []
 
         for tech in techs:
-            tech_email = tech.get('Email')
-            tech_name = tech.get('name', 'Technician')  # Assuming a 'name' field exists
+            tech_email = tech.get('email')
+            tech_name = tech.get('full_name', 'Technician')  # Assuming a 'full_name' field exists
 
             if not tech_email:
-                current_app.logger.warning("A technician without an email was found and skipped.")
+                logger.warning(f"Technician '{tech_name}' does not have an email and was skipped.")
                 continue
 
-            msg = Message(
-                subject="New Guest Order Scheduled",
-                recipients=[tech_email],
-                # Sender defaults to MAIL_DEFAULT_SENDER
-            )
+            logger.info(f"Preparing to send email to Technician: {tech_email}")
+
+            subject = "New Job Available"
+            sender_email = os.getenv('POSTMARK_SENDER_EMAIL')  # Ensure this matches your verified sender
 
             # Render the email body using HTML and plain-text templates
-            msg.html = render_template(
+            html_body = render_template(
                 'emails/tech_order_notification.html',
                 order=order,
                 products=selected_products,
@@ -374,7 +371,7 @@ def send_tech_notification_email(order, selected_products):
                 current_year=datetime.utcnow().year
             )
 
-            msg.body = render_template(
+            text_body = render_template(
                 'emails/tech_order_notification.txt',
                 order=order,
                 products=selected_products,
@@ -382,22 +379,25 @@ def send_tech_notification_email(order, selected_products):
             )
 
             try:
-                mail.send(msg)
-                current_app.logger.info(f"Notification email sent to technician: {tech_email}")
+                send_postmark_email(
+                    subject=subject,
+                    to_email=tech_email,
+                    from_email=sender_email,
+                    text_body=text_body,
+                    html_body=html_body
+                )
+                logger.info(f"Notification email sent to technician: {tech_email}")
                 tech_count += 1
-            except smtplib.SMTPDataError as e:
-                current_app.logger.error(f"SMTPDataError when sending to {tech_email}: {e}")
-                failed_techs.append({'email': tech_email, 'error': str(e)})
             except Exception as e:
-                current_app.logger.error(f"Failed to send email to {tech_email}: {e}")
+                logger.error(f"Failed to send email to {tech_email}: {e}")
                 failed_techs.append({'email': tech_email, 'error': str(e)})
 
-        current_app.logger.info(f"Total technician emails sent successfully: {tech_count}")
+        logger.info(f"Total technician emails sent successfully: {tech_count}")
         if failed_techs:
-            current_app.logger.warning(f"Failed to send emails to the following technicians: {failed_techs}")
+            logger.warning(f"Failed to send emails to the following technicians: {failed_techs}")
 
     except Exception as e:
-        current_app.logger.error(f"Error in send_tech_notification_email: {e}")
+        logger.error(f"Error in send_tech_notification_email: {e}")
 
 
 
@@ -737,11 +737,10 @@ def schedule_order(order_id):
 
 
 #Send scheduled order confirmation to customer 
-
 def send_order_scheduled_email(to_email, customer_name, order, tech_name):
     """
     Sends an email notification to the customer when their order is scheduled.
-    
+
     Args:
         to_email (str): Recipient's email address.
         customer_name (str): Recipient's name.
@@ -750,18 +749,31 @@ def send_order_scheduled_email(to_email, customer_name, order, tech_name):
     """
     try:
         current_year = datetime.utcnow().year  # Calculate current year
-        msg = Message(
-            subject='Your Order Has Been Scheduled!',
-            recipients=[to_email],
-            html=render_template(
-                'emails/order_scheduled_email.html', 
-                customer_name=customer_name, 
-                order=order, 
-                tech_name=tech_name,
-                current_year=current_year  # Pass current_year to the template
-            )
+
+        # Render email templates
+        html_body = render_template(
+            'emails/order_scheduled_email.html',
+            customer_name=customer_name,
+            order=order,
+            tech_name=tech_name,
+            current_year=current_year
         )
-        mail.send(msg)
+        text_body = render_template(
+            'emails/order_scheduled_email.txt',
+            customer_name=customer_name,
+            order=order,
+            tech_name=tech_name
+        )
+
+        # Send the email using Postmark
+        postmark_client.emails.send(
+            From=os.getenv('POSTMARK_SENDER_EMAIL'),
+            To=to_email,
+            Subject='Your Order Has Been Scheduled!',
+            HtmlBody=html_body,
+            TextBody=text_body,
+            MessageStream="outbound"
+        )
     except Exception as e:
         app.logger.error(f"Error sending email to {to_email}: {e}")
         raise e  # Re-raise the exception to handle it in the calling function
@@ -1139,7 +1151,7 @@ def send_guest_order_confirmation_email(guest_email, guest_phone_number, order, 
         email_sent = False
         sms_sent = False
 
-        # **Fetch Salesperson's Details**
+        # Fetch Salesperson's Details
         salesperson_id = order.get('salesperson')
         if salesperson_id:
             try:
@@ -1158,17 +1170,11 @@ def send_guest_order_confirmation_email(guest_email, guest_phone_number, order, 
             salesperson_name = 'Salesperson'
             salesperson_phone_number = ''
 
-        # **1. Send Email if guest_email is provided**
+        # 1. Send Email if guest_email is provided
         if guest_email:
             try:
-                msg = Message(
-                    subject="Your Order Confirmation - CFAC",
-                    recipients=[guest_email],
-                    # sender defaults to MAIL_DEFAULT_SENDER
-                )
-
                 # Render the email body using an HTML template
-                msg.html = render_template(
+                html_body = render_template(
                     'emails/guest_order_confirmation.html',
                     order=order,
                     products=selected_products,
@@ -1178,7 +1184,7 @@ def send_guest_order_confirmation_email(guest_email, guest_phone_number, order, 
                 )
 
                 # Optionally, render a plain-text version
-                msg.body = render_template(
+                text_body = render_template(
                     'emails/guest_order_confirmation.txt',
                     order=order,
                     products=selected_products,
@@ -1186,14 +1192,22 @@ def send_guest_order_confirmation_email(guest_email, guest_phone_number, order, 
                     salesperson_phone_number=salesperson_phone_number
                 )
 
-                # Send the email
-                mail.send(msg)
+                # Send the email using Postmark
+                postmark_client.emails.send(
+                    From=os.getenv('POSTMARK_SENDER_EMAIL'),
+                    To=guest_email,
+                    Subject="Your Order Confirmation - CFAC",
+                    HtmlBody=html_body,
+                    TextBody=text_body,
+                    MessageStream="outbound"  # Use "outbound" or your custom message stream
+                )
+
                 current_app.logger.info(f"Confirmation email sent to {guest_email}")
                 email_sent = True
             except Exception as e:
                 current_app.logger.error(f"Failed to send confirmation email to {guest_email}: {e}")
 
-        # **2. Send SMS if guest_phone_number is provided**
+        # 2. Send SMS if guest_phone_number is provided
         if guest_phone_number:
             try:
                 # Validate phone number format using regex
@@ -1232,12 +1246,13 @@ def send_guest_order_confirmation_email(guest_email, guest_phone_number, order, 
             except Exception as e:
                 current_app.logger.error(f"Failed to send SMS to {guest_phone_number}: {e}")
 
-        # **3. Log the results**
+        # 3. Log the results
         if not email_sent and not sms_sent:
             current_app.logger.warning("No confirmation messages were sent to the guest.")
 
     except Exception as e:
         current_app.logger.error(f"Error in send_guest_order_confirmation_email: {e}")
+
 
 @app.route('/sales/view_order/<order_id>')
 @login_required
@@ -2595,7 +2610,7 @@ def format_time_filter(time_str):
 #Emails\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 def send_email(to_email, subject, message):
     try:
-        email = PMMail(api_key='POSTMARK_API_TOKEN',
+        email = PMMail(api_key='POSTMARK_SERVER_TOKEN',
                        subject=subject,
                        sender='no-reply@cfautocare.biz',
                        to=to_email,
@@ -2613,7 +2628,8 @@ def send_order_confirmation_email(user, order_details):
 
     try:
         subject = "Your Order Confirmation"
-        sender = os.getenv('POSTMARK_SENDER_EMAIL')  # Ensure this matches your verified sender
+        sender_email = os.getenv('POSTMARK_SENDER_EMAIL')  # Ensure this matches your verified sender
+        recipient_email = user['email']  # Define recipient_email from user data
 
         # Render the email templates
         html_body = render_template('emails/order_confirmation_email.html', user=user, order=order_details)
@@ -2621,11 +2637,11 @@ def send_order_confirmation_email(user, order_details):
 
         # Send the email via Postmark
         send_postmark_email(
-            to_email=user['email'],
             subject=subject,
-            html_body=html_body,
             text_body=text_body,
-            sender=sender
+            html_body=html_body,
+            to_email=recipient_email,
+            from_email=sender_email
         )
     except Exception as e:
         logger.error(f"Failed to send order confirmation email: {e}")
@@ -2656,8 +2672,7 @@ def send_admin_notification_email(salesperson_id, order, selected_products):
             app.logger.error("No admin emails found to send notification.")
             return  # Or handle as appropriate
 
-        subject = "New Guest Order Scheduled"
-        sender = os.getenv('POSTMARK_SENDER_EMAIL')  # Ensure this matches your verified sender
+        subject = "New Guest Order"
 
         # Render email templates
         html_body = render_template(
@@ -2676,12 +2691,13 @@ def send_admin_notification_email(salesperson_id, order, selected_products):
 
         # Send email to each admin
         for admin_email in admin_emails:
-            send_postmark_email(
-                to_email=admin_email,
-                subject=subject,
-                html_body=html_body,
-                text_body=text_body,
-                sender=sender
+            postmark_client.emails.send(
+                From=os.getenv('POSTMARK_SENDER_EMAIL'),
+                To=admin_email,
+                Subject=subject,
+                HtmlBody=html_body,
+                TextBody=text_body,
+                MessageStream="outbound"
             )
             app.logger.info(f"Admin notification email sent to {admin_email}")
     except Exception as e:
@@ -2835,14 +2851,20 @@ def send_generic_email(recipient_email, subject, html_body, text_body=None):
     Returns:
         None
     """
-    sender = os.getenv('POSTMARK_SENDER_EMAIL')  # Ensure this matches your verified sender
-    send_postmark_email(
-        to_email=recipient_email,
-        subject=subject,
-        html_body=html_body,
-        text_body=text_body,
-        sender=sender
-    )
+    sender_email = os.getenv('POSTMARK_SENDER_EMAIL')  # Ensure this matches your verified sender
+
+    try:
+        postmark_client.emails.send(
+            From=sender_email,
+            To=recipient_email,
+            Subject=subject,
+            HtmlBody=html_body,
+            TextBody=text_body,
+            MessageStream="outbound"
+        )
+        app.logger.info(f"Email sent to {recipient_email} with subject '{subject}'.")
+    except Exception as e:
+        app.logger.error(f"Failed to send email to {recipient_email}: {e}")
 
 #\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 @app.route('/test_env')
@@ -2850,6 +2872,10 @@ def test_env():
     username = os.getenv('SES_SMTP_USERNAME')
     password = os.getenv('SES_SMTP_PASSWORD')
     return f"Username: {username}, Password Length: {len(password) if password else 'Not Set'}"
+
+
+
+
 
 
 if __name__ == '__main__':
