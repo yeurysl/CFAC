@@ -11,8 +11,6 @@
 </head>
 <body>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
     <script src="{{ url_for('static', filename='js/product.js') }}"></script>
 
 
@@ -56,6 +54,10 @@
         {% endblock %}
     </div>
 
+
+      <!-- Footer -->
+      {% include 'footer.html' %}
+      
     <script>
        document.addEventListener('DOMContentLoaded', function() {
     var detailButtons = document.querySelectorAll('.btn-product-view-details');
@@ -66,6 +68,76 @@
         });
     });
 });
+    </script>
+
+    <script>
+
+//script for stripe
+
+// Instead of generating a token (stripeToken), use Stripe Elements to create a PaymentMethod.
+
+
+document.addEventListener('DOMContentLoaded', function() {
+    const stripe = Stripe('{{ stripe_publishable_key }}');
+    const elements = stripe.elements();
+
+    const style = {
+        base: {
+            color: '#32325d',
+            fontFamily: '"Helvetica Neue", Helvetica, sans-serif',
+            fontSmoothing: 'antialiased',
+            fontSize: '16px',
+            '::placeholder': {
+                color: '#aab7c4'
+            }
+        },
+        invalid: {
+            color: '#fa755a',
+            iconColor: '#fa755a'
+        }
+    };
+
+    const card = elements.create('card', { style: style });
+    card.mount('#card-element');
+
+    const form = document.querySelector('form');
+    const cardErrors = document.getElementById('card-errors');
+
+    form.addEventListener('submit', function(event) {
+        if (document.querySelector('select[name="payment_method"]').value === 'card') {
+            event.preventDefault();
+
+            stripe.createPaymentMethod('card', card).then(function(result) {
+                if (result.error) {
+                    // Inform the user if there was an error.
+                    cardErrors.textContent = result.error.message;
+                } else {
+                    // Send the PaymentMethod ID to your server.
+                    const hiddenInput = document.createElement('input');
+                    hiddenInput.setAttribute('type', 'hidden');
+                    hiddenInput.setAttribute('name', 'payment_method_id');
+                    hiddenInput.setAttribute('value', result.paymentMethod.id);
+                    form.appendChild(hiddenInput);
+
+                    // Submit the form.
+                    form.submit();
+                }
+            });
+        }
+        // If payment method is not 'card', allow the form to submit normally
+    });
+
+    // Handle real-time validation errors from the card Element.
+    card.addEventListener('change', function(event) {
+        if (event.error) {
+            cardErrors.textContent = event.error.message;
+        } else {
+            cardErrors.textContent = '';
+        }
+    });
+});
+
+
     </script>
     
 </body>

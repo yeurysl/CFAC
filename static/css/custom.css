@@ -222,3 +222,8 @@ font-size: 20px; /* Reduces the font size */
   display: block;
   margin: 0 auto;
 }
+
+.custom-footer {
+  background-color: #0a1b37; /* Replace with your desired background color */
+  border-top: 5px dashed #07173d; /* Replace with your desired border color and thickness */
+}
