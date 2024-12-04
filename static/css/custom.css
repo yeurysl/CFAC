@@ -227,3 +227,6 @@ font-size: 20px; /* Reduces the font size */
   background-color: #0a1b37; /* Replace with your desired background color */
   border-top: 5px dashed #07173d; /* Replace with your desired border color and thickness */
 }
+.custom-footer .bi {
+  font-size: 2rem; /* Adjust the value to make icons larger or smaller */
+}
