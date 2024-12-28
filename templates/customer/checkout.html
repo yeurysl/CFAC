@@ -56,20 +56,25 @@
             </div>
             
             <!-- Service Time Selection -->
+            
             <div class="form-group mb-3">
                 <label for="service_time" class="form-label">Select Service Time:</label>
-                <input
-                    type="time"
-                    id="service_time"
-                    name="service_time"
-                    class="form-control"
-                    required
-                    min="06:00"
-                    max="16:30"
-                    step="1800"  
-                >
-                <small class="form-text text-muted">Available times: 6:00 AM to 4:30 PM</small>
+                <select id="service_time" name="service_time" class="form-select" required>
+                    {% for hour in range(6, 17) %}
+                        {% set hour12 = hour % 12 %}
+                        {% set period = 'AM' if hour < 12 else 'PM' %}
+                        <option value="{{ '%02d:00' % hour }}">{{ '%02d:00 %s' % (hour12 if hour12 != 0 else 12, period) }}</option>
+                        {% if hour != 16 %}
+                            {% set hour12 = hour % 12 %}
+                            <option value="{{ '%02d:30' % hour }}">{{ '%02d:30 %s' % (hour12 if hour12 != 0 else 12, period) }}</option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+                <small class="form-text text-muted">Available times: 6:00 AM to 4:00 PM</small>
             </div>
+            
+
+
             
             <!-- Payment Method Selection -->
             <div class="form-group mb-3">

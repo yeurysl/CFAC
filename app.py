@@ -1513,8 +1513,9 @@ def checkout():
             service_time = datetime.strptime(service_time_str, '%H:%M').time()
 
             # Define allowed time range
-            min_time = time(6, 0)    # 6:00 AM
-            max_time = time(16, 30)  # 4:30 PM
+            min_time = datetime.strptime('06:00', '%H:%M').time()
+            max_time = datetime.strptime('16:30', '%H:%M').time()  # 4:30 PM
+
 
             if not (min_time <= service_time <= max_time):
                 flash('Service time must be between 6:00 AM and 4:30 PM.', 'danger')
@@ -1560,6 +1561,9 @@ def checkout():
         except Exception as e:
             logger.error(f"Failed to send confirmation email: {e}")
             flash('Your order has been placed, but we could not send a confirmation email.', 'warning')
+
+
+        selected_products = [ObjectId(id) for id in session['cart']]
 
         send_admin_notification_email(
                 salesperson_id=current_user.id,
@@ -1637,36 +1641,31 @@ def my_orders():
         flash('You do not have permission to access this page.', 'danger')
         return redirect(url_for('customer_home'))
     
-    # Fetch the user to get their email
     user = users_collection.find_one({'_id': ObjectId(user_id)})
     if not user:
         flash('User not found.', 'danger')
         return redirect(url_for('customer_home'))
     
-    user_email = user['email']
-    
-    user_orders = list(orders_collection.find({'user': user_email}).sort('order_date', -1))
-    
-    # Enrich orders with product details and technician's name
+    # Ensure the `user_id` is a string to match the `user` field in orders
+    user_id_str = str(user_id)
+    print(f"Querying for orders with user ID: {user_id_str}")
+    user_orders = list(orders_collection.find({'user': user_id_str}).sort('order_date', -1))
+    print(f"user_orders after query: {user_orders}")
+
     for order in user_orders:
-        # Fetch product details
         order['product_details'] = []
-        for product_id in order['products']:
+        for product_id in order.get('products', []):
             product = products_collection.find_one({'_id': ObjectId(product_id)})
             if product:
                 order['product_details'].append(product)
         
-        # Fetch technician's name if the order is scheduled
         if order.get('status', '').lower() == 'scheduled' and order.get('scheduled_by'):
             tech_user = users_collection.find_one({'username': order['scheduled_by']})
             order['scheduled_by_name'] = tech_user.get('name', 'Technician') if tech_user else 'Technician'
         else:
             order['scheduled_by_name'] = 'Not scheduled yet'
-    
+
     return render_template('customer/my_orders.html', orders=user_orders)
-
-
-
 
 #Customer Register Route
 
