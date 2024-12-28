@@ -190,6 +190,25 @@
                 <h5>Total: $<span id="total-price">0.00</span></h5>
             </div>
         </div>
+        <!-- Senior & RV Discount Checkbox -->
+<div class="mb-3">
+    <div class="form-check">
+        <input 
+            type="checkbox" 
+            class="form-check-input" 
+            id="senior_rv_discount" 
+            name="senior_rv_discount" 
+            value="1"
+        />
+        <label class="form-check-label" for="senior_rv_discount">
+            Senior & RV Discount
+        </label>
+    </div>
+    <small class="form-text text-muted">
+        Applies a special discount formula for seniors or RV owners.
+    </small>
+</div>
+
         
         <!-- Payments -->
         <div class="card mb-4">
@@ -225,180 +244,214 @@
 
 <!-- JavaScript for Local Storage Handling and Total Calculation -->
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // References
-    const cardTotal = document.getElementById('card-total');
-    const selectedServicesList = document.getElementById('selected-services');
-    const totalPriceElement = document.getElementById('total-price');
-
-    // Four services, each with vehicle-size-specific prices (example numbers)
-    const servicePrices = {
-        vacuum: {
-            coupe_2: 9,
-            hatch_2_door: 14,
-            hatch_4_door: 18,
-            truck_2_seater: 9,
-            truck_4_seater: 18,
-            sedan_2_door: 14,
-            sedan_4_door: 18,
-            suv_4_seater: 18,
-            suv_6_seater: 27,
-            minivan_6_seater: 27
-        },
-        wet_clean: {
-            coupe_2: 9,
-            hatch_2_door: 14,
-            hatch_4_door: 18,
-            truck_2_seater: 9,
-            truck_4_seater: 18,
-            sedan_2_door: 14,
-            sedan_4_door: 18,
-            suv_4_seater: 18,
-            suv_6_seater: 27,
-            minivan_6_seater: 27
-        },
-        exterior: {
-            coupe_2: 43,
-            hatch_2_door: 43,
-            hatch_4_door: 43,
-            truck_2_seater: 43,
-            truck_4_seater: 43,
-            sedan_2_door: 43,
-            sedan_4_door: 43,
-            suv_4_seater: 43,
-            suv_6_seater: 43,
-            minivan_6_seater: 43
-        },
-        carpet_shampoo: {
-            coupe_2: 9,
-            hatch_2_door: 14,
-            hatch_4_door: 18,
-            truck_2_seater: 9,
-            truck_4_seater: 18,
-            sedan_2_door: 14,
-            sedan_4_door: 18,
-            suv_4_seater: 18,
-            suv_6_seater: 27,
-            minivan_6_seater: 27
+    document.addEventListener('DOMContentLoaded', function() {
+        // References
+        const cardTotal = document.getElementById('card-total');
+        const selectedServicesList = document.getElementById('selected-services');
+        const totalPriceElement = document.getElementById('total-price');
+    
+        // Four services, each with vehicle-size-specific prices (example numbers)
+        const servicePrices = {
+            vacuum: {
+                coupe_2: 9,
+                hatch_2_door: 14,
+                hatch_4_door: 18,
+                truck_2_seater: 9,
+                truck_4_seater: 18,
+                sedan_2_door: 14,
+                sedan_4_door: 18,
+                suv_4_seater: 18,
+                suv_6_seater: 27,
+                minivan_6_seater: 27
+            },
+            wet_clean: {
+                coupe_2: 9,
+                hatch_2_door: 14,
+                hatch_4_door: 18,
+                truck_2_seater: 9,
+                truck_4_seater: 18,
+                sedan_2_door: 14,
+                sedan_4_door: 18,
+                suv_4_seater: 18,
+                suv_6_seater: 27,
+                minivan_6_seater: 27
+            },
+            exterior: {
+                coupe_2: 43,
+                hatch_2_door: 43,
+                hatch_4_door: 43,
+                truck_2_seater: 43,
+                truck_4_seater: 43,
+                sedan_2_door: 43,
+                sedan_4_door: 43,
+                suv_4_seater: 43,
+                suv_6_seater: 43,
+                minivan_6_seater: 43
+            },
+            carpet_shampoo: {
+                coupe_2: 9,
+                hatch_2_door: 14,
+                hatch_4_door: 18,
+                truck_2_seater: 9,
+                truck_4_seater: 18,
+                sedan_2_door: 14,
+                sedan_4_door: 18,
+                suv_4_seater: 18,
+                suv_6_seater: 27,
+                minivan_6_seater: 27
+            }
+        };
+    
+        // Flat package prices (ignoring vehicle size)
+        const packagePrices = {
+            full: 120.00,
+            quick: 70.00
+        };
+    
+        // IDs for potential form data storage
+        const fields = [
+            'guest_name', 'guest_email', 'guest_phone_number',
+            'street_address', 'unit_apt', 'city', 'country',
+            'zip_code', 'service_date', 'service_time',
+            'payment_time', 'vehicle_size', 'service_package'
+        ];
+    
+        // Reference to our new Senior & RV Discount checkbox
+        const seniorRvDiscountCheckbox = document.getElementById('senior_rv_discount');
+    
+        function loadFormData() {
+            // If you want to load from localStorage or do anything else on page load
+            updateTotal();
         }
-    };
-
-    // Flat package prices (ignoring vehicle size)
-    const packagePrices = {
-        full: 120.00,
-        quick: 70.00
-    };
-
-    // IDs for potential form data storage
-    const fields = [
-        'guest_name', 'guest_email', 'guest_phone_number',
-        'street_address', 'unit_apt', 'city', 'country',
-        'zip_code', 'service_date', 'service_time',
-        'payment_time', 'vehicle_size', 'service_package'
-    ];
-
-    function loadFormData() {
-        // If you want to load from localStorage or something
-        updateTotal();
-    }
-    loadFormData();
-
-    // Listen for changes
-    fields.forEach(function(fieldId) {
-        const element = document.getElementById(fieldId);
-        if (element) {
-            element.addEventListener('change', function() {
+        loadFormData();
+    
+        // Listen for changes on common fields
+        fields.forEach(function(fieldId) {
+            const element = document.getElementById(fieldId);
+            if (element) {
+                element.addEventListener('change', function() {
+                    updateTotal();
+                });
+            }
+        });
+    
+        // Listen for changes on each service checkbox
+        const serviceCheckboxes = document.querySelectorAll('input[name="services"]');
+        serviceCheckboxes.forEach(function(cb) {
+            cb.addEventListener('change', function() {
                 updateTotal();
             });
-        }
-    });
-
-    const serviceCheckboxes = document.querySelectorAll('input[name="services"]');
-    serviceCheckboxes.forEach(function(cb) {
-        cb.addEventListener('change', function() {
-            updateTotal();
         });
-    });
-
-    function updateTotal() {
-        let baseTotal = 0;
-        selectedServicesList.innerHTML = '';
-
-        const vehicleSize = document.getElementById('vehicle_size').value;
-        const selectedPackage = document.getElementById('service_package').value;
-        const checkedServices = document.querySelectorAll('input[name="services"]:checked');
-
-        // 1) Calculate baseTotal
-        if (!selectedPackage) {
-            // If no package, sum up each checked service
-            checkedServices.forEach(function(cb) {
-                const serviceKey = cb.value;
-                if (servicePrices[serviceKey] && vehicleSize) {
-                    const price = servicePrices[serviceKey][vehicleSize] || 0;
-                    baseTotal += price;
-                    addListItem(serviceLabel(serviceKey), price);
+    
+        // Also listen for changes on the Senior & RV Discount checkbox
+        if (seniorRvDiscountCheckbox) {
+            seniorRvDiscountCheckbox.addEventListener('change', updateTotal);
+        }
+    
+        function updateTotal() {
+            let baseTotal = 0;
+            selectedServicesList.innerHTML = '';
+    
+            const vehicleSize = document.getElementById('vehicle_size').value;
+            const selectedPackage = document.getElementById('service_package').value;
+            const checkedServices = document.querySelectorAll('input[name="services"]:checked');
+    
+            // 1) Calculate baseTotal
+            if (!selectedPackage) {
+                // If no package, sum up each checked service
+                checkedServices.forEach(function(cb) {
+                    const serviceKey = cb.value;
+                    if (servicePrices[serviceKey] && vehicleSize) {
+                        const price = servicePrices[serviceKey][vehicleSize] || 0;
+                        baseTotal += price;
+                        addListItem(serviceLabel(serviceKey), price);
+                    }
+                });
+            } else {
+                // If a package is chosen, override with package price
+                if (packagePrices[selectedPackage] !== undefined) {
+                    baseTotal = packagePrices[selectedPackage];
+                    addListItem("Package: " + serviceLabel(selectedPackage), baseTotal);
                 }
-            });
-        } else {
-            // If a package is chosen, override with package price
-            if (packagePrices[selectedPackage] !== undefined) {
-                baseTotal = packagePrices[selectedPackage];
-                addListItem("Package: " + serviceLabel(selectedPackage), baseTotal);
+            }
+    
+            // 2) Calculate the normal final price with a 45% servicing fee
+            //    finalPrice = ceil(baseTotal / 0.55)
+            let finalPrice = 0;
+            if (baseTotal > 0) {
+                // Show the base subtotal
+                addListItem("Subtotal (Services)", baseTotal);
+    
+                // The unrounded final
+                let rawFinal = baseTotal / 0.55;
+                // Round up
+                let standardFinal = Math.ceil(rawFinal);
+    
+                // Show the licensing/insurance fee
+                let fee = standardFinal - baseTotal;
+                addListItem("Licensing and Insurance Fee", fee);
+    
+                // Start with the standard final
+                finalPrice = standardFinal;
+    
+                // 3) If Senior & RV Discount is checked, apply special formula
+                //    newFinalPrice = baseTotal + ((rawFinal - baseTotal) / 2)
+                //    then round up
+                if (seniorRvDiscountCheckbox && seniorRvDiscountCheckbox.checked) {
+                    let difference = rawFinal - baseTotal;          // raw "extra" above base
+                    let discountPortion = difference / 2;           // half that difference
+                    let discountedRawFinal = baseTotal + discountPortion;
+                    let discountedRounded = Math.ceil(discountedRawFinal);
+    
+                    // Show a line item for the discount difference
+                    let discountValue = finalPrice - discountedRounded;
+                    addListItem("Senior & RV Discount", -discountValue);
+    
+                    // Override the final price with the discounted final
+                    finalPrice = discountedRounded;
+                }
+            }
+    
+            // 4) Show the total card if finalPrice > 0
+            if (finalPrice > 0) {
+                cardTotal.style.display = 'block';
+            } else {
+                cardTotal.style.display = 'none';
+            }
+    
+            // 5) Display the final price with .00
+            totalPriceElement.textContent = finalPrice.toFixed(2);
+        }
+    
+        function addListItem(label, amount) {
+            const li = document.createElement('li');
+            li.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-center');
+            // If amount is negative, show e.g. "-$5.00"
+            const amountText = (amount >= 0) ? `$${amount.toFixed(2)}` : `-$${Math.abs(amount).toFixed(2)}`;
+            li.innerHTML = `
+                <span>${label}</span>
+                <span class="badge bg-primary rounded-pill">${amountText}</span>
+            `;
+            selectedServicesList.appendChild(li);
+        }
+    
+        function serviceLabel(key) {
+            switch(key) {
+                case 'vacuum': return 'Interior Vacuum';
+                case 'wet_clean': return 'Interior Wet Clean';
+                case 'exterior': return 'Exterior Detailing';
+                case 'carpet_shampoo': return 'Carpet Shampooing';
+                case 'full': return 'Full Detailing Package';
+                case 'quick': return 'Quick Wash + Wax Package';
+                default: return key;
             }
         }
-
-        // 2) Add 45% servicing fee → finalPrice = baseTotal / 0.55
-        // Then round up to the nearest dollar
-        let finalPrice = 0;
-        if (baseTotal > 0) {
-            let rawFinal = baseTotal / 0.55;           // this is the unrounded total
-            finalPrice = Math.ceil(rawFinal);          // always round up
-
-            // Show the base subtotal
-            addListItem("Subtotal (Services)", baseTotal);
-
-            // Show the fee (finalPrice - baseTotal)
-            const fee = finalPrice - baseTotal;
-            addListItem("Licensing and Insurance Fee", fee);
-        }
-
-        // 3) Show the total card if finalPrice > 0
-        if (finalPrice > 0) {
-            cardTotal.style.display = 'block';
-        } else {
-            cardTotal.style.display = 'none';
-        }
-
-        // 4) Display the final price with .00
-        totalPriceElement.textContent = finalPrice.toFixed(2);
+    });
+    
+    // Disable the submit button and show loading overlay on submit
+    function disableSubmitButton() {
+        document.getElementById('submit-btn').disabled = true;
+        document.getElementById('loading-overlay').style.display = 'flex';
     }
-
-    function addListItem(label, amount) {
-        const li = document.createElement('li');
-        li.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-center');
-        li.innerHTML = `
-            <span>${label}</span>
-            <span class="badge bg-primary rounded-pill">$${amount.toFixed(2)}</span>
-        `;
-        selectedServicesList.appendChild(li);
-    }
-
-    function serviceLabel(key) {
-        switch(key) {
-            case 'vacuum': return 'Interior Vacuum';
-            case 'wet_clean': return 'Interior Wet Clean';
-            case 'exterior': return 'Exterior Detailing';
-            case 'carpet_shampoo': return 'Carpet Shampooing';
-            case 'full': return 'Full Detailing Package';
-            case 'quick': return 'Quick Wash + Wax Package';
-            default: return key;
-        }
-    }
-});
-
-function disableSubmitButton() {
-    document.getElementById('submit-btn').disabled = true;
-    document.getElementById('loading-overlay').style.display = 'flex';
-}
-</script>
+    </script>
 {% endblock %}
