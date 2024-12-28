@@ -1,4 +1,3 @@
-<!-- sales/schedule_guest_order.html -->
 {% extends 'base.html' %}
 
 {% block title %}Schedule Guest Order{% endblock %}
@@ -92,93 +91,106 @@
             </div>
         </div>
         
-      <!-- Order Information -->
-<div class="card mb-4">
-    <div class="card-header bg-secondary text-white">
-        Order Information
-    </div>
-    <div class="card-body">
-        <!-- Service Date -->
-        <div class="mb-3">
-            {{ form.service_date.label(class="form-label") }}
-            {{ form.service_date(class="form-control", type="date", id="service_date") }}
-            {% for error in form.service_date.errors %}
-                <div class="text-danger">{{ error }}</div>
-            {% endfor %}
-        </div>
-        
-        <!-- Service Time -->
-        <div class="form-group mb-3">
-            <label for="service_time" class="form-label"> Service Time:</label>
-            <select id="service_time" name="service_time" class="form-select" required>
-                {% for hour in range(6, 17) %}
-                    {% set hour12 = hour % 12 %}
-                    {% set period = 'AM' if hour < 12 else 'PM' %}
-                    <option value="{{ '%02d:00' % hour }}">{{ '%02d:00 %s' % (hour12 if hour12 != 0 else 12, period) }}</option>
-                    {% if hour != 16 %}
-                        {% set hour12 = hour % 12 %}
-                        <option value="{{ '%02d:30' % hour }}">{{ '%02d:30 %s' % (hour12 if hour12 != 0 else 12, period) }}</option>
-                    {% endif %}
-                {% endfor %}
-            </select>
-            <small class="form-text text-muted">Available times: 6:00 AM to 4:00 PM</small>
-        </div>
-        
-        <!-- Vehicle Size -->
-        <div class="mb-3">
-            <label for="vehicle_size" class="form-label">Vehicle Size</label>
-            <select id="vehicle_size" name="vehicle_size" class="form-select">
-                <option value="">-- Select Vehicle Size --</option>
-                <option value="sedan">Sedan</option>
-                <option value="suv">SUV</option>
-                <option value="truck">Truck</option>
-            </select>
-        </div>
-        
-        <!-- Individual Services -->
-        <div class="mb-3">
-            <label class="form-label">Services</label>
-            <div class="form-check">
-                <input type="checkbox" class="form-check-input" name="services" id="service_interior" value="interior">
-                <label for="service_interior" class="form-check-label">Interior Detailing</label>
+        <!-- Order Information -->
+        <div class="card mb-4">
+            <div class="card-header bg-secondary text-white">
+                Order Information
             </div>
-            <div class="form-check">
-                <input type="checkbox" class="form-check-input" name="services" id="service_exterior" value="exterior">
-                <label for="service_exterior" class="form-check-label">Exterior Detailing</label>
+            <div class="card-body">
+                <!-- Service Date -->
+                <div class="mb-3">
+                    {{ form.service_date.label(class="form-label") }}
+                    {{ form.service_date(class="form-control", type="date", id="service_date") }}
+                    {% for error in form.service_date.errors %}
+                        <div class="text-danger">{{ error }}</div>
+                    {% endfor %}
+                </div>
+                
+                <!-- Service Time -->
+                <div class="form-group mb-3">
+                    <label for="service_time" class="form-label"> Service Time:</label>
+                    <select id="service_time" name="service_time" class="form-select" required>
+                        {% for hour in range(6, 17) %}
+                            {% set hour12 = hour % 12 %}
+                            {% set period = 'AM' if hour < 12 else 'PM' %}
+                            <option value="{{ '%02d:00' % hour }}">{{ '%02d:00 %s' % (hour12 if hour12 != 0 else 12, period) }}</option>
+                            {% if hour != 16 %}
+                                {% set hour12 = hour % 12 %}
+                                <option value="{{ '%02d:30' % hour }}">{{ '%02d:30 %s' % (hour12 if hour12 != 0 else 12, period) }}</option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                    <small class="form-text text-muted">Available times: 6:00 AM to 4:00 PM</small>
+                </div>
+                
+                <!-- Vehicle Size -->
+                <div class="mb-3">
+                    <label for="vehicle_size" class="form-label">Vehicle Size</label>
+                    <select id="vehicle_size" name="vehicle_size" class="form-select">
+                        <option value="">-- Select Vehicle Size --</option>
+                        <option value="coupe_2">Coupe 2 Seater</option>
+                        <option value="hatch_2_door">Hatchback 2 Door</option>
+                        <option value="hatch_4_door">Hatchback 4 Door</option>
+                        <option value="truck_2_seater">Truck 2 Seater</option>
+                        <option value="truck_4_seater">Truck 4 Seater</option>
+                        <option value="sedan_2_door">Sedan 2 Door</option>
+                        <option value="sedan_4_door">Sedan 4 Door</option>
+                        <option value="suv_4_seater">SUV 4 Seater</option>
+                        <option value="suv_6_seater">SUV 6 Seater</option>
+                        <option value="minivan_6_seater">Minivan 6 Seater</option>
+                    </select>
+                    <small class="form-text text-muted">No base price. Each service's cost depends on vehicle size.</small>
+                </div>
+                
+                <!-- Services -->
+                <div class="mb-3">
+                    <label class="form-label">Services</label>
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" name="services" id="service_vacuum" value="vacuum">
+                        <label for="service_vacuum" class="form-check-label">Interior Vacuum</label>
+                    </div>
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" name="services" id="service_wet_clean" value="wet_clean">
+                        <label for="service_wet_clean" class="form-check-label">Interior Wet Clean</label>
+                    </div>
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" name="services" id="service_exterior" value="exterior">
+                        <label for="service_exterior" class="form-check-label">Exterior Detailing</label>
+                    </div>
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" name="services" id="service_carpet_shampoo" value="carpet_shampoo">
+                        <label for="service_carpet_shampoo" class="form-check-label">Carpet Shampooing</label>
+                    </div>
+                    
+                    <small class="form-text text-muted">Pick any combination of services.</small>
+                </div>
+                
+                <!-- Package Selection -->
+                <div class="mb-3">
+                    <label for="service_package" class="form-label">Package</label>
+                    <select id="service_package" name="service_package" class="form-select">
+                        <option value="">-- No Package --</option>
+                        <option value="full">Full Detailing Package</option>
+                        <option value="quick">Quick Wash + Wax Package</option>
+                    </select>
+                    <small class="form-text text-muted">Choose a bundle package if desired. This overrides individual services.</small>
+                </div>
             </div>
-            <!-- Add more individual services as needed -->
-            
-            <small class="form-text text-muted">Pick any combination of individual services.</small>
         </div>
         
-        <!-- Package Selection -->
-        <div class="mb-3">
-            <label for="service_package" class="form-label">Package</label>
-            <select id="service_package" name="service_package" class="form-select">
-                <option value="">-- No Package --</option>
-                <option value="full">Full Detailing (Interior + Exterior + ...)</option>
-                <option value="quick">Quick Wash + Wax</option>
-                <!-- etc. -->
-            </select>
-            <small class="form-text text-muted">Choose a bundle package if desired.</small>
+        <!-- Card Total -->
+        <div class="card mb-4" id="card-total" style="display: none;">
+            <div class="card-header bg-secondary text-white">
+                Total
+            </div>
+            <div class="card-body">
+                <ul id="selected-services" class="list-group mb-3">
+                    <!-- Selected services/vehicle info will be listed here -->
+                </ul>
+                <h5>Total: $<span id="total-price">0.00</span></h5>
+            </div>
         </div>
-    </div>
-</div>
-
-<!-- Card Total -->
-<div class="card mb-4" id="card-total" style="display: none;">
-    <div class="card-header bg-secondary text-white">
-        Total
-    </div>
-    <div class="card-body">
-        <ul id="selected-services" class="list-group mb-3">
-            <!-- Selected services/vehicle info will be listed here -->
-        </ul>
-        <h5>Total: $<span id="total-price">0.00</span></h5>
-    </div>
-</div>
-
-
+        
         <!-- Payments -->
         <div class="card mb-4">
             <div class="card-header bg-secondary text-white">
@@ -204,8 +216,6 @@
     </form>
 </div>
 
-
-
 <!-- Loading Overlay -->
 <div id="loading-overlay">
     <div class="spinner-border text-primary" role="status">
@@ -215,127 +225,180 @@
 
 <!-- JavaScript for Local Storage Handling and Total Calculation -->
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Declare these once at the top
-        const cardTotal = document.getElementById('card-total');
-        const selectedServicesList = document.getElementById('selected-services');
-        const totalPriceElement = document.getElementById('total-price');
-    
-        // Pricing data
-        const vehicleSizePrices = {
-            sedan: 40.00,
-            suv: 60.00,
-            truck: 80.00
-        };
-        const servicePrices = {
-            interior: 50.00,
-            exterior: 40.00
-        };
-        const packagePrices = {
-            full: 120.00,
-            quick: 70.00
-        };
-    
-        const fields = [
-            'guest_name', 'guest_email', 'guest_phone_number',
-            'street_address', 'unit_apt', 'city', 'country',
-            'zip_code', 'service_date', 'service_time',
-            'payment_time', 'vehicle_size', 'service_package'
-        ];
-    
-        // ---------------------------
-        // 1) LOAD/SAVE FORM DATA
-        // ---------------------------
-        function saveFormData() {
-            // ...
+document.addEventListener('DOMContentLoaded', function() {
+    // References
+    const cardTotal = document.getElementById('card-total');
+    const selectedServicesList = document.getElementById('selected-services');
+    const totalPriceElement = document.getElementById('total-price');
+
+    // Four services, each with vehicle-size-specific prices (example numbers)
+    const servicePrices = {
+        vacuum: {
+            coupe_2: 9,
+            hatch_2_door: 14,
+            hatch_4_door: 18,
+            truck_2_seater: 9,
+            truck_4_seater: 18,
+            sedan_2_door: 14,
+            sedan_4_door: 18,
+            suv_4_seater: 18,
+            suv_6_seater: 27,
+            minivan_6_seater: 27
+        },
+        wet_clean: {
+            coupe_2: 9,
+            hatch_2_door: 14,
+            hatch_4_door: 18,
+            truck_2_seater: 9,
+            truck_4_seater: 18,
+            sedan_2_door: 14,
+            sedan_4_door: 18,
+            suv_4_seater: 18,
+            suv_6_seater: 27,
+            minivan_6_seater: 27
+        },
+        exterior: {
+            coupe_2: 43,
+            hatch_2_door: 43,
+            hatch_4_door: 43,
+            truck_2_seater: 43,
+            truck_4_seater: 43,
+            sedan_2_door: 43,
+            sedan_4_door: 43,
+            suv_4_seater: 43,
+            suv_6_seater: 43,
+            minivan_6_seater: 43
+        },
+        carpet_shampoo: {
+            coupe_2: 9,
+            hatch_2_door: 14,
+            hatch_4_door: 18,
+            truck_2_seater: 9,
+            truck_4_seater: 18,
+            sedan_2_door: 14,
+            sedan_4_door: 18,
+            suv_4_seater: 18,
+            suv_6_seater: 27,
+            minivan_6_seater: 27
         }
-    
-        function loadFormData() {
-            // ...
-            updateTotal();
+    };
+
+    // Flat package prices (ignoring vehicle size)
+    const packagePrices = {
+        full: 120.00,
+        quick: 70.00
+    };
+
+    // IDs for potential form data storage
+    const fields = [
+        'guest_name', 'guest_email', 'guest_phone_number',
+        'street_address', 'unit_apt', 'city', 'country',
+        'zip_code', 'service_date', 'service_time',
+        'payment_time', 'vehicle_size', 'service_package'
+    ];
+
+    function loadFormData() {
+        // If you want to load from localStorage or something
+        updateTotal();
+    }
+    loadFormData();
+
+    // Listen for changes
+    fields.forEach(function(fieldId) {
+        const element = document.getElementById(fieldId);
+        if (element) {
+            element.addEventListener('change', function() {
+                updateTotal();
+            });
         }
-    
-        // Load on page load
-        loadFormData();
-    
-        // Watch for changes
-        fields.forEach(function(fieldId) {
-    const element = document.getElementById(fieldId);
-    if (element) {
-        // When the user changes the dropdown or text input
-        element.addEventListener('change', function() {
+    });
+
+    const serviceCheckboxes = document.querySelectorAll('input[name="services"]');
+    serviceCheckboxes.forEach(function(cb) {
+        cb.addEventListener('change', function() {
             updateTotal();
         });
+    });
+
+    function updateTotal() {
+        let baseTotal = 0;
+        selectedServicesList.innerHTML = '';
+
+        const vehicleSize = document.getElementById('vehicle_size').value;
+        const selectedPackage = document.getElementById('service_package').value;
+        const checkedServices = document.querySelectorAll('input[name="services"]:checked');
+
+        // 1) Calculate baseTotal
+        if (!selectedPackage) {
+            // If no package, sum up each checked service
+            checkedServices.forEach(function(cb) {
+                const serviceKey = cb.value;
+                if (servicePrices[serviceKey] && vehicleSize) {
+                    const price = servicePrices[serviceKey][vehicleSize] || 0;
+                    baseTotal += price;
+                    addListItem(serviceLabel(serviceKey), price);
+                }
+            });
+        } else {
+            // If a package is chosen, override with package price
+            if (packagePrices[selectedPackage] !== undefined) {
+                baseTotal = packagePrices[selectedPackage];
+                addListItem("Package: " + serviceLabel(selectedPackage), baseTotal);
+            }
+        }
+
+        // 2) Add 45% servicing fee → finalPrice = baseTotal / 0.55
+        // Then round up to the nearest dollar
+        let finalPrice = 0;
+        if (baseTotal > 0) {
+            let rawFinal = baseTotal / 0.55;           // this is the unrounded total
+            finalPrice = Math.ceil(rawFinal);          // always round up
+
+            // Show the base subtotal
+            addListItem("Subtotal (Services)", baseTotal);
+
+            // Show the fee (finalPrice - baseTotal)
+            const fee = finalPrice - baseTotal;
+            addListItem("Licensing and Insurance Fee", fee);
+        }
+
+        // 3) Show the total card if finalPrice > 0
+        if (finalPrice > 0) {
+            cardTotal.style.display = 'block';
+        } else {
+            cardTotal.style.display = 'none';
+        }
+
+        // 4) Display the final price with .00
+        totalPriceElement.textContent = finalPrice.toFixed(2);
+    }
+
+    function addListItem(label, amount) {
+        const li = document.createElement('li');
+        li.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-center');
+        li.innerHTML = `
+            <span>${label}</span>
+            <span class="badge bg-primary rounded-pill">$${amount.toFixed(2)}</span>
+        `;
+        selectedServicesList.appendChild(li);
+    }
+
+    function serviceLabel(key) {
+        switch(key) {
+            case 'vacuum': return 'Interior Vacuum';
+            case 'wet_clean': return 'Interior Wet Clean';
+            case 'exterior': return 'Exterior Detailing';
+            case 'carpet_shampoo': return 'Carpet Shampooing';
+            case 'full': return 'Full Detailing Package';
+            case 'quick': return 'Quick Wash + Wax Package';
+            default: return key;
+        }
     }
 });
-    
-        const serviceCheckboxes = document.querySelectorAll('input[name="services"]');
-        serviceCheckboxes.forEach(function(cb) {
-    cb.addEventListener('change', function() {
-        updateTotal();
-    });
-});
-        // ---------------------------
-        // 2) PRICE CALCULATION
-        // ---------------------------
-        function updateTotal() {
-            // Now you can use selectedServicesList safely
-            let total = 0.00;
-            selectedServicesList.innerHTML = '';
-    
-            // Grab vehicle size
-            const vehicleSize = document.getElementById('vehicle_size').value;
-            // Grab selected package
-            const selectedPackage = document.getElementById('service_package').value;
-            // Grab checked services
-            const checkedServices = document.querySelectorAll('input[name="services"]:checked');
-    
-            // 1) Vehicle Size
-            if (vehicleSize && vehicleSizePrices[vehicleSize] !== undefined) {
-                total += vehicleSizePrices[vehicleSize];
-                addListItem(`Vehicle Size: ${vehicleSize.toUpperCase()}`, vehicleSizePrices[vehicleSize]);
-            }
-    
-            // 2) No package => add individual services
-            if (!selectedPackage) {
-                checkedServices.forEach(function(cb) {
-                    const serviceKey = cb.value;
-                    if (servicePrices[serviceKey] !== undefined) {
-                        total += servicePrices[serviceKey];
-                        addListItem(`Service: ${serviceKey}`, servicePrices[serviceKey]);
-                    }
-                });
-            } else {
-                // 3) Package chosen => add package price
-                if (packagePrices[selectedPackage] !== undefined) {
-                    total += packagePrices[selectedPackage];
-                    const pkgLabel = (selectedPackage === 'full') ? 'Full Detailing' : 'Package: ' + selectedPackage;
-                    addListItem(pkgLabel, packagePrices[selectedPackage]);
-                }
-            }
-    
-            // 4) Show/hide card
-            if (total > 0) {
-                cardTotal.style.display = 'block';
-            } else {
-                cardTotal.style.display = 'none';
-            }
-    
-            // 5) Update final price
-            totalPriceElement.textContent = total.toFixed(2);
-        }
-    
-        function addListItem(name, price) {
-            const li = document.createElement('li');
-            li.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-center');
-            li.innerHTML = `
-                <span>${name}</span>
-                <span class="badge bg-primary rounded-pill">$${price.toFixed(2)}</span>
-            `;
-            selectedServicesList.appendChild(li);
-        }
-    });
-    </script>
-    
-    
+
+function disableSubmitButton() {
+    document.getElementById('submit-btn').disabled = true;
+    document.getElementById('loading-overlay').style.display = 'flex';
+}
+</script>
 {% endblock %}
