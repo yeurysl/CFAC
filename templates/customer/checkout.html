@@ -1,4 +1,3 @@
-<!-- templates/customer/checkout.html -->
 {% extends 'base.html' %}
 
 {% block title %}Checkout{% endblock %}
@@ -38,7 +37,7 @@
 
     
         <!-- Checkout Form -->
-        <form method="post" action="{{ url_for('checkout') }}">
+        <form id="checkout-form" method="post" action="{{ url_for('checkout') }}">
             <!-- Include the CSRF token -->
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             
@@ -72,19 +71,16 @@
                 </select>
                 <small class="form-text text-muted">Available times: 6:00 AM to 4:00 PM</small>
             </div>
-            
 
+            <!-- Stripe Card Payment Section -->
+            <div class="form-group" id="stripe-card-section">
+                <label for="card-element">Credit or Debit Card</label>
+                <div id="card-element" class="form-control">
+                    <!-- A Stripe Element will be inserted here. -->
+                </div>
 
-            
-            <!-- Payment Method Selection -->
-            <div class="form-group mb-3">
-                <label for="payment_method" class="form-label">Payment Method:</label>
-                <select id="payment_method" name="payment_method" class="form-select" required>
-                    <option value="" disabled selected>Select a payment method</option>
-                    <option value="credit_card">Credit Card</option>
-                    <option value="paypal">PayPal</option>
-                    <!-- Add more payment methods as needed -->
-                </select>
+                <!-- Used to display form errors. -->
+                <div id="card-errors" role="alert" class="text-danger mt-2"></div>
             </div>
             
             <button type="submit" class="btn btn-primary">Place Order</button>
@@ -118,31 +114,103 @@
         </div>
     {% endif %}
 
-
-        <!-- Service Address Section -->
-        {% if user_address %}
-        <div class="card mb-4 mt-4">
-          
-            <div class="card-body">
-                <div class="row align-items-center">
-                    <!-- Label Column -->
-                    <div class="col-md-4">
-                        <h5 class="service-address-label mb-0">Where we will be servicing:</h5>
-                    </div>
-                    <!-- Address Column -->
-                    <div class="col-md-8">
-                        <p class="service-address-text mb-0">
-                            {{ user_address.street_address }}
-                            {% if user_address.unit_apt %}
-                                , {{ user_address.unit_apt }}
-                            {% endif %},
-                            {{ user_address.city }}
-                        </p>
-                    </div>
+    <!-- Service Address Section -->
+    {% if user_address %}
+    <div class="card mb-4 mt-4">
+      
+        <div class="card-body">
+            <div class="row align-items-center">
+                <!-- Label Column -->
+                <div class="col-md-4">
+                    <h5 class="service-address-label mb-0">Where we will be servicing:</h5>
+                </div>
+                <!-- Address Column -->
+                <div class="col-md-8">
+                    <p class="service-address-text mb-0">
+                        {{ user_address.street_address }}
+                        {% if user_address.unit_apt %}
+                            , {{ user_address.unit_apt }}
+                        {% endif %},
+                        {{ user_address.city }}
+                    </p>
                 </div>
             </div>
         </div>
-        {% endif %}
-        
+    </div>
+    {% endif %}
 </div>
+
+<!-- Include Stripe.js -->
+<script src="https://js.stripe.com/v3/"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('DOM fully loaded and parsed');
+
+        // Initialize Stripe
+        const stripePublishableKey = "{{ stripe_publishable_key }}";
+        const stripe = Stripe(stripePublishableKey);
+        const elements = stripe.elements();
+
+        const style = {
+            base: {
+                fontSize: '16px',
+                color: '#32325d',
+                '::placeholder': {
+                    color: '#aab7c4'
+                }
+            },
+            invalid: {
+                color: '#fa755a',
+                iconColor: '#fa755a'
+            }
+        };
+
+        const card = elements.create('card', {style: style});
+        card.mount('#card-element');
+        console.log('Stripe Card Element mounted');
+
+        card.on('change', function(event) {
+            const displayError = document.getElementById('card-errors');
+            if (event.error) {
+                console.log('Card Element Error:', event.error.message);
+                displayError.textContent = event.error.message;
+            } else {
+                displayError.textContent = '';
+            }
+        });
+
+        const form = document.getElementById('checkout-form');
+        form.addEventListener('submit', function(event) {
+            event.preventDefault();
+            console.log('Checkout form submitted');
+
+            stripe.createPaymentMethod('card', card).then(function(result) {
+                if (result.error) {
+                    console.log('Stripe PaymentMethod Creation Error:', result.error.message);
+                    const errorElement = document.getElementById('card-errors');
+                    errorElement.textContent = result.error.message;
+                } else {
+                    console.log('Stripe PaymentMethod created:', result.paymentMethod.id);
+                    // Send the PaymentMethod ID to your server
+                    stripePaymentMethodHandler(result.paymentMethod.id);
+                }
+            });
+        });
+
+        function stripePaymentMethodHandler(paymentMethodId) {
+            console.log('Handling Stripe PaymentMethod ID:', paymentMethodId);
+            // Insert the PaymentMethod ID into the form so it gets submitted to the server
+            const form = document.getElementById('checkout-form');
+            const hiddenInput = document.createElement('input');
+            hiddenInput.setAttribute('type', 'hidden');
+            hiddenInput.setAttribute('name', 'payment_method_id');
+            hiddenInput.setAttribute('value', paymentMethodId);
+            form.appendChild(hiddenInput);
+
+            // Submit the form
+            form.submit();
+        }
+    });
+</script>
 {% endblock %}

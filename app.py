@@ -1458,12 +1458,11 @@ def products():
     return render_template('products.html', products=products)
 
 #Checkout Page Route
-
 @app.route('/customer/checkout', methods=['GET', 'POST'])
 @login_required
 @customer_required
 def checkout():
-    user_id = current_user.id  # String version of ObjectId
+    user_id = current_user.id
 
     try:
         user = users_collection.find_one({'_id': ObjectId(user_id)})
@@ -1483,12 +1482,10 @@ def checkout():
     total = calculate_cart_total(products_in_cart)
 
     if request.method == 'POST':
-        # Retrieve service date and time from the form
         service_date_str = request.form.get('service_date')
         service_time_str = request.form.get('service_time')
         payment_method = request.form.get('payment_method')
 
-        # Validate service date
         if not service_date_str:
             flash('Please select a service date.', 'warning')
             return redirect(url_for('checkout'))
@@ -1503,20 +1500,14 @@ def checkout():
             flash('Invalid service date format.', 'danger')
             return redirect(url_for('checkout'))
 
-        # Validate service time
         if not service_time_str:
             flash('Please select a service time.', 'warning')
             return redirect(url_for('checkout'))
 
         try:
-            # Convert service_time_str to a time object
             service_time = datetime.strptime(service_time_str, '%H:%M').time()
-
-            # Define allowed time range
             min_time = datetime.strptime('06:00', '%H:%M').time()
-            max_time = datetime.strptime('16:30', '%H:%M').time()  # 4:30 PM
-
-
+            max_time = datetime.strptime('16:30', '%H:%M').time()
             if not (min_time <= service_time <= max_time):
                 flash('Service time must be between 6:00 AM and 4:30 PM.', 'danger')
                 return redirect(url_for('checkout'))
@@ -1524,72 +1515,62 @@ def checkout():
             flash('Invalid service time format.', 'danger')
             return redirect(url_for('checkout'))
 
-        # Validate payment method
-        if not payment_method:
-            flash('Please select a payment method.', 'warning')
-            return redirect(url_for('checkout'))
+        if payment_method == 'credit_card':
+            try:
+                # Create a Stripe PaymentIntent
+                payment_intent = stripe.PaymentIntent.create(
+                    amount=int(total * 100),  # Convert to cents
+                    currency='usd',
+                    payment_method=request.form['payment_method_id'],
+                    confirm=True,
+                )
 
-        # Determine initial status
-        initial_status = 'ordered'  # Default status for new orders
+                # Check if the payment was successful
+                if payment_intent['status'] == 'succeeded':
+                    # Process the order
+                    initial_status = 'ordered'
+                    service_datetime = datetime.combine(service_date, service_time)
 
-        # Convert service_date to datetime.datetime
-        service_datetime = datetime.combine(service_date, service_time)
+                    order = {
+                        'user': current_user.id,
+                        'products': session['cart'],
+                        'total': total,
+                        'order_date': datetime.now(),
+                        'service_date': service_datetime,
+                        'service_time': service_time_str,
+                        'payment_method': payment_method,
+                        'status': initial_status,
+                        'address': {
+                            'street_address': user['address'].get('street_address', '') if user.get('address') else '',
+                            'unit_apt': user['address'].get('unit_apt', '') if user.get('address') else '',
+                            'city': user['address'].get('city', '') if user.get('address') else ''
+                        },
+                        'creation_date': datetime.utcnow()
+                    }
+                    orders_collection.insert_one(order)
 
-        # Process the order
-        order = {
-            'user': current_user.id,
-            'products': session['cart'],
-            'total': total,
-            'order_date': datetime.now(),
-            'service_date': service_datetime,  # Now a datetime.datetime object
-            'service_time': service_time_str,  # Stored as 'HH:MM' string
-            'payment_method': payment_method,
-            'status': initial_status,
-            'address': {
-                'street_address': user['address'].get('street_address', '') if user.get('address') else '',
-                'unit_apt': user['address'].get('unit_apt', '') if user.get('address') else '',
-                'city': user['address'].get('city', '') if user.get('address') else ''
-            },
-            'creation_date': datetime.utcnow()
-        }
-        orders_collection.insert_one(order)
+                    flash('Your order has been placed successfully!', 'success')
 
-        # Optional: Send confirmation email
-        try:
-            send_order_confirmation_email(user, order)  # Corrected parameter
-            flash('Your order has been placed successfully!', 'success')
-        except Exception as e:
-            logger.error(f"Failed to send confirmation email: {e}")
-            flash('Your order has been placed, but we could not send a confirmation email.', 'warning')
+                    # Clear the cart
+                    session.pop('cart', None)
 
+                    return redirect(url_for('customer_home'))
+                else:
+                    flash('Payment failed, please try again.', 'danger')
+            except stripe.error.CardError as e:
+                flash(f'Payment error: {e.error.message}', 'danger')
+        else:
+            flash('Please select a valid payment method.', 'warning')
 
-        selected_products = [ObjectId(id) for id in session['cart']]
-
-        send_admin_notification_email(
-                salesperson_id=current_user.id,
-                order=order,
-                selected_products=selected_products
-            )
-            #Send notification to tech
-        send_tech_notification_email(
-                order=order,
-                selected_products=selected_products
-            )
-
-        # Clear the cart
-        session.pop('cart', None)
-
-        return redirect(url_for('customer_home'))
     else:
-        # Set default service date to tomorrow
         default_service_date = (datetime.today() + timedelta(days=1)).strftime('%Y-%m-%d')
-        user_address = user.get('address', {})  # Ensure user_address is defined
+        user_address = user.get('address', {})
         return render_template(
             'customer/checkout.html',
             products=products_in_cart,
             total=total,
             default_service_date=default_service_date,
-            user_address=user_address  # Pass user_address to the template
+            user_address=user_address
         )
 
 
