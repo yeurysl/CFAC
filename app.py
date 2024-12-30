@@ -17,6 +17,7 @@ from bson.decimal128 import Decimal128, create_decimal128_context
 import decimal
 from postmarker.core import PostmarkClient
 import time
+from bson.json_util import dumps, loads
 from datetime import datetime, date, timedelta
 from dateutil import parser
 import phonenumbers
@@ -69,6 +70,8 @@ users_collection = db["users"]
 estimaterequests_collection = db["estimaterequests"]  
 products_collection = db["products"]
 orders_collection = db['orders']
+services_collection = db["services"]  # Your new services collection
+
 
 POSTMARK_SERVER_TOKEN = os.getenv('POSTMARK_SERVER_TOKEN')
 postmark_client = PostmarkClient(server_token=POSTMARK_SERVER_TOKEN)
@@ -886,21 +889,20 @@ def tech_view_order(order_id):
 @sales_required  # Ensure this decorator checks for salesperson privileges
 def sales_main():
     try:
-        # **1. Pagination Parameters**
+        # 1) Pagination Parameters
         page = request.args.get('page', 1, type=int)  # Current page number
         per_page = 20  # Number of orders per page
 
-        # **2. Search Parameter (Optional)**
+        # 2) Search Parameter (Optional)
         search_query = request.args.get('search', '').strip()
 
-        # **3. Build MongoDB Query**
+        # 3) Build MongoDB Query
         query = {
-            'salesperson': str(current_user.id)  # Assuming 'salesperson' is stored as a string ID
+            'salesperson': str(current_user.id)
         }
 
         if search_query:
             try:
-                # If the search query is a valid ObjectId, include it in the search
                 object_id = ObjectId(search_query)
                 query['$or'] = [
                     {'_id': object_id},
@@ -908,27 +910,27 @@ def sales_main():
                     {'user_email': {'$regex': search_query, '$options': 'i'}}
                 ]
             except InvalidId:
-                # If not a valid ObjectId, search by guest_name or user_email
+                # If not a valid ObjectId, just do guest_name/user_email
                 query['$or'] = [
                     {'guest_name': {'$regex': search_query, '$options': 'i'}},
                     {'user_email': {'$regex': search_query, '$options': 'i'}}
                 ]
 
-        # **4. Fetch Total Number of Orders Matching the Query**
+        # 4) Fetch Total Number of Orders Matching the Query
         total_orders = orders_collection.count_documents(query)
-        total_pages = (total_orders + per_page - 1) // per_page  # Ceiling division to get total pages
+        total_pages = (total_orders + per_page - 1) // per_page  # ceiling division
 
-        # **5. Fetch Orders for the Current Page**
+        # 5) Fetch Orders for the Current Page
         orders = list(
             orders_collection.find(query)
-            .sort('order_date', -1)  # Sort by order_date descending
+            .sort('order_date', -1)         # Sort by order_date descending
             .skip((page - 1) * per_page)
             .limit(per_page)
         )
 
-        # **6. Enrich Orders with Additional Details**
+        # 6) Enrich Orders with Additional Details
         for order in orders:
-            # Convert ObjectId fields to string for easier handling in templates
+            # Convert ObjectId fields to string
             order['_id'] = str(order['_id'])
             order['salesperson'] = str(order.get('salesperson'))
 
@@ -936,7 +938,7 @@ def sales_main():
             is_guest = order.get('is_guest', False)
             order['order_type'] = 'Guest Order' if is_guest else 'Customer Order'
 
-            # Fetch user details if it's a customer order
+            # If it's a customer order, fetch user details
             if not is_guest:
                 user = users_collection.find_one({'email': order.get('user')})
                 if user:
@@ -948,7 +950,7 @@ def sales_main():
                     order['user_phone'] = 'Unknown'
                     order['user_address'] = {}
 
-            # Fetch the user who scheduled the order
+            # Handle 'scheduled_by' 
             scheduled_by_username = order.get('scheduled_by')
             if scheduled_by_username:
                 scheduled_by_user = users_collection.find_one({'username': scheduled_by_username})
@@ -962,7 +964,7 @@ def sales_main():
                 order['scheduled_by_name'] = 'Not Scheduled'
                 order['scheduled_by_email'] = ''
 
-            # Ensure dates are datetime objects (if stored as strings)
+            # Ensure dates are datetime objects
             for date_field in ['order_date', 'service_date']:
                 if isinstance(order.get(date_field), str):
                     try:
@@ -971,18 +973,17 @@ def sales_main():
                         else:
                             order[date_field] = datetime.strptime(order[date_field], '%Y-%m-%d %H:%M:%S')
                     except ValueError:
-                        app.logger.error(f"Invalid {date_field} format for order ID {order.get('_id')}: {order.get(date_field)}")
-                        order[date_field] = None  # Handle invalid date formats as needed
+                        app.logger.error(
+                            f"Invalid {date_field} format for order {order.get('_id')}: {order.get(date_field)}"
+                        )
+                        order[date_field] = None
 
-            # Fetch product details
-            product_ids = [ObjectId(pid) for pid in order.get('products', [])]
-            products = list(products_collection.find({'_id': {'$in': product_ids}}))
-            order['product_details'] = products
+            # We've removed product references, so no code for product_details here.
 
-        # **7. Initialize Delete Form**
+        # 7) Initialize Delete Form
         delete_form = DeleteOrderForm()
 
-        # **8. Pass Variables to the Template**
+        # 8) Pass Variables to the Template
         return render_template(
             'sales/main.html',
             orders=orders,
@@ -990,12 +991,13 @@ def sales_main():
             per_page=per_page,
             total_pages=total_pages,
             search_query=search_query,
-            delete_form=delete_form  # Pass delete_form for CSRF in delete actions
+            delete_form=delete_form
         )
     except Exception as e:
         app.logger.error(f"Error in sales_main route: {e}")
         flash('An error occurred while fetching your scheduled sales.', 'danger')
         return redirect(url_for('home'))
+
 
 # Schedule Guest Order Route
 @app.route('/sales/schedule_guest_order', methods=['GET', 'POST'])
@@ -1005,9 +1007,10 @@ def schedule_guest_order():
     current_app.logger.info("schedule_guest_order route called")
     form = GuestOrderForm()
     
-    # Populate product choices from the database
-    products = list(products_collection.find())
-    form.products.choices = [(str(product['_id']), product['name']) for product in products]
+    # Load your "services" from the DB
+    all_services = list(services_collection.find({"active": True}))
+    # Convert them to JSON for client-side usage
+    services_json = dumps(all_services)
     
     if form.validate_on_submit():
         try:
@@ -1026,51 +1029,29 @@ def schedule_guest_order():
             
             # Capture order information
             service_date = form.service_date.data
-            service_time = form.service_time.data
-            payment_time = form.payment_time.data  # 'pay_now' or 'pay_after_completion'
+            service_time = form.service_time.data  # e.g. 'HH:MM' or datetime.time object
+            payment_time = form.payment_time.data   # e.g., 'pay_now' or 'pay_after_completion'
             
-            # Log the captured service_date and service_time
-            current_app.logger.info(f"Service Date: {service_date}")
-            current_app.logger.info(f"Service Time: {service_time}")
-            
-            # Combine service date and time into a datetime object
+            # Combine service date/time into a datetime
             service_datetime = datetime.combine(service_date, service_time)
-            current_app.logger.info(f"Combined Service Datetime: {service_datetime}")
+            current_app.logger.info(f"Service Datetime: {service_datetime}")
             
-            selected_product_ids = form.products.data  # List of product ID strings
-            
-            # Convert product IDs to ObjectId if any products are selected
-            product_ids = []
-            if selected_product_ids:
-                for pid in selected_product_ids:
-                    try:
-                        product_ids.append(ObjectId(pid))
-                    except InvalidId:
-                        flash(f"Invalid product ID: {pid}", 'danger')
-                        return redirect(url_for('schedule_guest_order'))
-            
-            # Calculate total amount
-            total_amount = 0
-            selected_products = []
-            if product_ids:
-                selected_products = list(products_collection.find({'_id': {'$in': product_ids}}))
-                if not selected_products:
-                    flash("No valid products selected.", 'danger')
-                    return redirect(url_for('schedule_guest_order'))
-                total_amount = sum(product.get('price', 0) for product in selected_products)
-            
-            # Set payment_status to 'Unpaid'
-            payment_status = 'Unpaid'
-            
-            # Format the phone number to E.164
+            # Format phone number to E.164
             if guest_phone_number:
                 guest_phone_number = format_us_phone_number(guest_phone_number)
                 current_app.logger.info(f"Formatted Phone Number: {guest_phone_number}")
             
+            final_price_str = request.form.get('final_price', '0')
+            try:
+              final_price = float(final_price_str)
+            except ValueError:
+              final_price = 0.0
             # Create the order document
+            # (Note: You might capture the final "services selected" from the front-end
+            #  if you want to store them in the DB. For now, this example does not.)
             order = {
                 'user': None,  # No user associated since it's a guest order
-                'is_guest': True,  # Explicitly mark as guest order
+                'is_guest': True,  # Mark as guest
                 'guest_name': guest_name,
                 'guest_email': guest_email,
                 'guest_phone_number': guest_phone_number,
@@ -1082,59 +1063,66 @@ def schedule_guest_order():
                     'zip_code': zip_code
                 },
                 'payment_time': payment_time,
-                'payment_status': payment_status,
-                'products': selected_product_ids,  # Store as list of string IDs
-                'total': total_amount,
+                'payment_status': 'Unpaid',  # default
                 'order_date': datetime.utcnow(),
-                'service_date': service_datetime,  # Use combined datetime object
+                'service_date': service_datetime,
                 'status': 'ordered',
                 'salesperson': str(current_user.id),
                 'creation_date': datetime.utcnow(),
-                'scheduled_by': str(current_user.id)  # Ensure scheduled_by is set
+                'scheduled_by': str(current_user.id),
+                'total': final_price
+
             }
             
-            # Log the order document before insertion
+            # Log the order
             current_app.logger.info(f"Inserting Order: {order}")
             
-            # Insert the order into the database
+            # Insert the order
             inserted_order = orders_collection.insert_one(order)
             
-            # Send confirmation email and/or SMS to guest
+            # Send notifications
             send_guest_order_confirmation_email(
                 guest_email=guest_email,
                 guest_phone_number=guest_phone_number,
                 order=order,
-                selected_products=selected_products
+                selected_products=[]  # We removed products, so pass empty or remove param
             )
-            # Send notification to admin
             send_admin_notification_email(
                 salesperson_id=current_user.id,
                 order=order,
-                selected_products=selected_products
+                selected_products=[]  # Also pass empty list
             )
-            # Send notification to tech
             send_tech_notification_email(
                 order=order,
-                selected_products=selected_products
+                selected_products=[]
             )
             
-            # Flash success message
+            # Flash success
             flash(f"Guest order scheduled successfully by {current_user.id}!", 'success')
             
-            # **Redirect based on payment_time**
+            # Redirect based on payment_time
             if payment_time == 'pay_now':
-                # Redirect to collecting payments page
                 return redirect(url_for('collecting_payments'))
             else:
-                # Redirect to sales dashboard or appropriate page
                 return redirect(url_for('sales_main'))
+        
         except Exception as e:
             current_app.logger.error(f"Error scheduling guest order: {e}")
             flash('An error occurred while scheduling the guest order. Please try again.', 'danger')
-            return render_template('sales/schedule_guest_order.html', form=form, products=products)
+            return render_template(
+                'sales/schedule_guest_order.html',
+                form=form,
+                services=all_services,
+                services_json=services_json
+            )
     
-    return render_template('sales/schedule_guest_order.html', form=form, products=products)
-
+    # If GET or not valid on POST
+    return render_template(
+        'sales/schedule_guest_order.html',
+        form=form,
+        services=all_services,
+        services_json=services_json
+    )
 
 #Guest Order Email Route
 def send_guest_order_confirmation_email(guest_email, guest_phone_number, order, selected_products):

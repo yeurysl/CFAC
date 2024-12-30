@@ -39,7 +39,7 @@
                     <!-- Service Date -->
                     <td>
                         {% if order.service_date %}
-                            {{ order.service_date.strftime('%Y-%m-%d') }}
+                            {{ order.service_date | format_date }}
                         {% else %}
                             N/A
                         {% endif %}
@@ -83,8 +83,8 @@
 
                     <!-- Order Date -->
                     <td>
-                        {% if order.order_date %}
-                            {{ order.order_date.strftime('%Y-%m-%d') }}
+                        {% if order.service_date %}
+                            {{ order.service_date | format_date }}
                         {% else %}
                             N/A
                         {% endif %}
