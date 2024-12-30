@@ -23,11 +23,13 @@
         <div class="card-body">
             <p><strong>Customer Name:</strong> {{ order.guest_name or order.user_name or 'N/A' }}</p>
             <p><strong>Service Date:</strong> 
-                {% if order.service_date %}
-                    {{ order.service_date.strftime('%Y-%m-%d %H:%M') }}
-                {% else %}
-                    N/A
-                {% endif %}
+                <td>
+                    {% if order.service_date %}
+                        {{ order.service_date | format_date }}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
             </p>
             <p><strong>Total Amount:</strong> ${{ '%.2f'|format(order.total) }}</p>
             <p><strong>Payment Status:</strong> {{ order.payment_status }}</p>
