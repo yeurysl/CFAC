@@ -24,8 +24,8 @@ import phonenumbers
 from phonenumbers import NumberParseException
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired
 from flask import current_app
+from twilio.rest import Client
 import logging
-import boto3
 import re
 import os
 
@@ -45,6 +45,19 @@ app.jinja_env.globals.update(zip=zip)
 # Configure Stripe
 stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
 STRIPE_PUBLISHABLE_KEY = os.getenv('STRIPE_PUBLISHABLE_KEY')
+
+
+TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
+TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
+TWILIO_PHONE_NUMBER = os.getenv('TWILIO_PHONE_NUMBER')
+
+# Initialize Twilio Client
+twilio_client = Client(
+    os.getenv('TWILIO_ACCOUNT_SID'),
+    os.getenv('TWILIO_AUTH_TOKEN')
+)
+TWILIO_PHONE_NUMBER = os.getenv('TWILIO_PHONE_NUMBER')
+
 
 # Apply ProxyFix to handle Heroku's proxy headers
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
@@ -110,17 +123,8 @@ AWS_DEFAULT_REGION = os.getenv('AWS_DEFAULT_REGION')
 
 
 
-# Initialize SNS client
-sns_client = boto3.client('sns')
 
 
-# Initialize the SNS client
-sns_client = boto3.client(
-    'sns',
-    aws_access_key_id=AWS_ACCESS_KEY_ID,
-    aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-    region_name=AWS_DEFAULT_REGION
-)
 
 # Define SMS Sender ID and Type
 SMS_SENDER_ID = "CFAC"  # Customize as per your region's requirements
@@ -1000,6 +1004,7 @@ def sales_main():
 
 
 # Schedule Guest Order Route
+
 @app.route('/sales/schedule_guest_order', methods=['GET', 'POST'])
 @login_required
 @sales_required
@@ -1031,6 +1036,9 @@ def schedule_guest_order():
             service_date = form.service_date.data
             service_time = form.service_time.data  # e.g. 'HH:MM' or datetime.time object
             payment_time = form.payment_time.data   # e.g., 'pay_now' or 'pay_after_completion'
+            vehicle_size = request.form.get('vehicle_size', '').strip()
+            service_package = request.form.get('service_package', '').strip()
+            senior_rv_discount = bool(request.form.get('senior_rv_discount'))
             
             # Combine service date/time into a datetime
             service_datetime = datetime.combine(service_date, service_time)
@@ -1043,12 +1051,37 @@ def schedule_guest_order():
             
             final_price_str = request.form.get('final_price', '0')
             try:
-              final_price = float(final_price_str)
+                final_price = float(final_price_str)
             except ValueError:
-              final_price = 0.0
+                final_price = 0.0
+            
+            # Extract selected services
+            selected_service_keys = request.form.getlist('services')
+            current_app.logger.info(f"Selected Services: {selected_service_keys}")
+            
+            # Validate selected services
+            selected_services = []
+            for key in selected_service_keys:
+                service = services_collection.find_one({"key": key, "active": True})
+                if service:
+                    selected_services.append({
+                        'key': service['key'],
+                        'label': service['label'],
+                        'price': service.get('price_by_vehicle_size', {}).get(vehicle_size, 0.0)
+                    })
+                else:
+                    current_app.logger.warning(f"Invalid or inactive service selected: {key}")
+            
+            if not selected_services and not service_package:
+                flash('Please select at least one service or choose a package.', 'warning')
+                return render_template(
+                    'sales/schedule_guest_order.html',
+                    form=form,
+                    services=all_services,
+                    services_json=services_json
+                )
+            
             # Create the order document
-            # (Note: You might capture the final "services selected" from the front-end
-            #  if you want to store them in the DB. For now, this example does not.)
             order = {
                 'user': None,  # No user associated since it's a guest order
                 'is_guest': True,  # Mark as guest
@@ -1066,12 +1099,15 @@ def schedule_guest_order():
                 'payment_status': 'Unpaid',  # default
                 'order_date': datetime.utcnow(),
                 'service_date': service_datetime,
+                'vehicle_size': vehicle_size,
+                'service_package': service_package,
+                'senior_rv_discount': senior_rv_discount,
+                'services': selected_services,  # Add selected services here
                 'status': 'ordered',
                 'salesperson': str(current_user.id),
                 'creation_date': datetime.utcnow(),
                 'scheduled_by': str(current_user.id),
                 'total': final_price
-
             }
             
             # Log the order
@@ -1085,16 +1121,16 @@ def schedule_guest_order():
                 guest_email=guest_email,
                 guest_phone_number=guest_phone_number,
                 order=order,
-                selected_products=[]  # We removed products, so pass empty or remove param
+                selected_products=selected_services  # Pass selected services
             )
             send_admin_notification_email(
                 salesperson_id=current_user.id,
                 order=order,
-                selected_products=[]  # Also pass empty list
+                selected_products=selected_services  # Pass selected services
             )
             send_tech_notification_email(
                 order=order,
-                selected_products=[]
+                selected_products=selected_services  # Pass selected services
             )
             
             # Flash success
@@ -1123,6 +1159,9 @@ def schedule_guest_order():
         services=all_services,
         services_json=services_json
     )
+
+
+
 
 #Guest Order Email Route
 def send_guest_order_confirmation_email(guest_email, guest_phone_number, order, selected_products):
@@ -1195,7 +1234,7 @@ def send_guest_order_confirmation_email(guest_email, guest_phone_number, order, 
             except Exception as e:
                 current_app.logger.error(f"Failed to send confirmation email to {guest_email}: {e}")
 
-        # 2. Send SMS if guest_phone_number is provided
+         # 2. Send SMS if guest_phone_number is provided
         if guest_phone_number:
             try:
                 # Validate phone number format using regex
@@ -1212,27 +1251,18 @@ def send_guest_order_confirmation_email(guest_email, guest_phone_number, order, 
                     salesperson_phone_number=salesperson_phone_number
                 )
 
-                # Send the SMS via AWS SNS
-                response = sns_client.publish(
-                    PhoneNumber=guest_phone_number,
-                    Message=sms_message,
-                    MessageAttributes={
-                        'AWS.SNS.SMS.SenderID': {
-                            'DataType': 'String',
-                            'StringValue': SMS_SENDER_ID
-                        },
-                        'AWS.SNS.SMS.SMSType': {
-                            'DataType': 'String',
-                            'StringValue': SMS_TYPE
-                        }
-                    }
+                # Send the SMS via Twilio
+                message = twilio_client.messages.create(
+                    body=sms_message,
+                    from_=TWILIO_PHONE_NUMBER,
+                    to=guest_phone_number
                 )
 
-                message_id = response.get('MessageId')
-                current_app.logger.info(f"SMS sent successfully to {guest_phone_number}. Message ID: {message_id}")
+                current_app.logger.info(f"SMS sent successfully to {guest_phone_number}. Message SID: {message.sid}")
                 sms_sent = True
             except Exception as e:
                 current_app.logger.error(f"Failed to send SMS to {guest_phone_number}: {e}")
+
 
         # 3. Log the results
         if not email_sent and not sms_sent:
