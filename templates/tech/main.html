@@ -33,7 +33,7 @@
                                 <div class="col-md-6">
                                     <!-- Display 'Guest' if order is from a guest -->
                                     <p>
-                                        <strong>User Email:</strong>
+                                        <strong>Customer :</strong>
                                         {% if order.user_display == 'Guest' %}
                                             Guest
                                         {% else %}
@@ -64,14 +64,31 @@
                                 </div>
                             </div>
                             <hr>
-                            <h5>Products:</h5>
-                            <ul class="list-group list-group-flush mb-3">
-                                {% for product in order.product_details %}
-                                    <li class="list-group-item">
-                                        {{ product.name }}
-                                    </li>
-                                {% endfor %}
-                            </ul>
+                          
+
+<!-- Services in the Order -->
+<div class="card mb-4">
+    <div class="card-header">
+        Services
+    </div>
+    <div class="card-body">
+        {% if order.services %}
+            <ul class="list-group">
+                {% for service in order.services %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        {{ service.label }}
+                        <span>${{ '%.2f'|format(service.price) }}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>No services associated with this order.</p>
+        {% endif %}
+    </div>
+</div>
+
+
+
                             <!-- Action Buttons -->
                             <div class="d-flex justify-content-end">
                                 <form action="{{ url_for('schedule_order', order_id=order._id) }}" method="POST" class="d-inline">

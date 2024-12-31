@@ -15,6 +15,11 @@ Products Ordered:
 - {{ product['name'] }} - {{ product['price'] | currency }}
 {% endfor %}
 
+
+
+
+
+
 Please log in to the admin dashboard to view more details.
 
 Best regards,

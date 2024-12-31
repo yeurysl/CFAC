@@ -55,18 +55,18 @@
             text-decoration: none;
             border-radius: 2px;
         }
-        .order-details, .products-ordered {
+        .order-details, .services-ordered {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 20px;
         }
         .order-details th, .order-details td,
-        .products-ordered th, .products-ordered td {
+        .services-ordered th, .services-ordered td {
             border: 1px solid #dddddd;
             padding: 10px;
             text-align: left;
         }
-        .order-details th, .products-ordered th {
+        .order-details th, .services-ordered th {
             background-color: #f8f8f8;
         }
         .footer {
@@ -106,7 +106,7 @@
             <!-- Header -->
             <tr>
                 <td class="header">
-                    <img src="https://cfautocare.biz/static/creatives/Logo.png" alt="CFAC Logo" style="max-width: 150px; height: auto;">
+                    <img src="https://cfautocare.biz/static/creatives/Logo.png" alt="CFAC Logo">
                     <h1 style="margin: 10px 0 0 0;">Thank You for Your Order!</h1>
                 </td>
             </tr>
@@ -134,34 +134,36 @@
                             <th>Service Date</th>
                             <td>{{ order['service_date'].strftime('%B %d, %Y at %I:%M %p') }}</td>
                         </tr>
+                        <tr>
+                            <th>Total Amount</th>
+                            <td>${{ "%.2f"|format(order.total) }}</td>
+                        </tr>
+                        <tr>
+                            <th>Status</th>
+                            <td>{{ order.status.capitalize() }}</td>
+                        </tr>
                     </table>
 
-                    <!-- Products Ordered -->
-                    <h2>Products Ordered</h2>
-                    {% if products %}
-                        <table class="products-ordered">
-                            <thead>
-                                <tr>
-                                    <th>Product Name</th>
-                                    <th>Price</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for product in products %}
-                                    <tr>
-                                        <td>{{ product['name'] }}</td>
-                                        <td>${{ "%.2f"|format(product['price']) }}</td>
-                                    </tr>
-                                {% endfor %}
-                                <tr>
-                                    <th>Total</th>
-                                    <th>${{ "%.2f"|format(order['total']) }}</th>
-                                </tr>
-                            </tbody>
-                        </table>
-                    {% else %}
-                        <p><em>No products were selected for this order.</em></p>
-                    {% endif %}
+                  <!-- Services in the Order -->
+<div class="card mb-4">
+    <div class="card-header">
+       <strong>Services</strong> 
+    </div>
+    <div class="card-body">
+        {% if order.services %}
+            <ul class="list-group">
+                {% for service in order.services %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        {{ service.label }}
+                        <span>${{ '%.2f'|format(service.price) }}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>No services associated with this order.</p>
+        {% endif %}
+    </div>
+</div>
 
                     <!-- Optional Call-to-Action Button -->
                     <!-- Uncomment the following line if you want to add a button -->

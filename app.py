@@ -256,22 +256,30 @@ def send_sms(phone_number, message):
         return None
 
 
-# For Date Format
-def format_date_with_suffix(date):
+def ordinal(n):
+    """
+    Returns the ordinal suffix for a given day.
+    Example: 1 -> '1st', 2 -> '2nd', etc.
+    """
+    if 10 <= n % 100 <= 20:
+        suffix = 'th'
+    else:
+        suffix = {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th')
+    return f"{n}{suffix}"
+
+def format_date_with_suffix(value):
     """
     Formats a datetime object into 'Month DaySuffix Year' format.
-    Example: October 10th 2024
+    Example: October 12th 2024
     """
-    if not isinstance(date, datetime):
-        return date  # Return as-is if not a datetime object
-
-    day = date.day
-    suffix = 'th' if 11 <= day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(day % 10, 'th')
-    formatted_date = date.strftime(f'%B {day}{suffix} %Y')
-    return formatted_date
-
+    if isinstance(value, datetime):
+        month = value.strftime('%B')      # Full month name, e.g., 'October'
+        day = ordinal(value.day)          # Day with ordinal suffix, e.g., '12th'
+        year = value.year                  # Year, e.g., '2024'
+        return f"{month} {day} {year}"
+    return value  # Return the original value if not a datetime object
 # Register the date format filter
-app.jinja_env.filters['format_date'] = format_date_with_suffix
+app.jinja_env.filters['format_date_with_suffix'] = format_date_with_suffix
 
 #FORLOGINS
 def admin_required(f):
@@ -843,6 +851,8 @@ def tech_view_order(order_id):
         if isinstance(order['service_date'], str):
                 order['service_date'] = datetime.strptime(order['service_date'], '%Y-%m-%d')
 
+
+
             # Include address details
         if order.get('guest_address'):
                 # For guest orders
@@ -1004,7 +1014,6 @@ def sales_main():
 
 
 # Schedule Guest Order Route
-
 @app.route('/sales/schedule_guest_order', methods=['GET', 'POST'])
 @login_required
 @sales_required
@@ -1059,7 +1068,9 @@ def schedule_guest_order():
             selected_service_keys = request.form.getlist('services')
             current_app.logger.info(f"Selected Services: {selected_service_keys}")
             
-            # Validate selected services
+          
+            
+             # Validate selected services
             selected_services = []
             for key in selected_service_keys:
                 service = services_collection.find_one({"key": key, "active": True})
@@ -1069,9 +1080,16 @@ def schedule_guest_order():
                         'label': service['label'],
                         'price': service.get('price_by_vehicle_size', {}).get(vehicle_size, 0.0)
                     })
+                    current_app.logger.info(f"Added Service: {service['key']} - {service['label']} at ${service.get('price_by_vehicle_size', {}).get(vehicle_size, 0.0)}")
                 else:
-                    current_app.logger.warning(f"Invalid or inactive service selected: {key}")
-            
+                  current_app.logger.warning(f"Invalid or inactive service selected: {key}")
+
+
+
+
+
+
+
             if not selected_services and not service_package:
                 flash('Please select at least one service or choose a package.', 'warning')
                 return render_template(
@@ -1342,11 +1360,7 @@ def sales_view_order(order_id):
                     app.logger.error(f"Invalid {date_field} format for order ID {order.get('_id')}: {order.get(date_field)}")
                     order[date_field] = None  # Handle invalid date formats as needed
     
-        # Fetch product details
-        product_ids = [ObjectId(pid) for pid in order.get('products', [])]
-        products = list(products_collection.find({'_id': {'$in': product_ids}}))
-        order['product_details'] = products
-    
+      
         # **5. Initialize Delete Form (Optional)**
         delete_form = DeleteOrderForm()
     

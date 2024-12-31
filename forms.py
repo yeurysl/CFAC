@@ -311,14 +311,7 @@ class GuestOrderForm(FlaskForm):
     service_time = TimeField('Service Time', format='%H:%M', validators=[
         DataRequired()]) 
 
-    products = SelectMultipleField(
-        'Products',
-        choices=[],  # Populate this dynamically in your route
-        option_widget=CheckboxInput(),
-        widget=ListWidget(prefix_label=False),
-        validators=[],  # Removed DataRequired to make it optional
-        coerce=str  # Ensure this matches the data type of product IDs
-    )
+  
     
     payment_time = SelectField(
         'Payment Time',

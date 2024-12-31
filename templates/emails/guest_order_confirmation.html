@@ -41,6 +41,7 @@
         }
         .content h2 {
             color: #07173d;
+            margin-top: 0;
         }
         .content p {
             line-height: 1.6;
@@ -54,18 +55,18 @@
             text-decoration: none;
             border-radius: 2px;
         }
-        .order-details, .products-ordered {
+        .order-details, .services-ordered {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 20px;
         }
         .order-details th, .order-details td,
-        .products-ordered th, .products-ordered td {
+        .services-ordered th, .services-ordered td {
             border: 1px solid #dddddd;
             padding: 10px;
             text-align: left;
         }
-        .order-details th, .products-ordered th {
+        .order-details th, .services-ordered th {
             background-color: #f8f8f8;
         }
         .footer {
@@ -126,9 +127,17 @@
                             <th>Service Date</th>
                             <td>{{ order.service_date.strftime('%B %d, %Y at %I:%M %p') }}</td>
                         </tr>
+                        <tr>
+                            <th>Total Amount</th>
+                            <td>${{ "%.2f"|format(order.total) }}</td>
+                        </tr>
+                        <tr>
+                            <th>Status</th>
+                            <td>{{ order.status.capitalize() }}</td>
+                        </tr>
                     </table>
 
-                    <!-- Address -->
+                    <!-- Delivery Address -->
                     <h2>Delivery Address</h2>
                     <p>
                         {{ order.guest_address.street_address }}<br>
@@ -138,21 +147,21 @@
                         {{ order.guest_address.city }}, {{ order.guest_address.country }} {{ order.guest_address.zip_code }}
                     </p>
 
-                    <!-- Products Ordered -->
-                    <h2>Products Ordered</h2>
-                    {% if products %}
-                        <table class="products-ordered">
+                    <!-- Services in the Order -->
+                    <h2>Services Ordered</h2>
+                    {% if order.services %}
+                        <table class="services-ordered">
                             <thead>
                                 <tr>
-                                    <th>Product Name</th>
+                                    <th>Service Name</th>
                                     <th>Price</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for product in products %}
+                                {% for service in order.services %}
                                     <tr>
-                                        <td>{{ product.name }}</td>
-                                        <td>${{ "%.2f"|format(product.price) }}</td>
+                                        <td>{{ service.label }}</td>
+                                        <td>${{ "%.2f"|format(service.price) }}</td>
                                     </tr>
                                 {% endfor %}
                                 <tr>
@@ -162,7 +171,7 @@
                             </tbody>
                         </table>
                     {% else %}
-                        <p><em>No products were selected for this order.</em></p>
+                        <p><em>No services associated with this order.</em></p>
                     {% endif %}
 
                     <!-- Contact Information -->
@@ -171,42 +180,4 @@
                     <p>We appreciate your business and look forward to serving you!</p>
 
                     <p>Best regards,<br>
-                    Central Florida Auto Care Team</p>
-
-                    <!-- Social Media Links -->
-                    <table cellpadding="0" cellspacing="0" style="margin-top: 20px;">
-                        <tr>
-                            <td style="padding-right: 10px;">
-                                <a href="https://www.google.com/localservices/prolist?spp=Cg0vZy8xMXc5OHg3eDJx&scp=CgAaGUNlbnRyYWwgRmxvcmlkYSBBdXRvIENhcmUqGUNlbnRyYWwgRmxvcmlkYSBBdXRvIENhcmU%3D&q=Central+Florida+Auto+Care&source=sh/x/loc/srv/m1/0&kgs=c72392faac7adf65&src=2&slp=UhUIARIREg8iDS9nLzExdzk4eDd4MnE" target="_blank">
-                                    <img src="https://cfautocare.biz/static/creatives/google.png" alt="Google" width="auto" height="34" style="display: block;">
-                                </a>
-                            </td>
-                            <td style="padding-right: 10px;">
-                                <a href="https://www.facebook.com/people/Central-Florida-Auto-Detailing/61559806436654/" target="_blank">
-                                    <img src="https://cfautocare.biz/static/creatives/fb.png" alt="Facebook" width="auto" height="34" style="display: block;">
-                                </a>
-                            </td>
-                            <td style="padding-right: 10px;">
-                                <a href="https://www.instagram.com/centralfloridaautocare" target="_blank">
-                                    <img src="https://cfautocare.biz/static/creatives/insta.png" alt="Instagram" width="auto" height="34" style="display: block;">
-                                </a>
-                            </td>
-                            <td>
-                                <a href="https://linktr.ee/centralfloridaautodetailing" target="_blank">
-                                    <img src="https://cfautocare.biz/static/creatives/linktree.png" alt="Linktree" width="auto" height="34" style="display: block;">
-                                </a>
-                            </td>
-                        </tr>
-                    </table>
-                </td>
-            </tr>
-            <!-- Footer -->
-            <tr>
-                <td class="footer">
-                    &copy; {{ current_year }} CENTRALFLORIDAAUTOCARE LLC. All rights reserved.
-                </td>
-            </tr>
-        </table>
-    </div>
-</body>
-</html>
+          

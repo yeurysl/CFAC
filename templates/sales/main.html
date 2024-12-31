@@ -39,7 +39,7 @@
                     <!-- Service Date -->
                     <td>
                         {% if order.service_date %}
-                            {{ order.service_date | format_date }}
+                            {{ order.service_date | format_date_with_suffix }}
                         {% else %}
                             N/A
                         {% endif %}
@@ -84,7 +84,7 @@
                     <!-- Order Date -->
                     <td>
                         {% if order.service_date %}
-                            {{ order.service_date | format_date }}
+                            {{ order.order_date | format_date_with_suffix }}
                         {% else %}
                             N/A
                         {% endif %}

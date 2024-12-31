@@ -17,7 +17,7 @@
             <p><strong>Status:</strong> {{ order.status | capitalize }}</p>
             <p><strong>Service Date:</strong>
                 {% if order.service_date %}
-                    {{ order.service_date.strftime('%Y-%m-%d') }}
+                 {{ order.service_date | format_date_with_suffix }}
                 {% else %}
                     N/A
                 {% endif %}
@@ -25,7 +25,15 @@
             <p><strong>Total Amount:</strong> ${{ '%.2f'|format(order.total) }}</p>
             <p><strong>Scheduled By:</strong> {{ order.scheduled_by_name }}</p>
             <p><strong>Scheduled By Email:</strong> {{ order.scheduled_by_email }}</p>
+            <p><strong>Order Date:</strong>
+                {% if order.order_date %}
+                    {{ order.order_date | format_date_with_suffix }}
+                {% else %}
+                    N/A
+                {% endif %}
+            </p>
         </div>
+       
     </div>
 
     <!-- Guest or Customer Information -->
@@ -77,26 +85,26 @@
         </div>
     </div>
 
-    <!-- Products in the Order -->
-    <div class="card mb-4">
-        <div class="card-header">
-            Products
-        </div>
-        <div class="card-body">
-            {% if order.product_details %}
-                <ul class="list-group">
-                    {% for product in order.product_details %}
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            {{ product.name }}
-                            <span>${{ '%.2f'|format(product.price) }}</span>
-                        </li>
-                    {% endfor %}
-                </ul>
-            {% else %}
-                <p>No products associated with this order.</p>
-            {% endif %}
-        </div>
+   <!-- Services in the Order -->
+   <div class="card mb-4">
+    <div class="card-header">
+        Services
     </div>
+    <div class="card-body">
+        {% if order.services %}
+            <ul class="list-group">
+                {% for service in order.services %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        {{ service.label }}
+                        <span>${{ '%.2f'|format(service.price) }}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>No services associated with this order.</p>
+        {% endif %}
+    </div>
+</div>
 
 </div>
 {% endblock %}

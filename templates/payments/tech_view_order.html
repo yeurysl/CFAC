@@ -17,7 +17,7 @@
             <p class="card-text"><strong>Email:</strong> {{ order.guest_email or 'N/A' }}</p>
             <p class="card-text"><strong>Phone Number:</strong> {{ order.guest_phone_number or 'N/A' }}</p>
 
-            <h5 class="card-title mt-4">Service Details</h5>
+            <h5 class="card-title mt-4 ">Service Details</h5>
             <p class="card-text"><strong>Service Date and Time:</strong> 
                 {% if order.service_date %}
                 {{ order.service_date.strftime('%B %d, %Y at %I:%M %p') }}
@@ -56,25 +56,27 @@
         </div>
     </div>
 
-    <div class="card mb-4">
-        <div class="card-header">
-            <strong>Products</strong>
-        </div>
-        <div class="card-body">
-            {% if order.products %}
-                <ul class="list-group">
-                    {% for product_id in order.products %}
-                        {% set product = products_dict.get(product_id, {}) %}
-                        <li class="list-group-item">
-                            <strong>{{ product.name or 'Product Name Not Found' }}</strong> - ${{ '%.2f'|format(product.price or 0.00) }}
-                        </li>
-                    {% endfor %}
-                </ul>
-            {% else %}
-                <p>No products associated with this order.</p>
-            {% endif %}
-        </div>
+ <!-- Services in the Order -->
+<div class="card mb-4">
+    <div class="card-header">
+       <strong>Services</strong> 
     </div>
+    <div class="card-body">
+        {% if order.services %}
+            <ul class="list-group">
+                {% for service in order.services %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        {{ service.label }}
+                        <span>${{ '%.2f'|format(service.price) }}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>No services associated with this order.</p>
+        {% endif %}
+    </div>
+</div>
+
 
     <a href="{{ url_for('my_schedule') }}" class="btn btn-secondary">Back to My Schedule</a>
 </div>
