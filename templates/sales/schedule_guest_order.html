@@ -13,6 +13,7 @@
                 Guest Information
             </div>
             <div class="card-body">
+                <!-- Guest Name -->
                 <div class="mb-3">
                     {{ form.guest_name.label(class="form-label") }}
                     {{ form.guest_name(class="form-control", id="guest_name") }}
@@ -21,6 +22,7 @@
                     {% endfor %}
                 </div>
                 
+                <!-- Guest Email -->
                 <div class="mb-3">
                     {{ form.guest_email.label(class="form-label") }}
                     {{ form.guest_email(class="form-control", id="guest_email") }}
@@ -29,6 +31,7 @@
                     {% endfor %}
                 </div>
                 
+                <!-- Guest Phone Number -->
                 <div class="mb-3">
                     {{ form.guest_phone_number.label(class="form-label") }}
                     {{ form.guest_phone_number(class="form-control", id="guest_phone_number", placeholder="e.g., +18138609587 or 8138609587") }}
@@ -48,6 +51,7 @@
                 Guest Address
             </div>
             <div class="card-body">
+                <!-- Street Address -->
                 <div class="mb-3">
                     {{ form.street_address.label(class="form-label") }}
                     {{ form.street_address(class="form-control", id="street_address") }}
@@ -56,6 +60,7 @@
                     {% endfor %}
                 </div>
                 
+                <!-- Unit/Apt -->
                 <div class="mb-3">
                     {{ form.unit_apt.label(class="form-label") }}
                     {{ form.unit_apt(class="form-control", id="unit_apt") }}
@@ -64,6 +69,7 @@
                     {% endfor %}
                 </div>
                 
+                <!-- City and Country -->
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         {{ form.city.label(class="form-label") }}
@@ -82,6 +88,7 @@
                     </div>
                 </div>
                 
+                <!-- Zip Code -->
                 <div class="mb-3">
                     {{ form.zip_code.label(class="form-label") }}
                     {{ form.zip_code(class="form-control", id="zip_code") }}
@@ -200,9 +207,20 @@
                     <!-- Selected services/vehicle info will be listed here -->
                 </ul>
                 <h5>Total: $<span id="total-price">0.00</span></h5>
+                <!-- Editable Total Price -->
+                <div id="edit-total" style="display: none;">
+                    <!-- Removed name="editable_final_price" to prevent conflicts -->
+                    <input type="number" step="0.01" id="editable-total-price" class="form-control" value="0.00">
+                    <!-- Added id to enable JavaScript to update this element -->
+                    <small class="form-text text-muted" id="minimum-price-text">
+                        Minimum allowable price: $0.00
+                    </small>
+                    <button type="button" id="save-total" class="btn btn-success btn-sm mt-2">Save</button>
+                    <button type="button" id="cancel-total" class="btn btn-secondary btn-sm mt-2">Cancel</button>
+                </div>
             </div>
         </div>
-
+        
         <!-- Senior & RV Discount Checkbox -->
         <div class="mb-3">
             <div class="form-check">
@@ -238,11 +256,18 @@
                         Select when the guest will make the payment.
                     </small>
                 </div>
+                
+                <!-- Stripe Card Element -->
+                <div id="card-element" class="mb-3" style="display: none;">
+                    <!-- A Stripe Element will be inserted here. -->
+                </div>
+                <div id="card-errors" role="alert"></div>
             </div>
         </div>
         
-
+        <!-- Hidden Final Price Field -->
         <input type="hidden" name="final_price" id="final_price" value="0" />
+        
         <!-- Submit Button -->
         <div class="d-flex justify-content-between">
             <button type="submit" id="submit-btn" class="btn btn-primary">Schedule Order</button>
@@ -252,25 +277,29 @@
 </div>
 
 <!-- Loading Overlay -->
-<div id="loading-overlay">
+<div id="loading-overlay" style="display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 9999;">
     <div class="spinner-border text-primary" role="status">
         <span class="visually-hidden">Loading...</span>
     </div>
 </div>
 
-<!-- JavaScript for Local Storage Handling and Total Calculation -->
+<!-- JavaScript for Total Calculation and Editable Total -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // References
     const cardTotal = document.getElementById('card-total');
     const selectedServicesList = document.getElementById('selected-services');
     const totalPriceElement = document.getElementById('total-price');
-
+    const editTotalDiv = document.getElementById('edit-total');
+    const editableTotalPrice = document.getElementById('editable-total-price');
+    const saveTotalBtn = document.getElementById('save-total');
+    const cancelTotalBtn = document.getElementById('cancel-total');
+    const minimumPriceText = document.getElementById('minimum-price-text');
+    
     // "services_json" is passed from Flask as a JSON string containing all the services from Mongo.
-    // We parse it here so we can do client-side calculations.
     const allServicesData = JSON.parse('{{ services_json|safe }}');
 
-    // Example: keep your existing package prices
+    // Package prices
     const packagePrices = {
         full: 120.00,
         quick: 70.00
@@ -287,6 +316,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Reference to our Senior & RV Discount checkbox
     const seniorRvDiscountCheckbox = document.getElementById('senior_rv_discount');
 
+    // Variables to store calculations
+    let minimumPrice = parseFloat("{{ minimum_price }}") || 0.0;
+    console.log("Initial minimumPrice from backend:", minimumPrice);
+
     function loadFormData() {
         // Optionally load from localStorage or do something on page load
         updateTotal();
@@ -298,27 +331,42 @@ document.addEventListener('DOMContentLoaded', function() {
         const element = document.getElementById(fieldId);
         if (element) {
             element.addEventListener('change', updateTotal);
+            console.log(`Added change listener to ${fieldId}`);
+        } else {
+            console.warn(`Element with ID '${fieldId}' not found.`);
         }
     });
 
     // Listen for changes on each service checkbox
     const serviceCheckboxes = document.querySelectorAll('input[name="services"]');
+    if (serviceCheckboxes.length === 0) {
+        console.warn("No service checkboxes found.");
+    }
     serviceCheckboxes.forEach(function(cb) {
         cb.addEventListener('change', updateTotal);
+        console.log(`Added change listener to service checkbox: ${cb.id}`);
     });
 
     // Also for the Senior & RV Discount
     if (seniorRvDiscountCheckbox) {
         seniorRvDiscountCheckbox.addEventListener('change', updateTotal);
+        console.log("Added change listener to Senior & RV Discount checkbox.");
+    } else {
+        console.warn("Senior & RV Discount checkbox not found.");
     }
 
     function updateTotal() {
+        console.log("updateTotal called");
         let baseTotal = 0;
         selectedServicesList.innerHTML = '';
 
         const vehicleSize = document.getElementById('vehicle_size').value;
         const selectedPackage = document.getElementById('service_package').value;
         const checkedServices = document.querySelectorAll('input[name="services"]:checked');
+
+        console.log("Vehicle Size:", vehicleSize);
+        console.log("Selected Package:", selectedPackage);
+        console.log("Checked Services:", Array.from(checkedServices).map(cb => cb.value));
 
         // 1) Calculate baseTotal
         if (!selectedPackage) {
@@ -328,11 +376,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Find the service doc by "key"
                 const serviceDoc = allServicesData.find(s => s.key === serviceKey);
                 if (serviceDoc && vehicleSize) {
-                    // price_by_vehicle_size is an object with e.g. "coupe_2": 9, etc.
+                    // price_by_vehicle_size is an object with e.g. "coupe_2": 15.00, etc.
                     const priceMap = serviceDoc.price_by_vehicle_size || {};
                     const price = priceMap[vehicleSize] || 0;
-                    baseTotal += price;
-                    addListItem(serviceDoc.label, price);
+                    if (price > 0) {
+                        console.log(`Adding service '${serviceDoc.label}' with price $${price}`);
+                        baseTotal += price;
+                        addListItem(serviceDoc.label, price);
+                    } else {
+                        console.warn(`Price not found for vehicle size '${vehicleSize}' in service '${serviceDoc.label}'.`);
+                    }
                 }
             });
         } else {
@@ -341,57 +394,95 @@ document.addEventListener('DOMContentLoaded', function() {
                 baseTotal = packagePrices[selectedPackage];
                 // Just display it as "Package: X"
                 let pkgLabel = (selectedPackage === 'full') ? 'Full Detailing Package' : 'Quick Wash + Wax Package';
+                console.log(`Selected package: '${pkgLabel}' with price $${baseTotal}`);
                 addListItem("Package: " + pkgLabel, baseTotal);
+            } else {
+                console.warn(`Package price not found for selected package: ${selectedPackage}`);
             }
         }
 
-        // 2) If there's a baseTotal, apply the 45% fee logic
+        // 2) Apply the 45% fee logic
         let finalPrice = 0;
+        let minimumPriceCalculated = 0.0;
         if (baseTotal > 0) {
             addListItem("Subtotal (Services)", baseTotal);
+            console.log(`Subtotal (Services): $${baseTotal}`);
 
             let rawFinal = baseTotal / 0.55; 
             let standardFinal = Math.ceil(rawFinal);
+            console.log(`Raw Final: $${rawFinal.toFixed(2)}, Standard Final: $${standardFinal}`);
 
             // The difference is the licensing/insurance fee
             let fee = standardFinal - baseTotal;
             addListItem("Licensing and Insurance Fee", fee);
+            console.log(`Licensing and Insurance Fee: $${fee}`);
 
             finalPrice = standardFinal;
 
-            // 3) If Senior & RV Discount is checked, do the discount formula
+            // 3) If Senior & RV Discount is checked, apply the discount formula
             if (seniorRvDiscountCheckbox && seniorRvDiscountCheckbox.checked) {
                 let difference = rawFinal - baseTotal;
                 let discountPortion = difference / 2;
                 let discountedRawFinal = baseTotal + discountPortion;
                 let discountedRounded = Math.ceil(discountedRawFinal);
 
-                // Show discount line
                 let discountValue = finalPrice - discountedRounded;
                 addListItem("Senior & RV Discount", -discountValue);
+                console.log(`Senior & RV Discount Value: -$${discountValue}`);
 
                 // Override final
                 finalPrice = discountedRounded;
             }
+
+            // 4) Calculate minimumPrice based on the same logic
+            // minimumPrice = unit_price - sales_cut
+            let unit_price = standardFinal;
+            let sales_cut = fee / 2;
+            minimumPriceCalculated = unit_price - sales_cut;
+            console.log(`Calculated Minimum Price: $${minimumPriceCalculated.toFixed(2)}`);
+
+            // Update the minimum price in the editable input and text
+            editableTotalPrice.min = minimumPriceCalculated.toFixed(2);
+            minimumPriceText.textContent = `Minimum allowable price: $${minimumPriceCalculated.toFixed(2)}`;
+        } else {
+            minimumPriceCalculated = 0.0;
+            editableTotalPrice.min = '0.00';
+            minimumPriceText.textContent = `Minimum allowable price: $0.00`;
+            console.log("Base total is 0. Minimum price set to $0.00");
         }
 
-        // 4) Show/hide cardTotal
+        // 5) Show/hide cardTotal
         if (finalPrice > 0) {
             cardTotal.style.display = 'block';
+            console.log("Displaying total card.");
         } else {
             cardTotal.style.display = 'none';
+            console.log("Hiding total card.");
         }
 
-        // 5) Display final price
+        // 6) Display final price
         totalPriceElement.textContent = finalPrice.toFixed(2);
         const finalPriceInput = document.getElementById('final_price');
         finalPriceInput.value = finalPrice.toFixed(2);
+        console.log(`Final Price: $${finalPrice.toFixed(2)}`);
+
+        // Update editable total if visible
+        if (editTotalDiv.style.display === 'block') {
+            if (finalPrice < minimumPriceCalculated) {
+                // Reset to minimum_price if somehow it falls below
+                editableTotalPrice.value = minimumPriceCalculated.toFixed(2);
+                alert(`The total price cannot be less than $${minimumPriceCalculated.toFixed(2)}.`);
+                console.log("Final price below minimum. Resetting editable total price.");
+            } else {
+                editableTotalPrice.value = finalPrice.toFixed(2);
+                console.log("Final price is above or equal to minimum. Updating editable total price.");
+            }
+        }
+
+        // Store the calculated minimumPrice for backend validation (optional)
+        // You can set it as a data attribute or send it via a hidden input if needed
     }
-   // =====================
-    // SET the hidden input
-    // =====================
-    const finalPriceInput = document.getElementById('final_price');
-    finalPriceInput.value = finalPrice.toFixed(2); // e.g., "123.00"
+
     function addListItem(label, amount) {
         const li = document.createElement('li');
         li.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-center');
@@ -403,83 +494,132 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
         selectedServicesList.appendChild(li);
     }
-});
 
-function disableSubmitButton() {
-    document.getElementById('submit-btn').disabled = true;
-    document.getElementById('loading-overlay').style.display = 'flex';
-}
+    // Make total price clickable to edit
+    totalPriceElement.style.cursor = 'pointer';
+    totalPriceElement.addEventListener('click', function() {
+        console.log("Total price clicked. Enabling editable input.");
+        // Hide the total price display
+        totalPriceElement.parentElement.style.display = 'none';
+        // Show the editable input
+        editTotalDiv.style.display = 'block';
+        editableTotalPrice.value = parseFloat(totalPriceElement.textContent).toFixed(2);
+    });
+
+    // Handle Save button
+    saveTotalBtn.addEventListener('click', function() {
+        const newTotal = parseFloat(editableTotalPrice.value);
+        console.log(`Save button clicked. New Total: $${newTotal}`);
+        const currentMinimum = parseFloat(editableTotalPrice.min);
+
+        if (isNaN(newTotal) || newTotal < currentMinimum) {
+            alert(`The total price cannot be less than $${currentMinimum.toFixed(2)}.`);
+            editableTotalPrice.value = currentMinimum.toFixed(2);
+            console.log("Invalid total entered. Reset to minimum price.");
+            return;
+        }
+        // Update the total price display
+        totalPriceElement.textContent = newTotal.toFixed(2);
+        console.log(`Updating final_price to $${newTotal.toFixed(2)}`);
+        // Update the hidden final_price field
+        const finalPriceInput = document.getElementById('final_price');
+        finalPriceInput.value = newTotal.toFixed(2);
+        // Hide the editable input and show the total price
+        editTotalDiv.style.display = 'none';
+        totalPriceElement.parentElement.style.display = 'block';
+        console.log("Editable input hidden. Total price updated.");
+    });
+
+    // Handle Cancel button
+    cancelTotalBtn.addEventListener('click', function() {
+        console.log("Cancel button clicked. Reverting to total price display.");
+        // Hide the editable input and show the total price
+        editTotalDiv.style.display = 'none';
+        totalPriceElement.parentElement.style.display = 'block';
+    });
+
+    // Disable submit button on form submission
+    function disableSubmitButton() {
+        console.log("Form submitted. Disabling submit button and showing loading overlay.");
+        document.getElementById('submit-btn').disabled = true;
+        document.getElementById('loading-overlay').style.display = 'flex';
+    }
+});
 </script>
 
-
-
+<!-- Stripe Integration Script -->
 <script>
+document.addEventListener('DOMContentLoaded', function() {
+    const stripe = Stripe('{{ stripe_publishable_key }}');
+    const elements = stripe.elements();
 
-    //script for stripe
-    
-    // Instead of generating a token (stripeToken), use Stripe Elements to create a PaymentMethod.
-    
-    
-    document.addEventListener('DOMContentLoaded', function() {
-        const stripe = Stripe('{{ stripe_publishable_key }}');
-        const elements = stripe.elements();
-    
-        const style = {
-            base: {
-                color: '#32325d',
-                fontFamily: '"Helvetica Neue", Helvetica, sans-serif',
-                fontSmoothing: 'antialiased',
-                fontSize: '16px',
-                '::placeholder': {
-                    color: '#aab7c4'
-                }
-            },
-            invalid: {
-                color: '#fa755a',
-                iconColor: '#fa755a'
+    const style = {
+        base: {
+            color: '#32325d',
+            fontFamily: '"Helvetica Neue", Helvetica, sans-serif',
+            fontSmoothing: 'antialiased',
+            fontSize: '16px',
+            '::placeholder': {
+                color: '#aab7c4'
             }
-        };
-    
-        const card = elements.create('card', { style: style });
-        card.mount('#card-element');
-    
-        const form = document.querySelector('form');
-        const cardErrors = document.getElementById('card-errors');
-    
-        form.addEventListener('submit', function(event) {
-            if (document.querySelector('select[name="payment_method"]').value === 'card') {
-                event.preventDefault();
-    
-                stripe.createPaymentMethod('card', card).then(function(result) {
-                    if (result.error) {
-                        // Inform the user if there was an error.
-                        cardErrors.textContent = result.error.message;
-                    } else {
-                        // Send the PaymentMethod ID to your server.
-                        const hiddenInput = document.createElement('input');
-                        hiddenInput.setAttribute('type', 'hidden');
-                        hiddenInput.setAttribute('name', 'payment_method_id');
-                        hiddenInput.setAttribute('value', result.paymentMethod.id);
-                        form.appendChild(hiddenInput);
-    
-                        // Submit the form.
-                        form.submit();
-                    }
-                });
-            }
-            // If payment method is not 'card', allow the form to submit normally
-        });
-    
-        // Handle real-time validation errors from the card Element.
-        card.addEventListener('change', function(event) {
-            if (event.error) {
-                cardErrors.textContent = event.error.message;
-            } else {
-                cardErrors.textContent = '';
-            }
-        });
+        },
+        invalid: {
+            color: '#fa755a',
+            iconColor: '#fa755a'
+        }
+    };
+
+    const card = elements.create('card', { style: style });
+    card.mount('#card-element');
+
+    const form = document.getElementById('guestOrderForm');
+    const cardErrors = document.getElementById('card-errors');
+    const paymentTimeSelect = document.getElementById('payment_time');
+
+    // Handle payment time selection
+    paymentTimeSelect.addEventListener('change', function() {
+        if (paymentTimeSelect.value === 'pay_now') {
+            document.getElementById('card-element').style.display = 'block';
+        } else {
+            document.getElementById('card-element').style.display = 'none';
+            card.clear();
+            cardErrors.textContent = '';
+        }
     });
-    
-    
-        </script>
+
+    // Handle real-time validation errors from the card Element.
+    card.addEventListener('change', function(event) {
+        if (event.error) {
+            cardErrors.textContent = event.error.message;
+        } else {
+            cardErrors.textContent = '';
+        }
+    });
+
+    // Handle form submission
+    form.addEventListener('submit', function(event) {
+        if (paymentTimeSelect.value === 'pay_now') {
+            event.preventDefault();
+
+            stripe.createPaymentMethod('card', card).then(function(result) {
+                if (result.error) {
+                    // Inform the user if there was an error.
+                    cardErrors.textContent = result.error.message;
+                } else {
+                    // Send the PaymentMethod ID to your server.
+                    const hiddenInput = document.createElement('input');
+                    hiddenInput.setAttribute('type', 'hidden');
+                    hiddenInput.setAttribute('name', 'payment_method_id');
+                    hiddenInput.setAttribute('value', result.paymentMethod.id);
+                    form.appendChild(hiddenInput);
+
+                    // Submit the form.
+                    form.submit();
+                }
+            });
+        }
+        // If payment_time is not 'pay_now', allow the form to submit normally
+    });
+});
+</script>
 {% endblock %}

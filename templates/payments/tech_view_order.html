@@ -49,7 +49,6 @@
 
             
             <h5 class="card-title mt-4">Order Details</h5>
-            <p class="card-text"><strong>Total Amount:</strong> ${{ '%.2f'|format(order.total) }}</p>
             <p class="card-text"><strong>Payment Time:</strong> {{ order.payment_time.replace('_', ' ').title() }}</p>
             <p class="card-text"><strong>Payment Status:</strong> {{ order.payment_status }}</p>
             <p class="card-text"><strong>Order Status:</strong> {{ order.status }}</p>

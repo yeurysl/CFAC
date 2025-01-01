@@ -55,19 +55,30 @@
                                         <p><strong>Address:</strong> Not provided</p>
                                     {% endif %}
                                 </div>
-                                <div class="col-md-6">
-                                    <p><strong>Total Amount:</strong> ${{ "%.2f"|format(order.total) }}</p>
-                                </div>
+                               
                             </div>
                             <hr>
-                            <h5>Products:</h5>
-                            <ul class="list-group list-group-flush mb-3">
-                                {% for product in order.product_details %}
-                                    <li class="list-group-item">
-                                        {{ product.name }}
-                                    </li>
-                                {% endfor %}
-                            </ul>
+                           <!-- Services in the Order -->
+<div class="card mb-4">
+    <div class="card-header">
+        Services
+    </div>
+    <div class="card-body">
+        {% if order.services %}
+            <ul class="list-group">
+                {% for service in order.services %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        {{ service.label }}
+                        <span>${{ '%.2f'|format(service.price) }}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>No services associated with this order.</p>
+        {% endif %}
+    </div>
+</div>
+
                               <!-- View Order Button -->
                               <a href="{{ url_for('tech_view_order', order_id=order._id) }}" class="btn btn-info btn-sm ms-2">
                                 View Order

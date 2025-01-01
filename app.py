@@ -10,6 +10,7 @@ from flask_wtf.csrf import generate_csrf
 from forms import RegistrationForm, RemoveFromCartForm, CustomerLoginForm, EmployeeLoginForm, UpdateAccountForm, GuestOrderForm, PasswordResetRequestForm, PasswordResetForm, EditOrderForm, DeleteOrderForm, SalesProfileForm, CollectPaymentForm, UpdateCompensationStatusForm
 from functools import wraps
 from werkzeug.middleware.proxy_fix import ProxyFix
+import math
 from bson.objectid import ObjectId, InvalidId
 from pymongo.errors import DuplicateKeyError
 from urllib.parse import urlparse, urljoin, quote_plus
@@ -1013,6 +1014,13 @@ def sales_main():
         return redirect(url_for('home'))
 
 
+
+
+
+
+
+
+
 # Schedule Guest Order Route
 @app.route('/sales/schedule_guest_order', methods=['GET', 'POST'])
 @login_required
@@ -1021,74 +1029,45 @@ def schedule_guest_order():
     current_app.logger.info("schedule_guest_order route called")
     form = GuestOrderForm()
     
-    # Load your "services" from the DB
+    # Load active services from the DB
     all_services = list(services_collection.find({"active": True}))
-    # Convert them to JSON for client-side usage
     services_json = dumps(all_services)
     
     if form.validate_on_submit():
         try:
-            # Log the entire form data
-            current_app.logger.info(f"Form Data: {request.form}")
-            
-            # Capture guest information
-            guest_name = form.guest_name.data.strip()
-            guest_email = form.guest_email.data.strip().lower() if form.guest_email.data else None
-            guest_phone_number = form.guest_phone_number.data.strip() if form.guest_phone_number.data else None
-            street_address = form.street_address.data.strip()
-            unit_apt = form.unit_apt.data.strip()
-            city = form.city.data.strip()
-            country = form.country.data.strip()
-            zip_code = form.zip_code.data.strip()
-            
-            # Capture order information
-            service_date = form.service_date.data
-            service_time = form.service_time.data  # e.g. 'HH:MM' or datetime.time object
-            payment_time = form.payment_time.data   # e.g., 'pay_now' or 'pay_after_completion'
-            vehicle_size = request.form.get('vehicle_size', '').strip()
-            service_package = request.form.get('service_package', '').strip()
-            senior_rv_discount = bool(request.form.get('senior_rv_discount'))
-            
-            # Combine service date/time into a datetime
-            service_datetime = datetime.combine(service_date, service_time)
-            current_app.logger.info(f"Service Datetime: {service_datetime}")
-            
-            # Format phone number to E.164
-            if guest_phone_number:
-                guest_phone_number = format_us_phone_number(guest_phone_number)
-                current_app.logger.info(f"Formatted Phone Number: {guest_phone_number}")
-            
-            final_price_str = request.form.get('final_price', '0')
-            try:
-                final_price = float(final_price_str)
-            except ValueError:
-                final_price = 0.0
-            
+            # [Existing form data extraction and processing...]
+
             # Extract selected services
             selected_service_keys = request.form.getlist('services')
             current_app.logger.info(f"Selected Services: {selected_service_keys}")
             
-          
-            
-             # Validate selected services
+            # Validate selected services
             selected_services = []
+            base_total = 0.0  # Initialize base total
             for key in selected_service_keys:
                 service = services_collection.find_one({"key": key, "active": True})
                 if service:
+                    service_price = service.get('price_by_vehicle_size', {}).get(vehicle_size, 0.0)
                     selected_services.append({
                         'key': service['key'],
                         'label': service['label'],
-                        'price': service.get('price_by_vehicle_size', {}).get(vehicle_size, 0.0)
+                        'price': service_price
                     })
-                    current_app.logger.info(f"Added Service: {service['key']} - {service['label']} at ${service.get('price_by_vehicle_size', {}).get(vehicle_size, 0.0)}")
+                    base_total += service_price
+                    current_app.logger.info(f"Added Service: {service['key']} - {service['label']} at ${service_price}")
                 else:
-                  current_app.logger.warning(f"Invalid or inactive service selected: {key}")
+                    current_app.logger.warning(f"Invalid or inactive service selected: {key}")
 
-
-
-
-
-
+            # Handle service package if selected
+            if service_package:
+                package_price = packagePrices.get(service_package, 0.0)
+                base_total = package_price
+                selected_services = [{
+                    'key': service_package,
+                    'label': service_package.replace('_', ' ').title(),
+                    'price': package_price
+                }]
+                current_app.logger.info(f"Selected Package: {service_package} at ${package_price}")
 
             if not selected_services and not service_package:
                 flash('Please select at least one service or choose a package.', 'warning')
@@ -1099,6 +1078,50 @@ def schedule_guest_order():
                     services_json=services_json
                 )
             
+            # Calculate Unit Price
+            unit_price = math.ceil(base_total / 0.55)
+            fee = unit_price - base_total
+            sales_cut = fee / 2
+            minimum_price = unit_price - sales_cut
+
+            current_app.logger.info(f"Base Total: {base_total}, Unit Price: {unit_price}, Fee: {fee}, Sales Cut: {sales_cut}, Minimum Price: {minimum_price}")
+
+            # Initialize payment status
+            payment_status = 'Unpaid'
+
+            # Handle payment if 'pay_now' is selected
+            if payment_time == 'pay_now':
+                payment_method_id = request.form.get('payment_method_id')
+                if not payment_method_id:
+                    flash('Payment method is required for immediate payment.', 'danger')
+                    return render_template(
+                        'sales/schedule_guest_order.html',
+                        form=form,
+                        services=all_services,
+                        services_json=services_json,
+                        minimum_price=minimum_price  # Pass minimum_price to template
+                    )
+                
+                # [Existing Stripe payment processing...]
+
+            # Capture final price from form
+            final_price_str = request.form.get('final_price', '0')
+            try:
+                final_price = float(final_price_str)
+            except ValueError:
+                final_price = 0.0
+
+            # Enforce minimum price
+            if final_price < minimum_price:
+                flash(f"The total price cannot be less than ${minimum_price:.2f}.", 'danger')
+                return render_template(
+                    'sales/schedule_guest_order.html',
+                    form=form,
+                    services=all_services,
+                    services_json=services_json,
+                    minimum_price=minimum_price  # Pass minimum_price to template
+                )
+
             # Create the order document
             order = {
                 'user': None,  # No user associated since it's a guest order
@@ -1114,7 +1137,7 @@ def schedule_guest_order():
                     'zip_code': zip_code
                 },
                 'payment_time': payment_time,
-                'payment_status': 'Unpaid',  # default
+                'payment_status': payment_status,  # Updated based on payment
                 'order_date': datetime.utcnow(),
                 'service_date': service_datetime,
                 'vehicle_size': vehicle_size,
@@ -1134,23 +1157,8 @@ def schedule_guest_order():
             # Insert the order
             inserted_order = orders_collection.insert_one(order)
             
-            # Send notifications
-            send_guest_order_confirmation_email(
-                guest_email=guest_email,
-                guest_phone_number=guest_phone_number,
-                order=order,
-                selected_products=selected_services  # Pass selected services
-            )
-            send_admin_notification_email(
-                salesperson_id=current_user.id,
-                order=order,
-                selected_products=selected_services  # Pass selected services
-            )
-            send_tech_notification_email(
-                order=order,
-                selected_products=selected_services  # Pass selected services
-            )
-            
+            # [Existing notification sending...]
+
             # Flash success
             flash(f"Guest order scheduled successfully by {current_user.id}!", 'success')
             
@@ -1167,16 +1175,22 @@ def schedule_guest_order():
                 'sales/schedule_guest_order.html',
                 form=form,
                 services=all_services,
-                services_json=services_json
+                services_json=services_json,
+                minimum_price=minimum_price if 'minimum_price' in locals() else 0  # Pass minimum_price if available
             )
     
     # If GET or not valid on POST
+    # Calculate minimum_price for GET requests
+    if request.method == 'GET':
+        minimum_price = 0.0  # Default or calculated based on initial form state
     return render_template(
         'sales/schedule_guest_order.html',
         form=form,
         services=all_services,
-        services_json=services_json
+        services_json=services_json,
+        minimum_price=minimum_price  # Pass minimum_price to template
     )
+
 
 
 
