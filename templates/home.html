@@ -109,9 +109,7 @@
 
 
 
-
 <div class="container my-5">
-  <h2 class="text-center mb-3">What Our Customers Say</h2>
   <div id="reviewCarousel" class="carousel slide" data-bs-ride="carousel">
     <div class="carousel-inner">
       <!-- Review Photos -->
@@ -125,38 +123,18 @@
         <img src="{{ url_for('static', filename='creatives/review3.svg') }}" class="d-block mx-auto review-photo" alt="Review 3">
       </div>
     </div>
-    <!-- Arrows for Navigation -->
+    <!-- Custom Arrows -->
     <button class="carousel-control-prev" type="button" data-bs-target="#reviewCarousel" data-bs-slide="prev">
-      <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+      <i class="fas fa-arrow-left custom-arrow"></i>
       <span class="visually-hidden">Previous</span>
     </button>
     <button class="carousel-control-next" type="button" data-bs-target="#reviewCarousel" data-bs-slide="next">
-      <span class="carousel-control-next-icon" aria-hidden="true"></span>
+      <i class="fas fa-arrow-right custom-arrow"></i>
       <span class="visually-hidden">Next</span>
     </button>
+    
   </div>
 </div>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -180,6 +158,9 @@
 <!-- Include Flatpickr CSS and JS -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+<!-- Include Font Awesome CSS before custom CSS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-p1x07fLLm7/lchjjdfgN1t+cdqAjAPf1vT+1PCpbeXYFxwIlqG/vgppBC1Z5oVFeFQyjTeJv+WSfq2+eNhXsmA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 
 <!-- Consolidated JavaScript Code -->
 <script>
@@ -260,7 +241,7 @@
     }
 
     // Pre-fill the vehicle size dropdown button with the default value.
-    document.getElementById('vehicleSizeDropdown').textContent = "Coup 2 Seater";
+    document.getElementById('vehicleSizeDropdown').textContent = "Coupe 2 Seater";
     updateDisplayImage();
 
     // Event listener for vehicle size options.
@@ -288,45 +269,29 @@
     });
 
     // When the Book Now button is clicked.
-// Within document.addEventListener('DOMContentLoaded', ...) in your JS:
-document.getElementById('bookNowBtn').addEventListener('click', function() {
-  if (!selectedVehicleSize || !selectedService) {
-    alert("Please select both a vehicle size and a service.");
-    return;
-  }
+    document.getElementById('bookNowBtn').addEventListener('click', function() {
+      if (!selectedVehicleSize || !selectedService) {
+        alert("Please select both a vehicle size and a service.");
+        return;
+      }
 
-  let url = "/customer/add_to_cart";
-  url += "?service_id=" + encodeURIComponent(selectedService.id);
-  url += "&vehicle_size=" + encodeURIComponent(selectedVehicleSize);
+      let url = "/customer/add_to_cart";
+      url += "?service_id=" + encodeURIComponent(selectedService.id);
+      url += "&vehicle_size=" + encodeURIComponent(selectedVehicleSize);
 
-  const dateTime = document.getElementById('appointmentDateTime').value;
-  if (dateTime) {
-    url += "&appointment=" + encodeURIComponent(dateTime);
-  }
+      const dateTime = document.getElementById('appointmentDateTime').value;
+      if (dateTime) {
+        url += "&appointment=" + encodeURIComponent(dateTime);
+      }
 
-  // Redirect via GET
-  window.location.href = url;
-});
+      // Redirect via GET
+      window.location.href = url;
+    });
 
   });
 </script>
 
-
-
-
-
-
-
-
-
-
-
-
-
-<!--  JavaScript for Review Banner -->
-
-<!--  Style for Review Banner -->
-
+<!-- Custom Styles for Review Carousel -->
 <style>
   /* Ensure the image fits within the viewport */
   .review-photo {
@@ -335,28 +300,71 @@ document.getElementById('bookNowBtn').addEventListener('click', function() {
     object-fit: contain; /* Preserve the aspect ratio */
   }
 
-  /* Align the carousel controls to the middle of the screen */
+  /* Remove Bootstrap's default carousel control icons */
+  .carousel-control-prev-icon,
+  .carousel-control-next-icon {
+    display: none;
+  }
+
+  /* Custom arrow styling */
+  .custom-arrow {
+    font-size: 2rem; /* Adjust size of the arrow */
+    color: black !important; /* Plain black color, using !important to override */
+    background: none; /* No background */
+    border: none; /* No border */
+    text-shadow: none; /* Remove any shadow effect */
+    cursor: pointer; /* Show pointer on hover */
+    user-select: none; /* Prevent text selection */
+  }
+
+  /* Position the arrows */
+  .carousel-control-prev,
+  .carousel-control-next {
+    width: 10%; /* Adjust control area width as needed */
+    background: none; /* Remove default background */
+    border: none; /* Remove default border */
+  }
+
+  /* Align the arrows vertically centered */
   .carousel-control-prev,
   .carousel-control-next {
     top: 50%;
     transform: translateY(-50%);
-    width: 5%; /* Reduce the control area width */
   }
 
-  .carousel-control-prev-icon,
-  .carousel-control-next-icon {
-    background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent background */
-    border-radius: 50%; /* Circular control icons */
-    padding: 10px; /* Increase clickable area */
+  /* Position arrows on the sides */
+  .carousel-control-prev {
+    left: 0;
   }
 
-  /* Enhance hover effect on the controls */
-  .carousel-control-prev:hover .carousel-control-prev-icon,
-  .carousel-control-next:hover .carousel-control-next-icon {
-    background-color: rgba(0, 0, 0, 0.8); /* Darker hover effect */
+  .carousel-control-next {
+    right: 0;
+  }
+
+  /* Remove focus outlines */
+  .carousel-control-prev:focus,
+  .carousel-control-next:focus {
+    box-shadow: none;
+    outline: none;
+  }
+
+  /* Ensure arrows are always visible without any background or hover effects */
+  .carousel-control-prev:hover,
+  .carousel-control-next:hover {
+    background: none;
+  }
+
+  /* Adjust the arrow spacing and size for smaller screens */
+  @media (max-width: 768px) {
+    .custom-arrow {
+      font-size: 1.5rem;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .custom-arrow {
+      font-size: 1.2rem;
+    }
   }
 </style>
-
-
-
 {% endblock %}
