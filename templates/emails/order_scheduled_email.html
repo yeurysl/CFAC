@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Your Order Has Been Scheduled!</title>
+    <style>
+        /* General Styles */
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            width: 100%;
+            background-color: #f4f4f4;
+            padding: 20px 0;
+        }
+        .email-wrapper {
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 3px rgba(0,0,0,0.1);
+        }
+        .header {
+            background-color: #07173d; /* Brand Color */
+            padding: 20px;
+            text-align: center;
+            color: #ffffff;
+        }
+        .header img {
+            max-width: 150px;
+            height: auto;
+            margin-bottom: 10px;
+        }
+        .content {
+            padding: 20px;
+            color: #333333;
+        }
+        .content h2 {
+            color: #07173d;
+            margin-top: 0;
+        }
+        .content p {
+            line-height: 1.6;
+        }
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            margin: 20px 0;
+            background-color: #163351; /* Button Color */
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 2px;
+        }
+        .order-details, .services-ordered {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        .order-details th, .order-details td,
+        .services-ordered th, .services-ordered td {
+            border: 1px solid #dddddd;
+            padding: 10px;
+            text-align: left;
+        }
+        .order-details th, .services-ordered th {
+            background-color: #f8f8f8;
+        }
+        .footer {
+            background-color: #f1f1f1;
+            padding: 15px;
+            text-align: center;
+            font-size: 12px;
+            color: #666666;
+        }
+        a {
+            color: #163351;
+            text-decoration: none;
+        }
+        /* Responsive Styles */
+        @media only screen and (max-width: 600px) {
+            .email-wrapper {
+                width: 100% !important;
+            }
+            .header, .content, .footer {
+                padding: 15px;
+            }
+            .btn {
+                width: 100%;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Preheader Text (Hidden) -->
+    <div style="display: none; max-height: 0px; overflow: hidden;">
+        Your order has been successfully scheduled. Here are the details.
+    </div>
+
+    <div class="container">
+        <table class="email-wrapper" cellpadding="0" cellspacing="0">
+            <!-- Header -->
+            <tr>
+                <td class="header">
+                    <img src="https://cfautocare.biz/static/creatives/Logo.png" alt="CFAC Logo">
+                    <h1>Your Order Has Been Scheduled!</h1>
+                </td>
+            </tr>
+            <!-- Body Content -->
+            <tr>
+                <td class="content">
+                    <p>Dear {{ customer_name }},</p>
+
+                    <p>We're pleased to inform you that your order has been scheduled by our technician, <strong>{{ tech_name }}</strong>. Below are the details of your scheduled service:</p>
+
+                    <!-- Order Details -->
+                    <h2>Order Details</h2>
+                    <table class="order-details">
+                        <tr>
+                            <th>Order ID</th>
+                            <td>{{ order._id }}</td>
+                        </tr>
+                        <tr>
+                            <th>Service Date</th>
+                            <td>{{ order.service_date.strftime('%B %d, %Y at %I:%M %p') }}</td>
+                        </tr>
+                        <tr>
+                            <th>Service Time</th>
+                            <td>{{ order.service_time | format_time }}</td>
+                        </tr>
+                        <tr>
+                            <th>Total Amount</th>
+                            <td>${{ "%.2f"|format(order.total) }}</td>
+                        </tr>
+                        <tr>
+                            <th>Status</th>
+                            <td>{{ order.status.capitalize() }}</td>
+                        </tr>
+                    </table>
+
+                    <!-- Services Ordered -->
+                    <h2>Services Ordered</h2>
+                    {% if services %}
+                        <table class="services-ordered">
+                            <thead>
+                                <tr>
+                                    <th>Service Name</th>
+                                    <th>Price</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for service in services %}
+                                    <tr>
+                                        <td>{{ service.name }}</td>
+                                        <td>${{ "%.2f"|format(service.price) }}</td>
+                                    </tr>
+                                {% endfor %}
+                                <tr>
+                                    <th>Total</th>
+                                    <th>${{ "%.2f"|format(order.total) }}</th>
+                                </tr>
+                            </tbody>
+                        </table>
+                    {% else %}
+                        <p><em>No services were selected for this order.</em></p>
+                    {% endif %}
+
+                    <!-- Call-to-Action Button -->
+                    <a href="{{ url_for('my_orders', _external=True) }}" class="btn">View My Orders</a>
+
+                    <p>We will see you on your scheduled service date!</p>
+                    <p>Thank you for choosing our services!</p>
+
+                    <hr>
+
+                    <p class="text-muted">If you have any questions, feel free to reply to this email.</p>
+                    <p class="text-muted">Best regards,<br>Central Florida Auto Care Team</p>
+                </td>
+            </tr>
+            <!-- Footer -->
+            <tr>
+                <td class="footer">
+                    &copy; {{ current_year }} Centralfloridaautocare LLC. All rights reserved.
+                </td>
+            </tr>
+        </table>
+    </div>
+</body>
+</html>

@@ -1,0 +1,69 @@
+<!-- templates/customer/cart.html -->
+{% extends 'base.html' %}
+
+{% block title %}Your Cart{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="my-4">Your Cart</h1>
+    {% if services %}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Service</th>
+                    <th>Price</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for service in services %}
+                <tr>
+                    <td>{{ service['label'] }}</td>
+                    <td>{{ service['price'] | currency }}</td>
+                    <td>
+                        <form method="post" action="{{ url_for('customer.cart') }}">
+                            {{ forms[service['_id']].hidden_tag() }}
+                            {{ forms[service['_id']].service_id }}
+                            <button type="submit" class="btn btn-danger">Remove</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+
+                
+            </tbody>
+        </table>
+        
+        <!-- Display the Service Address -->
+        {% if user_address %}
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <!-- Label Column -->
+                    <div class="col-md-4">
+                        <h5 class="service-address-label mb-0">Where we will be servicing:</h5>
+                    </div>
+                    <!-- Address Column -->
+                    <div class="col-md-8">
+                        <p class="service-address-text mb-0">
+                            {{ user_address.street_address }}
+                            {% if user_address.unit_apt %}
+                                , {{ user_address.unit_apt }}
+                            {% endif %},
+                            {{ user_address.city }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <a href="{{ url_for('customer.customer_home') }}" class="btn btn-secondary mb-3">Add more services</a>
+        <h3>Total: {{ total | currency }}</h3>
+        <a href="{{ url_for('customer.checkout') }}" class="btn btn-primary">Proceed to Checkout</a>
+    {% else %}
+    <p>Your cart is empty.</p>
+    <a href="{{ url_for('customer.customer_home') }}" class="btn btn-secondary">Continue Shopping</a>
+    {% endif %}
+</div>
+{% endblock %}

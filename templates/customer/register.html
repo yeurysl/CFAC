@@ -1,0 +1,118 @@
+<!-- templates/customer/register.html -->
+
+{% extends 'base.html' %}
+
+{% block title %}Register{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="my-4 text-center">Register</h1>
+    <div class="form-wrapper mx-auto">
+        <form method="POST" action="{{ url_for('customer.register') }}">
+            {{ form.hidden_tag() }}
+            
+            <!-- Full Name -->
+            <div class="form-group mb-3">
+                {{ form.name(class="form-control", placeholder="Full Name") }}
+                {% for error in form.name.errors %}
+                    <span class="text-danger">{{ error }}</span>
+                {% endfor %}
+            </div>
+
+            <!-- Email Address -->
+            <div class="form-group mb-3">
+                {{ form.email(class="form-control", placeholder="Email Address", required=True) }}
+                {% for error in form.email.errors %}
+                    <span class="text-danger">{{ error }}</span>
+                {% endfor %}
+            </div>
+          
+            <!-- Phone Number -->
+            <div class="form-group mb-3">
+                {{ form.phone_number(class="form-control", placeholder="Phone Number (Optional, e.g., 8138609587)") }}
+                <small class="form-text text-muted">Enter a 10-digit US phone number (optional).</small>
+                {% for error in form.phone_number.errors %}
+                    <span class="text-danger">{{ error }}</span>
+                {% endfor %}
+            </div>
+
+            <!-- Check box for Phone Number -->
+            <div class="form-group mb-3">
+                <div class="form-check">
+                    {{ form.sms_opt_in(class="form-check-input") }}
+                    {{ form.sms_opt_in.label(class="form-check-label") }}
+                </div>
+                {% for error in form.sms_opt_in.errors %}
+                    <span class="text-danger">{{ error }}</span>
+                {% endfor %}
+            </div>
+
+            <div class="service-text text-center mb-4">Where will we be servicing</div>
+            
+            <!-- Street Address -->
+            <div class="form-group mb-3">
+                {{ form.street_address(class="form-control", placeholder="Street Address") }}
+                {% for error in form.street_address.errors %}
+                    <span class="text-danger">{{ error }}</span>
+                {% endfor %}
+            </div>
+            
+            <!-- Unit/Apt -->
+            <div class="form-group mb-3">
+                {{ form.unit_apt(class="form-control", placeholder="Unit/Apt (Optional)") }}
+                {% for error in form.unit_apt.errors %}
+                    <span class="text-danger">{{ error }}</span>
+                {% endfor %}
+            </div>
+            
+            <!-- City -->
+            <div class="form-group mb-3">
+                {{ form.city(class="form-control", placeholder="City") }}
+                {% for error in form.city.errors %}
+                    <span class="text-danger">{{ error }}</span>
+                {% endfor %}
+            </div>
+            
+            <!-- Country (Read-Only) -->
+            <div class="form-group mb-3">
+                {{ form.country(class="form-control", readonly=True, value="United States") }}
+                {% for error in form.country.errors %}
+                    <span class="text-danger">{{ error }}</span>
+                {% endfor %}
+            </div>
+            
+            <!-- Zip Code -->
+            <div class="form-group mb-3">
+                {{ form.zip_code(class="form-control", placeholder="Zip Code") }}
+                {% for error in form.zip_code.errors %}
+                    <span class="text-danger">{{ error }}</span>
+                {% endfor %}
+            </div>
+            
+            <!-- Password -->
+            <div class="form-group mb-3">
+                {{ form.password.label(class="form-label") }}
+                {{ form.password(class="form-control", placeholder="Password", required=True) }}
+                {% for error in form.password.errors %}
+                    <span class="text-danger">{{ error }}</span>
+                {% endfor %}
+            </div>
+            
+            <!-- Confirm Password -->
+            <div class="form-group mb-3">
+                {{ form.confirm_password(class="form-control", placeholder="Confirm Password", required=True) }}
+                {% for error in form.confirm_password.errors %}
+                    <span class="text-danger">{{ error }}</span>
+                {% endfor %}
+            </div>
+            
+            <!-- Submit Button -->
+            <div class="text-center">
+                {{ form.submit(class="btn btn-primary") }}
+            </div>
+        </form>
+    </div>
+</div>
+
+
+{% endblock %}

@@ -1,0 +1,241 @@
+{% extends 'base.html' %}
+
+{% block title %}Home Page{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+  <!-- Center the main image with a maximum width -->
+  <div class="row mb-4 justify-content-center">
+    <div class="col-auto text-center">
+      <img 
+        id="service-display-image" 
+        src="{{ default_image }}" 
+        alt="Selected Service" 
+        class="img-fluid"
+        style="max-width: 600px; width: 100%;">
+    </div>
+  </div>
+
+  <!-- Two dropdown selectors side by side for large screens; stack on smaller -->
+  <div class="row g-3 mb-3 row-cols-1 row-cols-md-2">
+    <div class="col">
+      <div class="dropdown">
+        <button class="btn btn-secondary dropdown-toggle w-100" type="button" 
+                id="vehicleSizeDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+          Select Vehicle Size
+        </button>
+        <ul class="dropdown-menu w-100" aria-labelledby="vehicleSizeDropdown">
+          {% for size in vehicle_sizes %}
+          <li>
+            <a class="dropdown-item vehicle-size-option" href="#"
+               data-vehicle-size="{{ size.value }}">
+              {{ size.display }}
+            </a>
+          </li>
+        {% endfor %}
+        
+      </div>
+    </div>
+    <div class="col">
+      <div class="dropdown">
+        <button class="btn btn-secondary dropdown-toggle w-100" type="button" 
+                id="serviceDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+          Select Service
+        </button>
+        <ul class="dropdown-menu w-100" aria-labelledby="serviceDropdown">
+          {% for service in services if service.active %}
+          <li>
+            <a class="dropdown-item service-option" href="#"
+               data-service-id="{{ service._id }}"
+               data-service-key="{{ service.key }}"
+               data-service-label="{{ service.label }}">
+              {{ service.label }}
+            </a>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Date and Time Section -->
+  <div class="row mb-4">
+    <div class="col text-center">
+      <h2 class="mb-3">Select Date &amp; Time</h2>
+      <div class="input-group justify-content-center">
+        <input type="text" id="appointmentDateTime" class="form-control w-50" 
+               aria-label="Appointment Date and Time">
+      </div>
+    </div>
+  </div>
+  
+  <!-- Centered button below the dropdowns -->
+  <div class="row">
+    <div class="col text-center">
+      <button id="bookNowBtn" class="btn btn-primary">Book Now</button>
+    </div>
+  </div>
+</div>
+
+
+<div class="container mt-5 text-center">
+  <h1>Or</h1>
+  <hr class="custom-hr">
+</div>
+<div class="text-center mt-3">
+  <a href="tel:+18138609587" class="btn call-now-btn">
+    Click Here to Book a Service<br>
+    <span class="phone-number">(813) 860-9587</span>
+  </a>
+</div>
+<div class="container mt-5 text-center">
+  <h1>Where we service</h1>
+  <hr class="custom-hr">
+</div>
+
+<!-- Container-fluid for a full-width map image -->
+<div class="container-fluid p-0">
+  <picture>
+    <source media="(min-width: 768px)" srcset="{{ url_for('static', filename='creatives/largemap.svg') }}">
+    <img src="{{ url_for('static', filename='creatives/smallmap.svg') }}" alt="smallmap" class="img-fluid full-width-image">
+  </picture>
+</div>
+<div class="container mt-5 text-center">
+  <hr class="custom-hr">
+</div>
+
+<!-- Include Flatpickr CSS and JS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+<!-- Consolidated JavaScript Code -->
+<script>
+  // Helper function: Round a Date object to the nearest 30 minutes.
+  function roundToNearest30(date) {
+    const ms = 1800000; // 30 minutes in milliseconds
+    return new Date(Math.round(date.getTime() / ms) * ms);
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+
+    // Initialize Flatpickr on the datetime input with 30-minute increments
+    flatpickr("#appointmentDateTime", {
+      enableTime: true,
+      dateFormat: "Y-m-d\\TH:i",  // ISO-like format without seconds
+      time_24hr: true,
+      minuteIncrement: 30,
+      defaultDate: roundToNearest30(new Date())
+    });
+
+    // Set default selection for vehicle size
+    let selectedVehicleSize = "coupe_2_seater";
+    let selectedService = null;
+
+    // Mapping from vehicle size to an object with image URL and alt text.
+    const vehicleSizeData = {
+      "coupe_2_seater": {
+        imageUrl: "{{ url_for('static', filename='creatives/coupe.jpg') }}",
+        altText: "Image of a 2-seater coupe"
+      },
+      "hatchback_2_door": {
+        imageUrl: "{{ url_for('static', filename='creatives/hatchback2door.jpg') }}",
+        altText: "Image of a 2-door hatchback"
+      },
+      "hatchback_4_door": {
+        imageUrl: "{{ url_for('static', filename='creatives/hatchback4door.png') }}",
+        altText: "Image of a 4-door hatchback"
+      },
+      "minivan_6_seater": {
+        imageUrl: "{{ url_for('static', filename='creatives/minivan.avif') }}",
+        altText: "Image of a 6-seater minivan"
+      },
+      "sedan_2_door": {
+        imageUrl: "{{ url_for('static', filename='creatives/sedan2door.webp') }}",
+        altText: "Image of a 2-door sedan"
+      },
+      "sedan_4_door": {
+        imageUrl: "{{ url_for('static', filename='creatives/sedan.jpg') }}",
+        altText: "Image of a 4-door sedan"
+      },
+      "suv_4_seater": {
+        imageUrl: "{{ url_for('static', filename='creatives/suv4door.webp') }}",
+        altText: "Image of a 4-seater SUV"
+      },
+      "suv_6_seater": {
+        imageUrl: "{{ url_for('static', filename='creatives/suv4door.webp') }}",
+        altText: "Image of a 6-seater SUV"
+      },
+      "truck_2_seater": {
+        imageUrl: "{{ url_for('static', filename='creatives/truck2seater.jpg') }}",
+        altText: "Image of a 2-seater truck"
+      },
+      "truck_4_seater": {
+        imageUrl: "{{ url_for('static', filename='creatives/truck4seater.png') }}",
+        altText: "Image of a 4-seater truck"
+      }
+    };
+
+    function updateDisplayImage() {
+      const imageElement = document.getElementById('service-display-image');
+      if (selectedVehicleSize && vehicleSizeData[selectedVehicleSize]) {
+        imageElement.src = vehicleSizeData[selectedVehicleSize].imageUrl;
+        imageElement.alt = vehicleSizeData[selectedVehicleSize].altText;
+      } else {
+        imageElement.src = "{{ default_image }}";
+        imageElement.alt = "Default service image";
+      }
+    }
+
+    // Pre-fill the vehicle size dropdown button with the default value.
+    document.getElementById('vehicleSizeDropdown').textContent = "Coup 2 Seater";
+    updateDisplayImage();
+
+    // Event listener for vehicle size options.
+    document.querySelectorAll('.vehicle-size-option').forEach(item => {
+      item.addEventListener('click', function(e) {
+        e.preventDefault();
+        selectedVehicleSize = this.getAttribute('data-vehicle-size');
+        document.getElementById('vehicleSizeDropdown').textContent = this.textContent;
+        updateDisplayImage();
+      });
+    });
+
+    // Event listener for service options.
+    document.querySelectorAll('.service-option').forEach(item => {
+      item.addEventListener('click', function(e) {
+        e.preventDefault();
+        selectedService = {
+          id: this.getAttribute('data-service-id'),
+          key: this.getAttribute('data-service-key'),
+          label: this.getAttribute('data-service-label')
+        };
+        document.getElementById('serviceDropdown').textContent = this.textContent;
+        updateDisplayImage();
+      });
+    });
+
+    // When the Book Now button is clicked.
+// Within document.addEventListener('DOMContentLoaded', ...) in your JS:
+document.getElementById('bookNowBtn').addEventListener('click', function() {
+  if (!selectedVehicleSize || !selectedService) {
+    alert("Please select both a vehicle size and a service.");
+    return;
+  }
+
+  let url = "/customer/add_to_cart";
+  url += "?service_id=" + encodeURIComponent(selectedService.id);
+  url += "&vehicle_size=" + encodeURIComponent(selectedVehicleSize);
+
+  const dateTime = document.getElementById('appointmentDateTime').value;
+  if (dateTime) {
+    url += "&appointment=" + encodeURIComponent(dateTime);
+  }
+
+  // Redirect via GET
+  window.location.href = url;
+});
+
+  });
+</script>
+
+{% endblock %}

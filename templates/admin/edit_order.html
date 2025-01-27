@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+
+{% block title %}Edit Order{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2>Edit Order</h2>
+    <form method="POST">
+        {{ form.hidden_tag() }}
+
+        <!-- Status Dropdown -->
+        <div class="form-group">
+            <label for="status">Status:</label>
+            {{ form.status(class="form-control") }}
+            {% for error in form.status.errors %}
+                <span class="text-danger">{{ error }}</span>
+            {% endfor %}
+        </div>
+
+        <!-- Payment Method Field -->
+        <div class="form-group">
+            <label for="payment_method">Payment Method:</label>
+            {{ form.payment_method(class="form-control") }}
+            {% for error in form.payment_method.errors %}
+                <span class="text-danger">{{ error }}</span>
+            {% endfor %}
+        </div>
+
+        <!-- Total Amount Field -->
+        <div class="form-group">
+            <label for="total_amount">Total Amount:</label>
+            {{ form.total_amount(class="form-control") }}
+            {% for error in form.total_amount.errors %}
+                <span class="text-danger">{{ error }}</span>
+            {% endfor %}
+        </div>
+
+        <!-- Schedule Date Picker -->
+        <div class="form-group">
+            <label for="service_date">Schedule Date:</label>
+            {{ form.service_date(class="form-control", type="date") }}
+            {% for error in form.service_date.errors %}
+                <span class="text-danger">{{ error }}</span>
+            {% endfor %}
+        </div>
+
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+        <a href="{{ url_for('admin.view_order', order_id=order._id) }}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+{% endblock %}

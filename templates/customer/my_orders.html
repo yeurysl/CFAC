@@ -1,0 +1,123 @@
+<!-- templates/customer/my_orders.html -->
+<!-- templates/customer/my_orders.html -->
+{% extends 'base.html' %}
+
+{% block title %}My Orders{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="my-4 text-center">My Orders</h1>
+
+    {% if orders %}
+        {% for order in orders %}
+            <!-- Card Start -->
+            <div class="card mb-4 shadow-sm">
+                <!-- Card Header -->
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                   
+                    <!-- Display a status badge (e.g., "Ordered", "Processing", "Scheduled") -->
+                    <span class="badge bg-light text-dark">
+                        {{ order.status if order.status else 'Processing' }}
+                    </span>
+                </div>
+                
+                <!-- Card Body -->
+                <div class="card-body">
+                    
+                    <!-- Order Info Row -->
+                    <div class="row mb-3">
+                        <!-- Left Column: Labels -->
+                        <div class="col-md-4 col-sm-5 col-12 fw-semibold text-muted">
+                            Order Date:
+                        </div>
+                        <!-- Right Column: Data -->
+                        <div class="col-md-8 col-sm-7 col-12">
+                            {{ order.order_date.strftime('%B %d, %Y at %I:%M %p') }}
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-4 col-sm-5 col-12 fw-semibold text-muted">
+                            Service Date:
+                        </div>
+                        <div class="col-md-8 col-sm-7 col-12">
+                            {% if order.service_date %}
+                                {{ order.service_date.strftime('%B %d, %Y') }}
+                            {% else %}
+                                Not specified
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-4 col-sm-5 col-12 fw-semibold text-muted">
+                            Service Time:
+                        </div>
+                        <div class="col-md-8 col-sm-7 col-12">
+                            {% if order.service_time %}
+                                {{ order.service_time | format_time }}
+                            {% else %}
+                                Not specified
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-4 col-sm-5 col-12 fw-semibold text-muted">
+                            Scheduled By:
+                        </div>
+                        <div class="col-md-8 col-sm-7 col-12">
+                            {% if order.scheduled_by_name %}
+                                {{ order.scheduled_by_name }}
+                            {% else %}
+                                Not scheduled yet
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Total Row -->
+                    <div class="row mb-3">
+                        <div class="col-md-4 col-sm-5 col-12 fw-semibold text-muted">
+                            Total:
+                        </div>
+                        <div class="col-md-8 col-sm-7 col-12">
+                            {{ order.total | currency }}
+                        </div>
+                    </div>
+                    
+                </div>  <!-- End Card Body -->
+                
+                <!-- Services List -->
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item bg-light fw-semibold">
+                        Services:
+                    </li>
+                    {% for service in order.service_details %}
+                        <li class="list-group-item">
+                            <!-- Service Title and Optional Price -->
+                            <div class="d-flex w-100 justify-content-between">
+                                <h5 class="mb-1">{{ service.label }}</h5>
+                                <!-- Uncomment if you want to display individual service total -->
+                                {# <small class="text-muted">{{ service.total | currency }}</small> #}
+                            </div>
+                            
+                            <!-- Optional service description or category -->
+                            {% if service.description %}
+                                <p class="mb-1 text-muted">{{ service.description }}</p>
+                            {% endif %}
+                            
+                            <!-- Additional fields can go here, e.g. category, completion_time, etc. -->
+                            {# <small>Category: {{ service.category }}</small> #}
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <!-- Card End -->
+            
+        {% endfor %}
+    {% else %}
+        <p>You have not placed any orders yet.</p>
+        <a href="{{ url_for('customer.customer_home') }}" class="btn btn-secondary">Continue Shopping</a>
+    {% endif %}
+</div>
+{% endblock %}

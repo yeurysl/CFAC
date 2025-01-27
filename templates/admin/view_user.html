@@ -1,0 +1,42 @@
+<!-- templates/admin/view_user.html -->
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <h1>User Details</h1>
+    <div class="card mt-4">
+        <!-- Card Header: Display User's Email -->
+        <div class="card-header">
+            {{ user.email }}
+        </div>
+        <div class="card-body">
+            <!-- User's Name -->
+            <h5 class="card-title">Name: {{ user.name }}</h5>
+            
+            <!-- Additional User Information -->
+            <p><strong>User Type:</strong> {{ user.user_type }}</p>
+            <p><strong>Phone Number:</strong> {{ user.phone_number }}</p>
+            
+            <!-- Creation Date -->
+            {% if user.creation_date %}
+            <p><strong>Creation Date:</strong> {{ user.creation_date.strftime('%B %d, %Y') }}</p>
+            {% endif %}
+            
+            <!-- Address Details -->
+            {% if user.address %}
+            <h5>Address:</h5>
+            <p>
+                {{ user.address.street_address }}{% if user.address.unit_apt %}, Apt {{ user.address.unit_apt }}{% endif %}<br>
+                {{ user.address.city }}, {{ user.address.country }} {{ user.address.zip_code }}
+            </p>
+            {% endif %}
+            
+            <!-- Username (If Available) -->
+            {% if user.username %}
+            <p><strong>Username:</strong> {{ user.username }}</p>
+            {% endif %}
+        </div>
+    </div>
+    <a href="{{ url_for('admin.manage_users') }}" class="btn btn-secondary mt-3">Back to User Management</a>
+</div>
+{% endblock %}

@@ -1,0 +1,242 @@
+{% extends 'base.html' %}
+
+{% block title %}Collect Payment{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="mb-4">Collect Payment for Order {{ order._id }}</h1>
+
+    <!-- Display Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="card mb-4">
+        <div class="card-header">Order Details</div>
+        <div class="card-body">
+            <p><strong>Customer Name:</strong> {{ order.guest_name or order.user_name or 'N/A' }}</p>
+            <p><strong>Service Date:</strong> 
+                <td>
+                    {% if order.service_date %}
+                        {{ order.service_date | format_date_with_suffix }}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
+            </p>
+            <p><strong>Order Creation Date:</strong> 
+                <td>
+                    {% if order.creation_date %}
+                        {{ order.creation_date | format_date_with_suffix }}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
+            </p>
+            <p><strong>Total Amount:</strong> ${{ '%.2f'|format(order.total) }}</p>
+            <p><strong>Payment Status:</strong> {{ order.payment_status }}</p>
+        </div>
+    </div>
+
+    <!-- Payment Method Selection Form -->
+    <form id="payment-form" action="{{ url_for('collecting.collect_payment', order_id=order._id) }}" method="POST">
+        {{ form.hidden_tag() }}
+
+        <!-- Payment Method Options -->
+        <div class="form-group mb-3">
+            <label class="form-label">Select Payment Method:</label>
+            <div class="btn-group d-flex" role="group" aria-label="Payment method group">
+                <!-- Cash Radio -->
+                <input
+                    type="radio"
+                    class="btn-check"
+                    name="payment_method"
+                    id="btn-cash"
+                    value="cash"
+                    autocomplete="off"
+                    checked
+                />
+                <label class="btn btn-outline-primary flex-fill" for="btn-cash">
+                    <i class="fas fa-money-bill-wave fa-lg"></i> Cash
+                </label>
+
+                <!-- Card Radio -->
+                <input
+                    type="radio"
+                    class="btn-check"
+                    name="payment_method"
+                    id="btn-card"
+                    value="card"
+                    autocomplete="off"
+                />
+                <label class="btn btn-outline-info flex-fill" for="btn-card">
+                    <i class="fas fa-credit-card fa-lg"></i> Manual Card
+                </label>
+            </div>
+        </div>
+
+        <!-- Manual Card Payment Section (Initially Hidden) -->
+        <div class="form-group mb-3" id="card-payment-section" style="display: none;">
+            <label for="card-element" class="form-label">Credit or Debit Card</label>
+            <div id="card-element" class="form-control">
+                <!-- A Stripe Element will be inserted here. -->
+            </div>
+            <!-- Used to display form errors. -->
+            <div id="card-errors" role="alert" class="text-danger mt-2"></div>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="submit" class="btn btn-primary">Submit Payment</button>
+    </form>
+</div>
+<!-- Loading Overlay -->
+<div id="loading-overlay">
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Processing...</span>
+    </div>
+</div>
+
+<!-- CSS for Loading Overlay -->
+<style>
+    /* Loading Overlay Styles */
+    #loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.8);
+        display: none; /* Hidden by default */
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+    }
+</style>
+
+
+<!-- Include Font Awesome for Icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+
+<!-- Include Stripe.js -->
+<script src="https://js.stripe.com/v3/"></script>
+
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('DOM fully loaded and parsed');
+
+        // Payment Method Toggle (radio) + Show/Hide Card Section
+        const paymentMethodRadios = document.getElementsByName('payment_method');
+        const cardPaymentSection = document.getElementById('card-payment-section');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const submitButton = document.querySelector('#payment-form button[type="submit"]');
+
+        function handlePaymentMethodChange() {
+            const selectedMethod = document.querySelector('input[name="payment_method"]:checked').value;
+            console.log('Selected Payment Method:', selectedMethod);
+
+            if (selectedMethod === 'card') {
+                cardPaymentSection.style.display = 'block';
+            } else {
+                cardPaymentSection.style.display = 'none';
+            }
+        }
+
+        // Attach event listeners to radio buttons
+        Array.from(paymentMethodRadios).forEach(radio => {
+            radio.addEventListener('change', handlePaymentMethodChange);
+        });
+
+        // Initialize the form based on default
+        handlePaymentMethodChange();
+
+        // Initialize Stripe for Manual Card Payment
+        const stripePublishableKey = "{{ stripe_publishable_key }}";
+        const stripe = Stripe(stripePublishableKey);
+        const elements = stripe.elements();
+
+        const style = {
+            base: {
+                fontSize: '16px',
+                color: '#32325d',
+                '::placeholder': { color: '#aab7c4' }
+            },
+            invalid: {
+                color: '#fa755a',
+                iconColor: '#fa755a'
+            }
+        };
+
+        // Create and mount the Stripe "Card" Element
+        const card = elements.create('card', { style: style });
+        card.mount('#card-element');
+        console.log('Stripe Card Element mounted');
+
+        // Listen for errors on the card Element
+        card.on('change', function(event) {
+            const displayError = document.getElementById('card-errors');
+            if (event.error) {
+                console.log('Card Element Error:', event.error.message);
+                displayError.textContent = event.error.message;
+            } else {
+                displayError.textContent = '';
+            }
+        });
+
+        // Handle form submission
+        const form = document.getElementById('payment-form');
+        form.addEventListener('submit', function(event) {
+            const selectedPaymentMethod = document.querySelector('input[name="payment_method"]:checked').value;
+            if (selectedPaymentMethod === 'card') {
+                event.preventDefault();
+                console.log('Payment form submitted for Card Payment');
+
+                // Show the loading overlay
+                loadingOverlay.style.display = 'flex';
+                submitButton.disabled = true; // Disable the submit button to prevent multiple clicks
+
+                // Create a Stripe PaymentMethod
+                stripe.createPaymentMethod('card', card).then(function(result) {
+                    if (result.error) {
+                        console.log('Stripe PaymentMethod Creation Error:', result.error.message);
+                        const errorElement = document.getElementById('card-errors');
+                        errorElement.textContent = result.error.message;
+
+                        // Hide the loading overlay and enable the submit button
+                        loadingOverlay.style.display = 'none';
+                        submitButton.disabled = false;
+                    } else {
+                        console.log('Stripe PaymentMethod created:', result.paymentMethod.id);
+                        // Send the PaymentMethod ID to your server
+                        stripePaymentMethodHandler(result.paymentMethod.id);
+                    }
+                });
+            } else {
+                // For Cash, show the loading overlay since the form will submit normally
+                loadingOverlay.style.display = 'flex';
+                submitButton.disabled = true;
+            }
+        });
+
+        // Insert the PaymentMethod ID into the form and submit
+        function stripePaymentMethodHandler(paymentMethodId) {
+            console.log('Handling Stripe PaymentMethod ID:', paymentMethodId);
+            const hiddenInput = document.createElement('input');
+            hiddenInput.setAttribute('type', 'hidden');
+            hiddenInput.setAttribute('name', 'payment_method_id');
+            hiddenInput.setAttribute('value', paymentMethodId);
+            form.appendChild(hiddenInput);
+
+            // Now submit the form
+            form.submit();
+        }
+    });
+</script>
+{% endblock %}

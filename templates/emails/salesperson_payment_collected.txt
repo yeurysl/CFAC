@@ -1,0 +1,9 @@
+Dear {{ salesperson_name }},
+
+You have successfully collected a payment of ${{ '%.2f'|format(order.total) }} for Order {{ order._id }} via {{ payment_method.capitalize() }}.
+Service Date: {{ order.service_date.strftime('%Y-%m-%d %H:%M') if order.service_date else 'N/A' }}
+
+Thank you for your excellent service!
+
+Best regards,
+CFAC AutoCare Team

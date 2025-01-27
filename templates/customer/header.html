@@ -1,0 +1,64 @@
+<!-- templates/header_customer.html -->
+<nav class="navbar navbar-expand-lg custom-navbar">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="{{ url_for('customer.customer_home') }}">
+            <img src="{{ url_for('static', filename='creatives/Logo.svg') }}" alt="Your Logo" width="auto" height="175">
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCustomer" aria-controls="navbarCustomer" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+
+
+        <div class="collapse navbar-collapse" id="navbarCustomer">
+            <ul class="navbar-nav">
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('customer.my_orders') }}">My Orders</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('customer.cart') }}">Cart</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('core.logout') }}">Logout</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('core.account_settings') }}">Account Settings</a>
+                </li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" 
+                       aria-expanded="false">
+                        Find Us on Social Media
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end p-3"> <!-- Added padding for spacing -->
+                        <div class="d-flex justify-content-center align-items-center flex-wrap">
+                            <a href="https://www.google.com/localservices/prolist?spp=Cg0vZy8xMXc5OHg3eDJx&scp=CgAaGUNlbnRyYWwgRmxvcmlkYSBBdXRvIENhcmUqGUNlbnRyYWwgRmxvcmlkYSBBdXRvIENhcmU%3D&q=Central+Florida+Auto+Care&source=sh/x/loc/srv/m1/0&kgs=c72392faac7adf65&src=2&slp=UhUIARIREg8iDS9nLzExdzk4eDd4MnE" target="_blank" class="mx-2 my-1">
+                                <img src="https://cfautocare.biz/static/creatives/googlelong.png" alt="Google" height="38">
+                            </a>
+                            <a href="https://www.facebook.com/people/Central-Florida-Auto-Detailing/61559806436654/" target="_blank" class="mx-2 my-1">
+                                <img src="https://cfautocare.biz/static/creatives/fblong.png" alt="Facebook" height="64">
+                            </a>
+                            <a href="https://www.instagram.com/centralfloridaautocare" target="_blank" class="mx-2 my-1">
+                                <img src="https://cfautocare.biz/static/creatives/instalong.png" alt="Instagram" height="44">
+                            </a>
+                            <a href="https://linktr.ee/centralfloridaautodetailing" target="_blank" class="mx-2 my-1">
+                                <img src="https://cfautocare.biz/static/creatives/linktree.png" alt="Linktree" height="28">
+                            </a>
+                        </div>
+                    </ul>
+                </li>
+        
+        
+
+            </ul>
+        </div>
+
+
+
+
+
+
+     
+
+
+    </div>
+</nav>

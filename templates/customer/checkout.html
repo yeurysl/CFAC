@@ -1,0 +1,204 @@
+{% extends 'base.html' %}
+{% block title %}Checkout{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Checkout</h1>
+    
+    <!-- Display Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    
+    <!-- Check if User is Logged In and is a Customer -->
+    {% if current_user.is_authenticated and current_user.user_type == 'customer' %}
+        
+        <!-- Services Summary -->
+        <ul class="list-group mb-4">
+            {% for service in services %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    {{ service.label or service.name }}
+                    <span>{{ service.price|currency }}</span>
+                </li>
+            {% endfor %}
+        </ul>
+        <h4 class="text-end mb-4">Total: {{ total|currency }}</h4>
+
+        <!-- Checkout Form -->
+        <form id="checkout-form" method="post" action="{{ url_for('customer.checkout') }}">
+            <!-- Include the CSRF token -->
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            
+            <!-- Service Date Selection -->
+            <div class="mb-3">
+                <label for="service_date" class="form-label">Select Service Date:</label>
+                <input
+                    type="date"
+                    id="service_date"
+                    name="service_date"
+                    class="form-control"
+                    required
+                    value="{{ default_service_date }}"
+                >
+            </div>
+            
+            <!-- Service Time Selection -->
+            <div class="mb-3">
+                <label for="service_time" class="form-label">Select Service Time:</label>
+                <select id="service_time" name="service_time" class="form-select" required>
+                    {% for hour in range(6, 17) %}
+                        {% set hour12 = hour % 12 %}
+                        {% set period = 'AM' if hour < 12 else 'PM' %}
+                        <option value="{{ '%02d:00' % hour }}">{{ '%02d:00 %s' % (hour12 if hour12 != 0 else 12, period) }}</option>
+                        {% if hour != 16 %}
+                            <option value="{{ '%02d:30' % hour }}">{{ '%02d:30 %s' % (hour12 if hour12 != 0 else 12, period) }}</option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+                <small class="form-text text-muted">Available times: 6:00 AM to 4:30 PM</small>
+            </div>
+
+            <!-- Stripe Card Payment Section -->
+            <div class="mb-3" id="stripe-card-section">
+                <label for="card-element" class="form-label">Credit or Debit Card</label>
+                <div id="card-element" class="form-control">
+                    <!-- A Stripe Element will be inserted here. -->
+                </div>
+                <!-- Used to display form errors. -->
+                <div id="card-errors" role="alert" class="text-danger mt-2"></div>
+            </div>
+            
+            <button type="submit" class="btn btn-primary">Place Order</button>
+        </form>
+    {% else %}
+        <!-- User is not logged in or not a customer, prompt for login -->
+        <div class="row">
+            <div class="col-md-6 offset-md-3">
+                <p>You need to log in to complete your purchase.</p>
+                <form method="post" action="{{ url_for('customer.login') }}">
+                    <!-- Hidden field to redirect back to checkout after login -->
+                    <input type="hidden" name="next" value="{{ request.path }}">
+                    <!-- Include the CSRF token -->
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email:</label>
+                        <input type="email" id="email" name="email" class="form-control" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password:</label>
+                        <input type="password" id="password" name="password" class="form-control" required>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-success">Log In</button>
+                </form>
+                <hr>
+                <p>Don't have an account? 
+                   <a href="{{ url_for('customer.register') }}?next={{ request.path }}" class="btn btn-link">
+                       Create one
+                   </a>
+                </p>
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- Service Address Section -->
+    {% if user_address %}
+    <div class="card mb-4 mt-4">
+        <div class="card-body">
+            <div class="row align-items-center">
+                <!-- Label Column -->
+                <div class="col-md-4">
+                    <h5 class="service-address-label mb-0">Where we will be servicing:</h5>
+                </div>
+                <!-- Address Column -->
+                <div class="col-md-8">
+                    <p class="service-address-text mb-0">
+                        {{ user_address.street_address }}
+                        {% if user_address.unit_apt %}
+                            , {{ user_address.unit_apt }}
+                        {% endif %},
+                        {{ user_address.city }}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Include Stripe.js -->
+<script src="https://js.stripe.com/v3/"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize Stripe
+        const stripePublishableKey = "{{ stripe_publishable_key }}";
+        const stripe = Stripe(stripePublishableKey);
+        const elements = stripe.elements();
+
+        const style = {
+            base: {
+                fontSize: '16px',
+                color: '#32325d',
+                '::placeholder': {
+                    color: '#aab7c4'
+                }
+            },
+            invalid: {
+                color: '#fa755a',
+                iconColor: '#fa755a'
+            }
+        };
+
+        const card = elements.create('card', { style: style });
+        card.mount('#card-element');
+
+        card.on('change', function(event) {
+            const displayError = document.getElementById('card-errors');
+            if (event.error) {
+                displayError.textContent = event.error.message;
+            } else {
+                displayError.textContent = '';
+            }
+        });
+
+        const form = document.getElementById('checkout-form');
+        if (form) {
+            form.addEventListener('submit', function(event) {
+                event.preventDefault();
+
+                stripe.createPaymentMethod('card', card).then(function(result) {
+                    if (result.error) {
+                        const errorElement = document.getElementById('card-errors');
+                        errorElement.textContent = result.error.message;
+                    } else {
+                        // Insert the PaymentMethod ID into the form
+                        stripePaymentMethodHandler(result.paymentMethod.id);
+                    }
+                });
+            });
+        }
+
+        function stripePaymentMethodHandler(paymentMethodId) {
+            // Insert the PaymentMethod ID into the form so it gets submitted to the server
+            const form = document.getElementById('checkout-form');
+            const hiddenInput = document.createElement('input');
+            hiddenInput.setAttribute('type', 'hidden');
+            hiddenInput.setAttribute('name', 'payment_method_id');
+            hiddenInput.setAttribute('value', paymentMethodId);
+            form.appendChild(hiddenInput);
+
+            // Submit the form
+            form.submit();
+        }
+    });
+</script>
+{% endblock %}

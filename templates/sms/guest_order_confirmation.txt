@@ -1,0 +1,11 @@
+Hey {{ order.guest_name }},
+
+Thank you for your order! Your detailing has been added to our schedule for {{ order.service_date.strftime('%B %d, %Y') }}.
+
+
+If you have any questions or need any further assistance, please contact your salesperson {{ salesperson_name }} at {{ salesperson_phone_number }}, or message us at support@cfautocare.biz.
+
+
+Please expect another message from us with a reminder about your detailing. If you need to reschedule please reach out to us.
+Thank you for doing business with us,
+CFAC Team

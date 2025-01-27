@@ -1,0 +1,34 @@
+Thank You for Your Order!
+
+Dear {{ order.guest_name }},
+
+Thank you for placing an order with CFAC. Here are the details of your order:
+
+Order Details:
+Order ID: {{ order._id }}
+Order Date: {{ order.creation_date.strftime('%B %d, %Y at %I:%M %p') }}
+Service Date: {{ order.service_date.strftime('%B %d, %Y at %I:%M %p') }}
+
+Address:
+{{ order.guest_address.street_address }}
+{% if order.guest_address.unit_apt %}
+{{ order.guest_address.unit_apt }}
+{% endif %}
+{{ order.guest_address.city }}, {{ order.guest_address.country }} {{ order.guest_address.zip_code }}
+
+{% if products %}
+Products Ordered:
+{% for product in products %}
+- {{ product.name }}: ${{ "%.2f"|format(product.price) }}
+{% endfor %}
+Total: ${{ "%.2f"|format(order.total) }}
+{% else %}
+No products were selected for this order.
+{% endif %}
+
+If you have any questions or need further assistance, please contact your salesperson {{ salesperson_name }} at {{ salesperson_phone_number }}, or message us at support@cfautocare.biz.
+
+Thank you for doing business with us,
+Central Florida Auto Care Team
+
+© {{ current_year }} CFAC. All rights reserved.

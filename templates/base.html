@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">    
+    <title>{% block title %}CFAD{% endblock %}</title>
+</head>
+<body>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <script src="{{ url_for('static', filename='js/product.js') }}"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+
+
+
+    <!-- Header -->
+
+    {% if current_user.is_authenticated %}
+    {% if current_user.user_type == 'admin' %}
+        {% include 'admin/header.html' %}
+    {% elif current_user.user_type == 'tech' %}
+        {% include 'tech/header.html' %}
+    {% elif current_user.user_type == 'sales' %}
+        {% include 'sales/header.html' %}
+    {% elif current_user.user_type == 'customer' %}
+        {% include 'customer/header.html' %}
+    {% else %}
+        {% include 'header_regular.html' %}
+    {% endif %}
+{% else %}
+    {% include 'header_regular.html' %}
+{% endif %}
+
+
+    <!-- Flash Messages -->
+    <div class="container mt-3">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+
+    <div class="content">
+        {% block content %}
+        {% endblock %}
+    </div>
+
+
+      <!-- Footer -->
+      {% include 'footer.html' %}
+      
+    <script>
+       document.addEventListener('DOMContentLoaded', function() {
+    var detailButtons = document.querySelectorAll('.btn-product-view-details');
+    detailButtons.forEach(function(button) {
+        button.addEventListener('click', function() {
+            var expanded = this.getAttribute('aria-expanded') === 'true';
+            this.textContent = expanded ? 'View Details' : 'Hide Details';
+        });
+    });
+});
+    </script>
+
+    
+</body>
+</html>

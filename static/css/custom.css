@@ -1,0 +1,241 @@
+.custom-navbar {
+    background-color: #07173d; /* Change this to your preferred color */
+  }
+  .custom-navbar .nav-link {
+    color: white !important; /* Ensure the text color is white */
+}
+
+.custom-navbar .nav-link:hover {
+    color: lightgray; /* Optional: Add a hover effect */
+}
+.custom-navbar .navbar-toggler-icon {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath stroke='rgba%28255, 255, 255, 1%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M1 2h14M1 8h14M1 14h14'/%3E%3C/svg%3E") !important;
+}
+.btn-product-view-details {
+  /* Your custom styles here */
+  background-color: #07173d; /* Example: Custom background color */
+  border-color: #07173d;      /* Example: Custom border color */
+  color: #ffffff;             /* Example: Custom text color */
+  border-radius: 2px;
+}
+
+.btn-book-now {
+  background-color: #0b5f2a; /* Example: Custom background color */
+  border-color: #0b5f2a;      /* Example: Custom border color */
+  color: #ffffff;             /* Example: Custom text color */
+  border-radius: 2px;
+
+}
+.btn-book-now:hover {
+  background-color: #89988b;  /* Darker green on hover */
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2); /* Slight shadow for hover effect */
+}
+
+.btn-product-view-details:hover {
+  color: #ffffff;  
+  background-color: #4e5f8a; /* Example: Darker shade on hover */
+  border-color: #0a1d4f;
+}
+.product-buttons {
+  display: flex;
+  justify-content: center; /* Centers the buttons */
+  gap: 26px; /* Adds space between buttons */
+}
+
+.product-buttons .btn {
+  /* Optional: Set consistent button widths */
+  min-width: 120px;
+}
+    
+    
+
+.container-fluid {
+    margin: 0;
+    width: 100%;
+}
+
+.full-width-image {
+    width: 100%;
+    height: auto;
+    display: block;
+
+    /* Apply the mask for fading top and bottom edges */
+    -webkit-mask-image: linear-gradient(to bottom, transparent, black 5%, black 85%, transparent);
+    mask-image: linear-gradient(to bottom, transparent, black 8%, black 95%, transparent);
+}
+.custom-hr {
+     border: none;
+     height: 2px; /* Adjust the thickness */
+     background-color: #ffffff; /* Change to your preferred color */
+     width: 50%; /* Adjust the width as needed */
+     margin: 20px auto; /* Centers the line and adds vertical spacing */
+}
+.call-now-btn {
+    font-size: .8rem;  /* Make the text bigger */
+    padding: 15px 60px;  /* Increase padding for a larger button */
+    font-weight: bold;
+    color: #ffffff;  /* Set the text color to white */
+     border-radius: 3%;
+     background-color: #07173d; 
+     border: 1px solid #07173d;
+    text-align: center;  /* Center-align text within the button */
+    display: inline-block;
+}
+.phone-number {
+    font-size: 1.5rem;  /* Set a slightly smaller font size for the phone number */
+    display: block;  /* Make sure the phone number appears below the main text */
+}
+.card-header-orders {
+
+  background-color: #07173d; 
+
+
+}
+
+
+
+.form-wrapper {
+max-width: 500px; /* Adjust this value to control the width of the form */
+padding: 18px; /* Optional: Add padding around the form */
+border: 1px solid #ffffff; /* Optional: Add a border to visually separate the form */
+border-radius: 8px; /* Optional: Rounded corners for a nicer look */
+background-color: #ffffff; /* Optional: Add a light background color */
+}
+.form-control {
+border-radius: 1%;
+}
+.btn-primary {
+ border-radius: 3%;
+ background-color: #07173d; 
+ border: 1px solid #07173d; 
+ padding: 15px 75px;
+}
+.btn-secondary{
+  border-radius: 3%;
+
+}
+
+.card-header .btn {
+display: block;
+text-align: left;
+width: auto; /* Adjust width as needed */
+position: absolute;
+right: 0; /* Align to the right */
+top: 50%; /* Center vertically in the card header */
+transform: translateY(-50%);
+}   
+.card, .card-header {
+border-radius: 2px; /* Reduces the rounding for a sharper look */
+}
+
+/* Optional: Sharpen border radius of collapse components */
+.collapse {
+border-radius: 2px;
+}
+
+#infoAccordion {
+max-width: 75%; /* Adjust the percentage to make it narrower */
+margin: auto; /* This centers the accordion in its container */
+}
+.card-header, .card-body {
+padding: 13px; /* Reduces padding for a more compact look */
+}
+.card-header h2, .card-body {
+font-size: 20px; /* Reduces the font size */
+}
+
+
+
+
+
+
+
+
+
+/*Orderig css for changing products modak*/
+/* static/css/styles.css */
+
+/* Modal Styling */
+.modal {
+  display: none; /* Hidden by default */
+  position: fixed; /* Stay in place */
+  z-index: 1000; /* Sit on top */
+  left: 0;
+  top: 0;
+  width: 100%; /* Full width */
+  height: 100%; /* Full height */
+  overflow: auto; /* Enable scroll if needed */
+  background-color: rgba(0,0,0,0.5); /* Black w/ opacity */
+}
+
+.modal-content {
+  background-color: #fefefe;
+  margin: 10% auto; /* 10% from the top and centered */
+  padding: 20px;
+  border: 1px solid #888;
+  width: 80%; /* Could be more or less, depending on screen size */
+  max-width: 600px;
+  border-radius: 8px;
+}
+
+.close {
+  color: #aaa;
+  float: right;
+  font-size: 28px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.close:hover,
+.close:focus {
+  color: black;
+  text-decoration: none;
+}
+
+.list-group-item {
+  cursor: pointer;
+}
+
+
+.service-text {
+  font-size: 1.5rem; /* Adjust this value as needed */
+}
+
+
+/* Custom CSS for Loading Overlay */
+#loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.8); /* Semi-transparent background */
+  display: none; /* Hidden by default */
+  justify-content: center;
+  align-items: center;
+  z-index: 9999; /* Ensure it's on top of other elements */
+}
+
+.spinner-border {
+  width: 3rem;
+  height: 3rem;
+}
+
+.dropdown-menu {
+  /* Ensure the dropdown has enough padding */
+  padding: 15px;
+}
+
+/* Ensure images are responsive and centered */
+.dropdown-menu a img {
+  display: block;
+  margin: 0 auto;
+}
+
+.custom-footer {
+  background-color: #0a1b37; /* Replace with your desired background color */
+  border-top: 5px dashed #07173d; /* Replace with your desired border color and thickness */
+}
+.custom-footer .bi {
+  font-size: 2rem; /* Adjust the value to make icons larger or smaller */
+}

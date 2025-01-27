@@ -1,0 +1,90 @@
+
+{% extends 'base.html' %}
+
+{% block title %}Account Settings{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="my-4">Account Settings</h1>
+    <form method="POST" action="{{ url_for('core.account_settings') }}">
+        <!-- Include the CSRF token -->
+        {{ form.hidden_tag() }}
+        
+        <!-- Email Address -->
+        <!-- Email Address -->
+<div class="form-group">
+    <label for="email">
+        Email Address {% if not user.email %}<span class="text-danger">*</span>{% endif %}
+    </label>
+    {% if user.email %}
+        <input type="email" class="form-control" id="email" value="{{ user.email }}" readonly>
+    {% else %}
+        {{ form.email(class="form-control", id="email", placeholder="Enter your email address") }}
+        {% for error in form.email.errors %}
+            <span class="text-danger">{{ error }}</span>
+        {% endfor %}
+    {% endif %}
+</div>
+
+        
+        <!-- Full Name -->
+        <div class="form-group">
+            <label for="name">Full Name <span class="text-danger">*</span></label>
+            {{ form.name(class="form-control", id="name") }}
+            {% for error in form.name.errors %}
+                <span class="text-danger">{{ error }}</span>
+            {% endfor %}
+        </div>
+        
+        <!-- Phone Number -->
+        <div class="form-group">
+            <label for="phone_number">Phone Number <span class="text-danger">*</span></label>
+            {{ form.phone_number(class="form-control", id="phone_number") }}
+            {% for error in form.phone_number.errors %}
+                <span class="text-danger">{{ error }}</span>
+            {% endfor %}
+        </div>
+        
+        <!-- Street Address -->
+        <div class="form-group">
+            <label for="street_address">Street Address <span class="text-danger">*</span></label>
+            {{ form.street_address(class="form-control", id="street_address") }}
+            {% for error in form.street_address.errors %}
+                <span class="text-danger">{{ error }}</span>
+            {% endfor %}
+        </div>
+        
+        <!-- City -->
+        <div class="form-group">
+            <label for="city">City <span class="text-danger">*</span></label>
+            {{ form.city(class="form-control", id="city") }}
+            {% for error in form.city.errors %}
+                <span class="text-danger">{{ error }}</span>
+            {% endfor %}
+        </div>
+        
+        <!-- Country -->
+        <div class="form-group">
+            <label for="country">Country <span class="text-danger">*</span></label>
+            {{ form.country(class="form-control", id="country") }}
+            {% for error in form.country.errors %}
+                <span class="text-danger">{{ error }}</span>
+            {% endfor %}
+        </div>
+        
+        <!-- Zip Code -->
+        <div class="form-group">
+            <label for="zip_code">Zip Code <span class="text-danger">*</span></label>
+            {{ form.zip_code(class="form-control", id="zip_code") }}
+            {% for error in form.zip_code.errors %}
+                <span class="text-danger">{{ error }}</span>
+            {% endfor %}
+        </div>
+        
+        <!-- Submit Button -->
+        <div class="text-center">
+            {{ form.submit(class="btn btn-primary") }}
+        </div>
+    </form>
+</div>
+{% endblock %}
