@@ -170,6 +170,7 @@
 
 
 
+
 <div class="container mt-5 text-center">
   <h1>Where we service</h1>
   <hr class="custom-hr">
@@ -179,19 +180,15 @@
 <div class="container-fluid p-0">
   <picture>
     <source media="(min-width: 768px)" srcset="{{ url_for('static', filename='creatives/largemap.svg') }}">
-    <img src="{{ url_for('static', filename='creatives/smallmap.svg') }}" alt="smallmap" class="img-fluid full-width-image">
+    <img src="{{ url_for('static', filename='creatives/smallmap.svg') }}" alt="smallmap" class="img-fluid full-width-image" loading="lazy">
   </picture>
 </div>
 <div class="container mt-5 text-center">
   <hr class="custom-hr">
 </div>
 
-<!-- Include Flatpickr CSS and JS -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<!-- Include Flatpickr JS -->
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-
-<!-- Include Font Awesome CSS before custom CSS -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-p1x07fLLm7/lchjjdfgN1t+cdqAjAPf1vT+1PCpbeXYFxwIlqG/vgppBC1Z5oVFeFQyjTeJv+WSfq2+eNhXsmA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 
 <!-- Consolidated JavaScript Code -->
 <script>
@@ -322,7 +319,7 @@
   });
 </script>
 
-<!-- Custom Styles for Review Carousel -->
+<!-- Custom Styles for Review Carousel and Footer -->
 <style>
   /* Ensure the image fits within the viewport */
   .review-photo {
@@ -396,6 +393,70 @@
     .custom-arrow {
       font-size: 1.2rem;
     }
+  }
+
+  /* Footer Styling */
+  .custom-footer {
+    background-color: #0a1b37; /* Replace with your desired background color */
+    border-top: 5px dashed #07173d; /* Replace with your desired border color and thickness */
+    color: #fff; /* Text color */
+    width: 100%; /* Full width */
+    padding: 0; /* No padding */
+    margin: 0; /* No margin */
+  }
+
+  .custom-footer p {
+    margin: 0.5rem 0; /* Minimal vertical spacing between paragraphs */
+  }
+
+  .custom-footer a {
+    color: #fff; /* Ensure links are white */
+    text-decoration: none;
+    margin-right: 0.5rem; /* Spacing between icons */
+  }
+
+  .custom-footer a:hover {
+    color: #ddd; /* Change color on hover for better UX */
+    text-decoration: none;
+  }
+
+  /* Responsive Footer Icons */
+  .custom-footer a i {
+    font-size: 1.5rem; /* Icon size */
+  }
+
+  @media (max-width: 768px) {
+    .custom-footer a i {
+      font-size: 1.2rem; /* Smaller icons on tablets */
+    }
+  }
+
+  @media (max-width: 480px) {
+    .custom-footer a i {
+      font-size: 1rem; /* Even smaller icons on mobile */
+    }
+  }
+
+  /* Carousel Indicators Styling */
+  .carousel-indicators button {
+    background-color: #000;
+    opacity: 0.5;
+  }
+
+  .carousel-indicators .active {
+    background-color: #000;
+    opacity: 1;
+  }
+
+  /* Optional: Hover effect for indicators */
+  .carousel-indicators button:hover {
+    opacity: 0.8;
+  }
+
+  /* Ensure body and html have no unintended padding/margin */
+  body, html {
+    margin: 0;
+    padding: 0;
   }
 </style>
 {% endblock %}
