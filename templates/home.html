@@ -105,6 +105,62 @@
     <span class="phone-number">(813) 860-9587</span>
   </a>
 </div>
+
+
+
+
+
+<div class="container my-5">
+  <h2 class="text-center mb-3">What Our Customers Say</h2>
+  <div id="reviewCarousel" class="carousel slide" data-bs-ride="carousel">
+    <div class="carousel-inner">
+      <!-- Review Photos -->
+      <div class="carousel-item active">
+        <img src="{{ url_for('static', filename='creatives/review1.svg') }}" class="d-block mx-auto review-photo" alt="Review 1">
+      </div>
+      <div class="carousel-item">
+        <img src="{{ url_for('static', filename='creatives/review2.svg') }}" class="d-block mx-auto review-photo" alt="Review 2">
+      </div>
+      <div class="carousel-item">
+        <img src="{{ url_for('static', filename='creatives/review3.svg') }}" class="d-block mx-auto review-photo" alt="Review 3">
+      </div>
+    </div>
+    <!-- Arrows for Navigation -->
+    <button class="carousel-control-prev" type="button" data-bs-target="#reviewCarousel" data-bs-slide="prev">
+      <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+      <span class="visually-hidden">Previous</span>
+    </button>
+    <button class="carousel-control-next" type="button" data-bs-target="#reviewCarousel" data-bs-slide="next">
+      <span class="carousel-control-next-icon" aria-hidden="true"></span>
+      <span class="visually-hidden">Next</span>
+    </button>
+  </div>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 <div class="container mt-5 text-center">
   <h1>Where we service</h1>
   <hr class="custom-hr">
@@ -254,5 +310,53 @@ document.getElementById('bookNowBtn').addEventListener('click', function() {
 
   });
 </script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!--  JavaScript for Review Banner -->
+
+<!--  Style for Review Banner -->
+
+<style>
+  /* Ensure the image fits within the viewport */
+  .review-photo {
+    max-width: 100%; /* Scale image proportionally to fit the screen width */
+    max-height: 70vh; /* Ensure the image doesn't exceed 70% of the viewport height */
+    object-fit: contain; /* Preserve the aspect ratio */
+  }
+
+  /* Align the carousel controls to the middle of the screen */
+  .carousel-control-prev,
+  .carousel-control-next {
+    top: 50%;
+    transform: translateY(-50%);
+    width: 5%; /* Reduce the control area width */
+  }
+
+  .carousel-control-prev-icon,
+  .carousel-control-next-icon {
+    background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent background */
+    border-radius: 50%; /* Circular control icons */
+    padding: 10px; /* Increase clickable area */
+  }
+
+  /* Enhance hover effect on the controls */
+  .carousel-control-prev:hover .carousel-control-prev-icon,
+  .carousel-control-next:hover .carousel-control-next-icon {
+    background-color: rgba(0, 0, 0, 0.8); /* Darker hover effect */
+  }
+</style>
+
+
 
 {% endblock %}
