@@ -16,47 +16,64 @@
     </div>
   </div>
 
-  <!-- Two dropdown selectors side by side for large screens; stack on smaller -->
-  <div class="row g-3 mb-3 row-cols-1 row-cols-md-2">
-    <div class="col">
-      <div class="dropdown">
-        <button class="btn btn-secondary dropdown-toggle w-100" type="button" 
-                id="vehicleSizeDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-          Select Vehicle Size
-        </button>
-        <ul class="dropdown-menu w-100" aria-labelledby="vehicleSizeDropdown">
-          {% for size in vehicle_sizes %}
-          <li>
-            <a class="dropdown-item vehicle-size-option" href="#"
-               data-vehicle-size="{{ size.value }}">
-              {{ size.display }}
-            </a>
-          </li>
+ <!-- Two dropdown selectors side by side for large screens; stack on smaller -->
+<div class="row g-3 mb-3 row-cols-1 row-cols-md-2">
+  <div class="col">
+    <div class="dropdown">
+      <button 
+        class="btn black-dropdown dropdown-toggle w-100" 
+        type="button" 
+        id="vehicleSizeDropdown" 
+        data-bs-toggle="dropdown" 
+        aria-expanded="false"
+      >
+        Select Vehicle Size
+      </button>
+      <ul class="dropdown-menu w-100" aria-labelledby="vehicleSizeDropdown">
+        {% for size in vehicle_sizes %}
+        <li>
+          <a 
+            class="dropdown-item vehicle-size-option" 
+            href="#" 
+            data-vehicle-size="{{ size.value }}"
+          >
+            {{ size.display }}
+          </a>
+        </li>
         {% endfor %}
-        
-      </div>
-    </div>
-    <div class="col">
-      <div class="dropdown">
-        <button class="btn btn-secondary dropdown-toggle w-100" type="button" 
-                id="serviceDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-          Select Service
-        </button>
-        <ul class="dropdown-menu w-100" aria-labelledby="serviceDropdown">
-          {% for service in services if service.active %}
-          <li>
-            <a class="dropdown-item service-option" href="#"
-               data-service-id="{{ service._id }}"
-               data-service-key="{{ service.key }}"
-               data-service-label="{{ service.label }}">
-              {{ service.label }}
-            </a>
-          </li>
-          {% endfor %}
-        </ul>
-      </div>
+      </ul>
     </div>
   </div>
+  <div class="col">
+    <div class="dropdown">
+      <button 
+        class="btn black-dropdown dropdown-toggle w-100" 
+        type="button" 
+        id="serviceDropdown" 
+        data-bs-toggle="dropdown" 
+        aria-expanded="false"
+      >
+        Select Service
+      </button>
+      <ul class="dropdown-menu w-100" aria-labelledby="serviceDropdown">
+        {% for service in services if service.active %}
+        <li>
+          <a 
+            class="dropdown-item service-option" 
+            href="#" 
+            data-service-id="{{ service._id }}" 
+            data-service-key="{{ service.key }}" 
+            data-service-label="{{ service.label }}"
+          >
+            {{ service.label }}
+          </a>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+
 
   <!-- Date and Time Section -->
   <div class="row mb-4">

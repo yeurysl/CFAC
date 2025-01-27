@@ -148,6 +148,19 @@ font-size: 20px; /* Reduces the font size */
 
 
 
+.black-dropdown {
+  background-color: black !important;
+  color: white !important;
+  border: none;
+  border-radius: 2px;
+
+}
+
+.black-dropdown:hover,
+.black-dropdown:focus {
+  background-color: #7a7a7a !important;
+  color: white !important;
+}
 
 
 
