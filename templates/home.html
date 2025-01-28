@@ -3,9 +3,9 @@
 {% block title %}Home Page{% endblock %}
 
 {% block content %}
-<div class="container my-4">
-  <!-- Center the main image with a maximum width -->
-  <div class="row mb-4 justify-content-center">
+<!-- Main Image Section -->
+<div class="container-fluid my-4 px-0">
+  <div class="row g-0 mb-4 justify-content-center">
     <div class="col-auto text-center">
       <img 
         id="service-display-image" 
@@ -15,87 +15,104 @@
         style="max-width: 600px; width: 100%;">
     </div>
   </div>
+</div>
 
- <!-- Two dropdown selectors side by side for large screens; stack on smaller -->
-<div class="row g-3 mb-3 row-cols-1 row-cols-md-2">
-  <div class="col">
-    <div class="dropdown">
-      <button 
-        class="btn black-dropdown dropdown-toggle w-100" 
-        type="button" 
-        id="vehicleSizeDropdown" 
-        data-bs-toggle="dropdown" 
-        aria-expanded="false"
-      >
-        Select Vehicle Size
-      </button>
-      <ul class="dropdown-menu w-100" aria-labelledby="vehicleSizeDropdown">
-        {% for size in vehicle_sizes %}
-        <li>
-          <a 
-            class="dropdown-item vehicle-size-option" 
-            href="#" 
-            data-vehicle-size="{{ size.value }}"
+>
+
+<!-- Dropdown Selectors with White Borders -->
+<div class="container-fluid px-0">
+  <div class="row g-3 mb-3 row-cols-1 row-cols-md-2">
+    <div class="col">
+      <div class="white-border">
+        <div class="dropdown">
+          <button 
+            class="btn black-dropdown dropdown-toggle w-100" 
+            type="button" 
+            id="vehicleSizeDropdown" 
+            data-bs-toggle="dropdown" 
+            aria-expanded="false"
           >
-            {{ size.display }}
-          </a>
-        </li>
-        {% endfor %}
-      </ul>
+            Select Vehicle Size
+          </button>
+          <ul class="dropdown-menu w-100" aria-labelledby="vehicleSizeDropdown">
+            {% for size in vehicle_sizes %}
+            <li>
+              <a 
+                class="dropdown-item vehicle-size-option" 
+                href="#" 
+                data-vehicle-size="{{ size.value }}"
+              >
+                {{ size.display }}
+              </a>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="white-border">
+        <div class="dropdown">
+          <button 
+            class="btn black-dropdown dropdown-toggle w-100" 
+            type="button" 
+            id="serviceDropdown" 
+            data-bs-toggle="dropdown" 
+            aria-expanded="false"
+          >
+            Select Service
+          </button>
+          <ul class="dropdown-menu w-100" aria-labelledby="serviceDropdown">
+            {% for service in services if service.active %}
+            <li>
+              <a 
+                class="dropdown-item service-option" 
+                href="#" 
+                data-service-id="{{ service._id }}" 
+                data-service-key="{{ service.key }}" 
+                data-service-label="{{ service.label }}"
+              >
+                {{ service.label }}
+              </a>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
     </div>
   </div>
-  <div class="col">
-    <div class="dropdown">
-      <button 
-        class="btn black-dropdown dropdown-toggle w-100" 
-        type="button" 
-        id="serviceDropdown" 
-        data-bs-toggle="dropdown" 
-        aria-expanded="false"
-      >
-        Select Service
-      </button>
-      <ul class="dropdown-menu w-100" aria-labelledby="serviceDropdown">
-        {% for service in services if service.active %}
-        <li>
-          <a 
-            class="dropdown-item service-option" 
-            href="#" 
-            data-service-id="{{ service._id }}" 
-            data-service-key="{{ service.key }}" 
-            data-service-label="{{ service.label }}"
-          >
-            {{ service.label }}
-          </a>
-        </li>
-        {% endfor %}
-      </ul>
+</div>
+
+<!-- Date and Time Section with White Borders -->
+<div class="container-fluid px-0">
+  <div class="row g-0 mb-4">
+    <div class="col">
+      <div class="white-border">
+        <div class="text-center">
+          <h2 class="mb-3">Select Date &amp; Time</h2>
+          <div class="input-group justify-content-center">
+            <input type="text" id="appointmentDateTime" class="form-control w-50" 
+                   aria-label="Appointment Date and Time">
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
 
 
-  <!-- Date and Time Section -->
-  <div class="row mb-4">
-    <div class="col text-center">
-      <h2 class="mb-3">Select Date &amp; Time</h2>
-      <div class="input-group justify-content-center">
-        <input type="text" id="appointmentDateTime" class="form-control w-50" 
-               aria-label="Appointment Date and Time">
-      </div>
-    </div>
-  </div>
-  
-  <!-- Centered button below the dropdowns -->
-  <div class="row">
+
+<!-- Book Now Button -->
+<div class="container-fluid px-0">
+  <div class="row g-0">
     <div class="col text-center">
       <button id="bookNowBtn" class="btn btn-primary">Book Now</button>
     </div>
   </div>
 </div>
 
-
-<div class="container mt-5 text-center">
+<!-- Or Section -->
+<div class="container-fluid mt-5 text-center px-0">
   <h1>Or</h1>
   <hr class="custom-hr">
 </div>
@@ -106,118 +123,76 @@
   </a>
 </div>
 
-
-
-
-<div class="container my-5">
+<!-- Review Carousel -->
+<div class="container-fluid my-5 px-0">
   <div id="reviewCarousel" class="carousel slide" data-bs-ride="carousel">
-
-
-
-
-
-
-    <div class="container my-5">
-      <div id="reviewCarousel" class="carousel slide" data-bs-ride="carousel">
-        <div class="carousel-inner">
-          <!-- Review Photos with Static Links -->
-          <div class="carousel-item active">
-            <a href="https://www.google.com/maps/contrib/103683406944338625362/place/ChIJufomuxBJZI0RvTZQ6o4m9EM/@27.9407374,-82.3124497,15z/data=!4m6!1m5!8m4!1e1!2s103683406944338625362!3m1!1e1?hl=en-US&entry=ttu&g_ep=EgoyMDI1MDEyMi4wIKXMDSoASAFQAw%3D%3D">
-              <img src="{{ url_for('static', filename='creatives/review1.svg') }}" class="d-block mx-auto review-photo" alt="Review 1">
-            </a>
-          </div>
-          <div class="carousel-item">
-            <a href="https://www.google.com/maps/contrib/115809518709339805174/place/ChIJufomuxBJZI0RvTZQ6o4m9EM/@30.7539117,-97.0950779,5z/data=!4m6!1m5!8m4!1e1!2s115809518709339805174!3m1!1e1?hl=en-US&entry=ttu&g_ep=EgoyMDI1MDEyMi4wIKXMDSoASAFQAw%3D%3D">
-              <img src="{{ url_for('static', filename='creatives/review2.svg') }}" class="d-block mx-auto review-photo" alt="Review 2">
-            </a>
-          </div>
-          <div class="carousel-item">
-            <a href="https://www.google.com/maps/contrib/103229222733501117460/place/ChIJufomuxBJZI0RvTZQ6o4m9EM/@27.9407374,-83.6205094,8z/data=!4m6!1m5!8m4!1e1!2s103229222733501117460!3m1!1e1?hl=en-US&entry=ttu&g_ep=EgoyMDI1MDEyMi4wIKXMDSoASAFQAw%3D%3D">
-              <img src="{{ url_for('static', filename='creatives/review3.svg') }}" class="d-block mx-auto review-photo" alt="Review 3">
-            </a>
-          </div>
-          <div class="carousel-item">
-            <a href="https://www.google.com/maps/contrib/101987601915848877354/place/ChIJufomuxBJZI0RvTZQ6o4m9EM/@27.9628121,-82.3334357,12z/data=!4m6!1m5!8m4!1e1!2s101987601915848877354!3m1!1e1?hl=en-US&entry=ttu&g_ep=EgoyMDI1MDEyMi4wIKXMDSoASAFQAw%3D%3D">
-              <img src="{{ url_for('static', filename='creatives/review4.svg') }}" class="d-block mx-auto review-photo" alt="Review 4">
-            </a>
-          </div>
-          <div class="carousel-item">
-            <a href="https://www.google.com/maps/contrib/116349959147694139180/place/ChIJufomuxBJZI0RvTZQ6o4m9EM/@34.8612027,-94.5688909,5z/data=!4m6!1m5!8m4!1e1!2s116349959147694139180!3m1!1e1?hl=en-US&entry=ttu&g_ep=EgoyMDI1MDEyMi4wIKXMDSoASAFQAw%3D%3D">
-              <img src="{{ url_for('static', filename='creatives/review5.svg') }}" class="d-block mx-auto review-photo" alt="Review 5">
-            </a>
-          </div>
-        </div>
-
-
-
-
-
-
+    <div class="carousel-inner">
+      <!-- Review Items -->
+      <div class="carousel-item active">
+        <a href="https://www.google.com/maps/contrib/...">
+          <img src="{{ url_for('static', filename='creatives/review1.svg') }}" class="d-block mx-auto review-photo" alt="Review 1">
+        </a>
+      </div>
+      <div class="carousel-item">
+        <a href="https://www.google.com/maps/contrib/...">
+          <img src="{{ url_for('static', filename='creatives/review2.svg') }}" class="d-block mx-auto review-photo" alt="Review 2">
+        </a>
+      </div>
+      <!-- Add more carousel items as needed -->
+    </div>
 
     <!-- Custom Arrows -->
     <button class="carousel-control-prev" type="button" data-bs-target="#reviewCarousel" data-bs-slide="prev">
-      <i class="fas fa-arrow-left custom-arrow"></i>
+      <i class="bi bi-arrow-left custom-arrow"></i>
       <span class="visually-hidden">Previous</span>
     </button>
     <button class="carousel-control-next" type="button" data-bs-target="#reviewCarousel" data-bs-slide="next">
-      <i class="fas fa-arrow-right custom-arrow"></i>
+      <i class="bi bi-arrow-right custom-arrow"></i>
       <span class="visually-hidden">Next</span>
     </button>
-    
   </div>
 </div>
 
-
-
-
-<div class="container">
-  <div class="row">
+<!-- Arrow and Image Section -->
+<div class="container-fluid px-0">
+  <div class="row g-0">
     <!-- Overlay Arrow -->
-    <div class="col-12 col-md-6 d-flex align-items-center justify-content-center mb-4 mb-md-0">
+    <div class="col-6 col-md-6 d-flex align-items-center justify-content-center mb-4 mb-md-0">
       <img 
         src="{{ url_for('static', filename='creatives/arrow.svg') }}" 
         alt="Pointing Arrow" 
-        class="img-fluid custom-arrow arrow-image"
+        class="img-fluid custom-arrow arrow-image space-below-arrow"
       >
     </div>
 
     <!-- Image -->
-    <div class="col-12 col-md-6">
-      <a href="https://www.google.com/localservices/prolist?spp=Cg0vZy8xMXc5OHg3eDJx&scp=CgAaGUNlbnRyYWwgRmxvcmlkYSBBdXRvIENhcmUqGUNlbnRyYWwgRmxvcmlkYSBBdXRvIENhcmU%3D&q=Central+Florida+Auto+Care&source=sh/x/loc/srv/m1/0&kgs=c72392faac7adf65&src=2&slp=UhUIARIREg8iDS9nLzExdzk4eDd4MnE" target="_blank" rel="noopener noreferrer">
-        <img 
-          src="{{ url_for('static', filename='creatives/googlebizdesign.svg') }}" 
-          alt="Central Florida Auto Care Google Business Profile" 
-          class="img-fluid clickable-image main-image"
-        >
-      </a>
+    <div class="col-6 col-md-6 d-flex align-items-center justify-content-start">
+      <img 
+        src="{{ url_for('static', filename='creatives/googlebizdesign.svg') }}" 
+        alt="Central Florida Auto Care Google Business Profile" 
+        class="img-fluid clickable-image main-image ms-3 gobiz-image"
+      >
     </div>
   </div>
 </div>
 
-
-
-
-
-
-
-
-
-
-<div class="container mt-5 text-center">
-  <h1>Where we  service</h1>
+<!-- Now Servicing Section -->
+<div class="container-fluid mt-5 text-center px-0">
+  <h1>Now Servicing Tampa and its neighbors</h1>
   <hr class="custom-hr">
 </div>
 
-<!-- Container-fluid for a full-width map image -->
+<!-- Full-Width Map Image -->
 <div class="container-fluid p-0">
   <picture>
     <source media="(min-width: 768px)" srcset="{{ url_for('static', filename='creatives/largemap.svg') }}">
     <img src="{{ url_for('static', filename='creatives/smallmap.svg') }}" alt="smallmap" class="img-fluid full-width-image" loading="lazy">
   </picture>
 </div>
-<div class="container mt-5 text-center">
+<div class="container-fluid mt-5 text-center px-0">
   <hr class="custom-hr">
 </div>
+
 
 <!-- Include Flatpickr JS -->
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -490,5 +465,20 @@
     margin: 0;
     padding: 0;
   }
+
+  .white-border {
+    border: 2px solid white; /* White border with desired thickness */
+    padding: 5%;            /* Adequate spacing inside the border */
+    border-radius: 8px;       /* Rounded corners for aesthetics */
+    background-color: transparent; /* Ensure background doesn't obscure the border */
+    transition: border-color 0.3s ease, box-shadow 0.3s ease; /* Smooth transition for hover effects */
+}
+
+/* Optional: Hover Effect for Enhanced UX */
+.white-border:hover {
+    border-color: #f0f0f0; /* Slightly lighter on hover */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+}
+
 </style>
 {% endblock %}

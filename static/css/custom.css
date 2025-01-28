@@ -250,33 +250,27 @@ body, html {
 }
 
 /* Footer Styling */
+/* Custom Footer Styling */
 .custom-footer {
   background-color: #0a1b37; /* Desired background color */
   border-top: 5px dashed #07173d; /* Desired border color and thickness */
   color: #fff; /* Text color */
   width: 100%; /* Full width */
-  padding: 0; /* No padding */
-  margin: 0; /* No margin */
+  padding: 0; /* Remove all padding */
+  margin: 0; /* Remove all margin */
 }
 
+/* Control vertical spacing using margins */
 .custom-footer p {
-  margin: 0.5rem 0; /* Minimal vertical spacing between paragraphs */
 }
 
-.custom-footer a {
-  color: #fff; /* Ensure links are white */
-  text-decoration: none;
-  margin-right: 0.5rem; /* Spacing between icons */
+.custom-footer .mt-2 {
+
 }
 
-.custom-footer a:hover {
-  color: #ddd; /* Change color on hover for better UX */
-  text-decoration: none;
-}
-
-/* Responsive Footer Icons */
+/* Adjust social media icon sizes and spacing */
 .custom-footer a i {
-  font-size: 1.5rem; /* Icon size */
+  font-size: 1.5rem; /* Adjust icon size */
 }
 
 @media (max-width: 768px) {
@@ -290,6 +284,7 @@ body, html {
       font-size: 1rem; /* Even smaller icons on mobile */
   }
 }
+
 
 /* Carousel Indicators Styling */
 .carousel-indicators button {
@@ -306,3 +301,24 @@ body, html {
 .carousel-indicators button:hover {
   opacity: 0.8;
 }
+
+/* Default styles for larger screens */
+.custom-arrow {
+  max-width: 100%; /* Adjust as needed */
+}
+
+.gobiz-image {
+  max-width: 100%; /* Adjust as needed */
+}
+
+/* Styles for small screens (e.g., width < 576px) */
+@media (max-width: 575.98px) {
+  .custom-arrow {
+    max-width: 140px; /* Adjust the size as needed */
+  }
+
+  .gobiz-image {
+    max-width: 110px; /* Adjust the size as needed */
+  }
+}
+
