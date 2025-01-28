@@ -314,11 +314,11 @@ body, html {
 /* Styles for small screens (e.g., width < 576px) */
 @media (max-width: 575.98px) {
   .custom-arrow {
-    max-width: 140px; /* Adjust the size as needed */
+    max-width: 160px; /* Adjust the size as needed */
   }
 
   .gobiz-image {
-    max-width: 120px; /* Adjust the size as needed */
+    max-width: 150px; /* Adjust the size as needed */
   }
 }
 
