@@ -308,17 +308,17 @@ body, html {
 }
 
 .gobiz-image {
-  max-width: 60%; /* Adjust as needed */
+  max-width: 70%; /* Adjust as needed */
 }
 
 /* Styles for small screens (e.g., width < 576px) */
 @media (max-width: 575.98px) {
   .custom-arrow {
-    max-width: 160px; /* Adjust the size as needed */
+    max-width: 180px; /* Adjust the size as needed */
   }
 
   .gobiz-image {
-    max-width: 150px; /* Adjust the size as needed */
+    max-width: 170px; /* Adjust the size as needed */
   }
 }
 
