@@ -308,7 +308,7 @@ body, html {
 }
 
 .gobiz-image {
-  max-width: 70%; /* Adjust as needed */
+  max-width: 60%; /* Adjust as needed */
 }
 
 /* Styles for small screens (e.g., width < 576px) */
@@ -318,7 +318,7 @@ body, html {
   }
 
   .gobiz-image {
-    max-width: 150px; /* Adjust the size as needed */
+    max-width: 120px; /* Adjust the size as needed */
   }
 }
 
