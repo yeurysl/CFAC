@@ -181,15 +181,39 @@
 
     <!-- Image -->
     <div class="col-6 col-md-6 d-flex align-items-center justify-content-start">
-      <img 
-      src="{{ url_for('static', filename='creatives/googlebizdesign.jpg') }}" 
-      alt="Central Florida Auto Care Google Business Profile" 
-      class="img-fluid clickable-image main-image gobiz-image"
-    />
-    
+      <a href="https://www.google.com/localservices/prolist?spp=Cg0vZy8xMXc5OHg3eDJx&scp=CgAaGUNlbnRyYWwgRmxvcmlkYSBBdXRvIENhcmUqGUNlbnRyYWwgRmxvcmlkYSBBdXRvIENhcmU%3D&q=Central+Florida+Auto+Care&source=sh/x/loc/srv/m1/0&kgs=c72392faac7adf65&src=2&slp=UhUIARIREg8iDS9nLzExdzk4eDd4MnE" target="_blank" rel="noopener noreferrer">
+        <img 
+          src="{{ url_for('static', filename='creatives/googlebizdesign.jpg') }}" 
+          alt="Central Florida Auto Care Google Business Profile" 
+          class="img-fluid clickable-image main-image gobiz-image"
+        />
+      </a>
+    </div>
+
+  </div>
+</div>
+
+
+
+
+<!-- BEFORE & AFTER CUSTOM SLIDER -->
+<div class="container my-5">
+  <h2 class="text-center">Before & After</h2>
+  
+  <div class="ba-slider-container" id="ba-slider">
+    <div class="ba-slider-images">
+      <img src="{{ url_for('static', filename='creatives/beforeimg.JPG') }}" alt="Before Image" class="ba-image ba-before">
+      <img src="{{ url_for('static', filename='creatives/afterimg.JPG') }}" alt="After Image" class="ba-image ba-after">
+    </div>
+    <div class="ba-slider-handle" id="ba-handle">
+      <span class="ba-handle-line"></span>
+      <span class="ba-handle-circle"></span>
     </div>
   </div>
 </div>
+
+
+
 
 <!-- Now Servicing Section -->
 <div class="container-fluid mt-5 text-center px-0">
@@ -339,7 +363,107 @@
     });
 
   });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  // BEFORE & AFTER CUSTOM SLIDER SCRIPT
+
+document.addEventListener('DOMContentLoaded', function () {
+  const slider = document.getElementById('ba-slider');
+  const handle = document.getElementById('ba-handle');
+  const afterImage = slider.querySelector('.ba-after');
+
+  let isDragging = false;
+
+  // Function to update the slider position
+  function updateSlider(x) {
+    const rect = slider.getBoundingClientRect();
+    let offsetX = x - rect.left;
+
+    // Clamp the offset within the slider bounds
+    offsetX = Math.max(0, Math.min(offsetX, rect.width));
+
+    const percentage = (offsetX / rect.width) * 100;
+
+    // Update the width of the after image and handle position
+    afterImage.style.width = `${percentage}%`;
+    handle.style.left = `${percentage}%`;
+  }
+
+  // Mouse Events
+  slider.addEventListener('mousedown', function (e) {
+    isDragging = true;
+    updateSlider(e.clientX);
+  });
+
+  document.addEventListener('mousemove', function (e) {
+    if (!isDragging) return;
+    updateSlider(e.clientX);
+  });
+
+  document.addEventListener('mouseup', function () {
+    isDragging = false;
+  });
+
+  // Touch Events for mobile devices
+  slider.addEventListener('touchstart', function (e) {
+    isDragging = true;
+    updateSlider(e.touches[0].clientX);
+  });
+
+  document.addEventListener('touchmove', function (e) {
+    if (!isDragging) return;
+    updateSlider(e.touches[0].clientX);
+  });
+
+  document.addEventListener('touchend', function () {
+    isDragging = false;
+  });
+
+  // Prevent image dragging
+  const images = slider.querySelectorAll('img');
+  images.forEach((img) => {
+    img.addEventListener('dragstart', function (e) {
+      e.preventDefault();
+    });
+  });
+});
+
 </script>
+
+
+
 
 <!-- Custom Styles for Review Carousel and Footer -->
 <style>

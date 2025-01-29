@@ -322,3 +322,106 @@ body, html {
   }
 }
 
+/* Remove default link styles for images */
+/* Ensure the image transitions smoothly */
+.clickable-image {
+  transition: opacity 0.3s ease;
+}
+
+/* Change opacity when the parent <a> is hovered */
+a:hover .clickable-image {
+  opacity: 0.5; /* Slightly reduce opacity on hover */
+}
+
+
+
+
+
+
+
+
+
+
+
+
+/* BEFORE & AFTER CUSTOM SLIDER STYLES */
+
+.ba-slider-container {
+  position: relative;
+  width: 100%;
+  max-width: 800px; /* Adjust as needed */
+  margin: 50px auto; /* Center the slider with top and bottom margins */
+  overflow: hidden;
+  cursor: ew-resize; /* Cursor indicates horizontal resizing */
+}
+
+.ba-slider-images {
+  position: relative;
+  width: 100%;
+  height: auto;
+}
+
+.ba-image {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.ba-after {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 50%; /* Initial visibility */
+  overflow: hidden;
+}
+
+.ba-slider-handle {
+  position: absolute;
+  top: 0;
+  left: 50%; /* Initial position */
+  width: 4px; /* Thickness of the handle line */
+  height: 100%;
+  background-color: #fff; /* Handle line color */
+  z-index: 2;
+  transition: left 0.3s ease;
+}
+
+.ba-handle-line {
+  position: absolute;
+  top: 0;
+  left: -10px;
+  width: 24px;
+  height: 100%;
+  background: transparent;
+}
+
+.ba-handle-circle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 24px;
+  height: 24px;
+  background-color: #fff;
+  border: 2px solid #000;
+  border-radius: 50%;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  .ba-slider-container {
+    max-width: 100%;
+  }
+
+  .ba-handle-circle {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .ba-handle-circle {
+    width: 16px;
+    height: 16px;
+  }
+}
