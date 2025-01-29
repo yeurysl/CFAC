@@ -356,18 +356,18 @@ a:hover .clickable-image {
 
 /* By default, fill the container */
 .carousel-inner img {
-  width: 100%;
+  width: 500px;
+  height: auto;
   height: auto;
   display: block;
 }
 
-/* On large screens, make them narrower */
-@media (min-width: 992px) {
+@media (max-width: 600px) {
   .carousel-inner img {
-    max-width: 670px;  /* or 60%, or any narrower dimension */
-    margin: 0 auto;    /* center them horizontally */
+    max-width: 340px;
   }
 }
+
 
 /* In your custom.css or a <style> block */
 
@@ -400,5 +400,36 @@ a:hover .clickable-image {
 @media (max-width: 768px) {
   .my-responsive-video {
     max-width: 500px;
+  }
+}
+
+/* By default (desktop and up): max width = 300px */
+.our-work-image {
+  max-width: 600px;
+  width: 100%; /* so it scales down if container is smaller */
+  height: auto;
+  display: block;
+  margin: 0 auto; /* center horizontally */
+}
+
+/* On smaller screens (up to 768px wide): max width = 130px */
+@media (max-width: 768px) {
+  .our-work-image {
+    max-width:360px;
+  }
+}
+
+
+.my-igtxt-image {
+  max-width: 600px;
+  width: 100%;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+}
+
+@media (max-width: 768px) {
+  .my-igtxt-image {
+    max-width: 530px;
   }
 }
