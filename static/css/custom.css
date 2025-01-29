@@ -367,3 +367,16 @@ a:hover .clickable-image {
     margin: 0 auto;    /* center them horizontally */
   }
 }
+
+/* In your custom.css or a <style> block */
+
+/* Smooth transitions */
+.review-photo {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Hover effect: slightly enlarge and add a shadow */
+.review-photo:hover {
+  transform: scale(.90); /* scales the image to 105% */
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25); /* subtle shadow */
+}
