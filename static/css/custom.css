@@ -399,6 +399,6 @@ a:hover .clickable-image {
 /* On smaller screens (up to 768px wide): max width = 130px */
 @media (max-width: 768px) {
   .my-responsive-video {
-    max-width: 130px;
+    max-width: 500px;
   }
 }
