@@ -381,3 +381,24 @@ a:hover .clickable-image {
   transform: scale(.90); /* scales the image to 105% */
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25); /* subtle shadow */
 }
+
+
+
+
+/* In your custom.css or a <style> block */
+
+/* By default (desktop and up): max width = 300px */
+.my-responsive-video {
+  max-width: 900px;
+  width: 100%; /* so it scales down if container is smaller */
+  height: auto;
+  display: block;
+  margin: 0 auto; /* center horizontally */
+}
+
+/* On smaller screens (up to 768px wide): max width = 130px */
+@media (max-width: 768px) {
+  .my-responsive-video {
+    max-width: 130px;
+  }
+}
