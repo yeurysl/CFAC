@@ -339,7 +339,31 @@ a:hover .clickable-image {
 .carousel-inner img {
   display: block;     /* ensure block so margin auto can center */
   margin: 0 auto;     /* center the image horizontally */
-  width: 50%;         /* or any percentage you like */
+  width: 70%;         /* or any percentage you like */
   height: auto;       /* keep aspect ratio */
   object-fit: contain; /* ensures NO cropping (optional) */
+}
+
+/* For large screens (≥ 992px in Bootstrap) */
+@media (min-width: 992px) {
+  .arrow-section-wrapper {
+    max-width: 900px; /* or any narrower width you want */
+    margin: 0 auto;   /* center it horizontally */
+    padding: 0 15px;  /* optional padding to keep a bit of a margin */
+  }
+}
+
+/* By default, fill the container */
+.carousel-inner img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* On large screens, make them narrower */
+@media (min-width: 992px) {
+  .carousel-inner img {
+    max-width: 600px;  /* or 60%, or any narrower dimension */
+    margin: 0 auto;    /* center them horizontally */
+  }
 }
