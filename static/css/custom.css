@@ -433,3 +433,18 @@ a:hover .clickable-image {
     max-width: 530px;
   }
 }
+
+
+/* Our Work style already, e.g., 300px desktop, 130px mobile or whatever you had */
+.checked-ig-image {
+  max-width: 600px;
+  width: 100%;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+}
+@media (max-width: 768px) {
+  .our-work-image {
+    max-width: 360px;
+  }
+}

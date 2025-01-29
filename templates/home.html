@@ -278,7 +278,7 @@
       <img 
         src="{{ url_for('static', filename='creatives/igchecked.svg') }}" 
         alt="IG Text" 
-        class="img-fluid clickable-image my-igtxt-image"
+        class="img-fluid clickable-image my-checked-ig-image"
       />
     </a>
   </div>
@@ -299,10 +299,46 @@
 
 
 <!-- Now Servicing Section -->
-<div class="container-fluid mt-5 text-center px-0">
+<div class="container-fluid mt-3 text-center px-0">
   <h1>Now Servicing Tampa and its neighbors</h1>
   <hr class="custom-hr">
 </div>
+
+<!-- ZIP Code Carousel -->
+<div class="container my-3">
+
+  <div id="zipCarousel" class="carousel slide" data-bs-ride="carousel"      data-bs-interval="100"
+  >
+ 
+
+    <div class="carousel-inner">
+      <!-- Slide 1 (active) -->
+      <div class="carousel-item active">
+        <div class="d-flex justify-content-center align-items-center" style="height: 200px;">
+          <h3>33510</h3>
+        </div>
+      </div>
+
+      <!-- Slide 2 -->
+      <div class="carousel-item">
+        <div class="d-flex justify-content-center align-items-center" style="height: 200px;">
+          <h3>33511</h3>
+        </div>
+      </div>
+
+      <!-- Slide 3 -->
+      <div class="carousel-item">
+        <div class="d-flex justify-content-center align-items-center" style="height: 200px;">
+          <h3>33527</h3>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+
 
 <!-- Full-Width Map Image -->
 <div class="container-fluid p-0">
@@ -311,6 +347,18 @@
     <img src="{{ url_for('static', filename='creatives/smallmap.svg') }}" alt="smallmap" class="img-fluid full-width-image" loading="lazy">
   </picture>
 </div>
+<div class="container-fluid mt-5 text-center px-0">
+  <hr class="custom-hr">
+</div>
+
+<div class="text-center mt-3">
+  <a href="tel:+18138609587" class="btn call-now-btn">
+    Click Here to Call Now and Book a Service<br>
+    <span class="phone-number">(813) 860-9587</span>
+  </a>
+</div>
+
+
 <div class="container-fluid mt-5 text-center px-0">
   <hr class="custom-hr">
 </div>
