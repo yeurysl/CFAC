@@ -331,6 +331,7 @@ body, html {
 /* Change opacity when the parent <a> is hovered */
 a:hover .clickable-image {
   opacity: 0.5; /* Slightly reduce opacity on hover */
+  
 }
 
 
@@ -339,7 +340,7 @@ a:hover .clickable-image {
 .carousel-inner img {
   display: block;     /* ensure block so margin auto can center */
   margin: 0 auto;     /* center the image horizontally */
-  width: 70%;         /* or any percentage you like */
+  width: 80%;         /* or any percentage you like */
   height: auto;       /* keep aspect ratio */
   object-fit: contain; /* ensures NO cropping (optional) */
 }
@@ -363,7 +364,7 @@ a:hover .clickable-image {
 /* On large screens, make them narrower */
 @media (min-width: 992px) {
   .carousel-inner img {
-    max-width: 600px;  /* or 60%, or any narrower dimension */
+    max-width: 670px;  /* or 60%, or any narrower dimension */
     margin: 0 auto;    /* center them horizontally */
   }
 }
