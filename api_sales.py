@@ -1,53 +1,81 @@
+#api_sales.py
 from flask import Blueprint, request, jsonify, current_app
 from datetime import datetime
 from flask_login import current_user  
+import jwt
+from jwt import ExpiredSignatureError, InvalidTokenError
 
 
 api_sales_bp = Blueprint('api_sales', __name__, url_prefix='/api')
 
 
+
+def decode_jwt(token, secret_key):
+    """
+    Decode a JWT using the secret key.
+    Returns the user_id if valid, or None if invalid/expired.
+    """
+    try:
+        payload = jwt.decode(token, secret_key, algorithms=["HS256"])
+        # 'sub' is the user ID
+        return payload.get("sub")
+    except (ExpiredSignatureError, InvalidTokenError, KeyError):
+        return None
+
+
+
+
+
+
 @api_sales_bp.route('/orders', methods=['GET'])
 def fetch_orders():
-    try:
-        orders_collection = current_app.config.get('ORDERS_COLLECTION')
-        if orders_collection is None:
-            return jsonify({"error": "Orders collection not configured."}), 500
+    auth_header = request.headers.get('Authorization', '')
+    if not auth_header.startswith("Bearer "):
+        return jsonify({"error": "Missing or invalid Authorization header."}), 401
 
-        # Ensure the user is authenticated.
-        if not current_user.is_authenticated:
-            return jsonify({"error": "User not authenticated."}), 401
+    token = auth_header.replace("Bearer ", "").strip()
 
-        # Only fetch orders that belong to the current user.
-        # Assuming that when an order is created, it stores the user ID in the "user" field.
-        query = {"user": current_user.get_id()}  # or current_user.id
+    secret_key = current_app.config['JWT_SECRET']
+    user_id = decode_jwt(token, secret_key)
+    if not user_id:
+        return jsonify({"error": "Invalid or expired token"}), 401
 
-        page = int(request.args.get('page', 1))
-        per_page = int(request.args.get('per_page', 20))
-        skip = (page - 1) * per_page
+    # Now user_id is the string form of the ObjectId (assuming it was cast to str at login).
+    # You can fetch user details from Mongo if needed:
+    users_collection = current_app.config['USERS_COLLECTION']
+    user = users_collection.find_one({"_id": ObjectId(user_id)})
+    if not user:
+        return jsonify({"error": "User not found"}), 404
 
-        total_orders = orders_collection.count_documents(query)
-        orders_cursor = orders_collection.find(query).skip(skip).limit(per_page)
+    # Finally, fetch orders for that user
+    orders_collection = current_app.config.get('ORDERS_COLLECTION')
+    if not orders_collection:
+        return jsonify({"error": "Orders collection not configured."}), 500
 
-        orders = []
-        for order in orders_cursor:
-            order['_id'] = str(order['_id'])
-            # Convert date fields to ISO strings if they exist
-            if isinstance(order.get('order_date'), datetime):
-                order['order_date'] = order['order_date'].isoformat()
-            if isinstance(order.get('service_date'), datetime):
-                order['service_date'] = order['service_date'].isoformat()
-            orders.append(order)
+    page = int(request.args.get('page', 1))
+    per_page = int(request.args.get('per_page', 20))
+    skip = (page - 1) * per_page
 
-        return jsonify({
-            "orders": orders,
-            "page": page,
-            "per_page": per_page,
-            "total_orders": total_orders
-        }), 200
-    except Exception as e:
-        current_app.logger.error(f"Error fetching orders: {e}")
-        return jsonify({"error": str(e)}), 500
+    query = {"user": user_id}
+    total_orders = orders_collection.count_documents(query)
+    orders_cursor = orders_collection.find(query).skip(skip).limit(per_page)
 
+    orders = []
+    for order in orders_cursor:
+        order['_id'] = str(order['_id'])
+        # Convert any datetime fields
+        if 'order_date' in order and isinstance(order['order_date'], datetime):
+            order['order_date'] = order['order_date'].isoformat()
+        if 'service_date' in order and isinstance(order['service_date'], datetime):
+            order['service_date'] = order['service_date'].isoformat()
+        orders.append(order)
+
+    return jsonify({
+        "orders": orders,
+        "page": page,
+        "per_page": per_page,
+        "total_orders": total_orders
+    }), 200
 
 
 @api_sales_bp.route('/services', methods=['GET'])

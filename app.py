@@ -32,6 +32,7 @@ def create_app():
 
     # Basic config
     app.secret_key = os.getenv('SECRET_KEY')
+    JWT_SECRET = os.getenv('JWT_SECRET', 'default-jwt-secret')
     app.config['MONGODB_URI'] = os.getenv('MONGODB_URI')
     app.config['WTF_CSRF_TIME_LIMIT'] = None
     app.config['SESSION_COOKIE_SECURE'] = True
@@ -43,7 +44,6 @@ def create_app():
     # Load configuration from Config class
     app.config.from_object(Config)
     
-    app.logger.info(f"STRIPE_PUBLISHABLE_KEY: {app.config.get('STRIPE_PUBLISHABLE_KEY')}")
 
     # Decimal precision
     decimal.getcontext().prec = 28
