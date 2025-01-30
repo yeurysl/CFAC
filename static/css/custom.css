@@ -448,3 +448,15 @@ a:hover .clickable-image {
     max-width: 360px;
   }
 }
+
+
+.carousel-inner {
+  position: relative;
+}
+
+.carousel-inner .carousel-item h3 {
+  position: absolute;
+  text-align: center;
+  width: 100%;
+  /* Additional styling as desired */
+}
