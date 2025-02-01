@@ -35,20 +35,17 @@ def fetch_orders():
         return jsonify({"error": "Missing or invalid Authorization header."}), 401
 
     token = auth_header.replace("Bearer ", "").strip()
-
     secret_key = current_app.config['JWT_SECRET']
     user_id = decode_jwt(token, secret_key)
     if not user_id:
         return jsonify({"error": "Invalid or expired token"}), 401
 
-    # Now user_id is the string form of the ObjectId (assuming it was cast to str at login).
-    # You can fetch user details from Mongo if needed:
+    # Optionally, you can verify the user exists:
     users_collection = current_app.config['USERS_COLLECTION']
     user = users_collection.find_one({"_id": ObjectId(user_id)})
     if not user:
         return jsonify({"error": "User not found"}), 404
 
-    # Finally, fetch orders for that user
     orders_collection = current_app.config.get('ORDERS_COLLECTION')
     if orders_collection is None:
         return jsonify({"error": "Orders collection not configured."}), 500
@@ -57,14 +54,15 @@ def fetch_orders():
     per_page = int(request.args.get('per_page', 20))
     skip = (page - 1) * per_page
 
-    query = {"user": user_id}
+    # Update the query to filter orders by the salesperson field.
+    query = {"salesperson": user_id}
     total_orders = orders_collection.count_documents(query)
     orders_cursor = orders_collection.find(query).skip(skip).limit(per_page)
 
     orders = []
     for order in orders_cursor:
         order['_id'] = str(order['_id'])
-        # Convert any datetime fields
+        # Convert datetime fields to ISO strings if needed.
         if 'order_date' in order and isinstance(order['order_date'], datetime):
             order['order_date'] = order['order_date'].isoformat()
         if 'service_date' in order and isinstance(order['service_date'], datetime):
