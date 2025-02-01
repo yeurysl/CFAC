@@ -12,3 +12,4 @@ class Config:
     TWILIO_PHONE_NUMBER = os.getenv('TWILIO_PHONE_NUMBER')
     POSTMARK_SERVER_TOKEN = os.getenv('POSTMARK_SERVER_TOKEN')
     ENV = os.getenv('ENV', 'development')
+    JWT_SECRET = os.getenv('JWT_SECRET')  
