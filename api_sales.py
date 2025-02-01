@@ -50,7 +50,7 @@ def fetch_orders():
 
     # Finally, fetch orders for that user
     orders_collection = current_app.config.get('ORDERS_COLLECTION')
-    if not orders_collection:
+    if orders_collection is None:
         return jsonify({"error": "Orders collection not configured."}), 500
 
     page = int(request.args.get('page', 1))
