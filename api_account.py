@@ -12,7 +12,7 @@ def get_user_from_token(token):
     users_collection = current_app.config.get('USERS_COLLECTION')
     try:
         # Decode the JWT (make sure the secret matches the one used to generate the token)
-        payload = jwt.decode(token, 'JWT_SERET', algorithms=['HS256'])
+        payload = jwt.decode(token, 'JWT_SECRET', algorithms=['HS256'])
         print("Decoded payload:", payload)  # Debug print
 
         user_id = payload.get('sub')  # Assuming the user id is in the "sub" field
