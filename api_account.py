@@ -56,7 +56,8 @@ def fetch_account_settings():
         "address": user.get("address", {})  # Assuming address is stored as a subdocument
     }
     return jsonify(account_settings), 200
-@csrf_excempt
+
+@csrf_exempt
 @api_account_bp.route('/', methods=['PUT'])
 def update_account_settings():
     data = request.get_json()
