@@ -11,8 +11,9 @@ api_account_bp = Blueprint('api_account', __name__, url_prefix='/api/account')
 def get_user_from_token(token):
     users_collection = current_app.config.get('USERS_COLLECTION')
     try:
-        # Decode the JWT (make sure the secret matches the one used to generate the token)
-        payload = jwt.decode(token, 'JWT_SECRET', algorithms=['HS256'])
+        # Use the secret from configuration rather than a hardcoded string.
+        secret_key = current_app.config.get('JWT_SECRET', 'JWT_SECRET')
+        payload = jwt.decode(token, secret_key, algorithms=['HS256'])
         print("Decoded payload:", payload)  # Debug print
 
         user_id = payload.get('sub')  # Assuming the user id is in the "sub" field
@@ -27,7 +28,6 @@ def get_user_from_token(token):
     except (jwt.DecodeError, jwt.ExpiredSignatureError, InvalidId, TypeError) as e:
         print("Token decoding error:", e)  # Debug print
         return None
-
 
 
     
