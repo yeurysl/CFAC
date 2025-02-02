@@ -5,17 +5,27 @@ from bson.objectid import ObjectId, InvalidId
 # Create a new blueprint for account settings API endpoints
 api_account_bp = Blueprint('api_account', __name__, url_prefix='/api/account')
 
+
+
 def get_user_from_token(token):
-    """
-    For demonstration purposes, we assume that the token is simply the user's _id.
-    In a production system, you would decode a JWT or perform other secure token validation.
-    """
     users_collection = current_app.config.get('USERS_COLLECTION')
+
     try:
-        user = users_collection.find_one({"_id": ObjectId(token)})
+        # Decode the JWT (make sure to replace 'your_secret' with your actual secret)
+        payload = jwt.decode(token, 'your_secret', algorithms=['HS256'])
+        user_id = payload.get('sub')  # Assuming the user id is in the "sub" field
+        if not user_id:
+            return None
+        user = users_collection.find_one({"_id": ObjectId(user_id)})
         return user
-    except (InvalidId, TypeError):
+    except (jwt.DecodeError, jwt.ExpiredSignatureError, InvalidId, TypeError):
         return None
+
+
+
+
+
+    
 
 @api_account_bp.route('/', methods=['GET'])
 def fetch_account_settings():
