@@ -13,7 +13,7 @@ def get_user_from_token(token):
 
     try:
         # Decode the JWT (make sure to replace 'your_secret' with your actual secret)
-        payload = jwt.decode(token, 'your_secret', algorithms=['HS256'])
+        payload = jwt.decode(token, 'JWT_SeCRET', algorithms=['HS256'])
         user_id = payload.get('sub')  # Assuming the user id is in the "sub" field
         if not user_id:
             return None
