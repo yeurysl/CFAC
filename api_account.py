@@ -1,6 +1,7 @@
 #api_account.py
 from flask import Blueprint, request, jsonify, current_app
 from bson.objectid import ObjectId, InvalidId
+from flask_wtf.csrf import CSRFProtect
 import jwt
 
 # Create a new blueprint for account settings API endpoints
@@ -55,7 +56,7 @@ def fetch_account_settings():
         "address": user.get("address", {})  # Assuming address is stored as a subdocument
     }
     return jsonify(account_settings), 200
-
+@csrf_excempt
 @api_account_bp.route('/', methods=['PUT'])
 def update_account_settings():
     data = request.get_json()
