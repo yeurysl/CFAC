@@ -58,22 +58,15 @@ def fetch_account_settings():
 
 @api_account_bp.route('/', methods=['PUT'])
 def update_account_settings():
-    """
-    PUT /api/account
-    Expects a JSON body with the fields to update.
-    Also expects a 'token' field in the JSON (or in a header) that identifies the user.
-    """
     data = request.get_json()
     if not data or 'token' not in data:
         return jsonify({"error": "Token is required in the request body."}), 400
-    
+
     token = data.pop('token')
     user = get_user_from_token(token)
     if not user:
         return jsonify({"error": "Invalid token or user not found."}), 404
 
-    # Prepare the update document. We assume that the incoming JSON contains the fields:
-    # name, email, phone_number, address (which itself is a dict with street_address, city, country, zip_code).
     update_fields = {}
     if 'name' in data:
         update_fields['name'] = data['name'].strip()
@@ -92,7 +85,8 @@ def update_account_settings():
 
     users_collection = current_app.config.get('USERS_COLLECTION')
     try:
-        result = users_collection.update_one({"_id": ObjectId(token)}, {"$set": update_fields})
+        # Use the user's ObjectId from the decoded user document
+        result = users_collection.update_one({"_id": user['_id']}, {"$set": update_fields})
         if result.modified_count >= 1:
             return jsonify({"message": "Account settings updated successfully."}), 200
         else:
