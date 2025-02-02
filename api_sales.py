@@ -121,7 +121,10 @@ def create_order():
         # Validate required fields according to the website order structure.
         # For example, your website order has keys:
         #   guest_name, guest_email, vehicle_size, guest_address, selectedServices
-        required_fields = ["guest_name", "guest_email", "vehicle_size", "guest_address", "selectedServices"]
+        required_fields = [
+            "guest_name", "guest_email", "vehicle_size",
+            "guest_address", "selectedServices", "services_total", "fee", "final_price"
+        ]
         missing = [field for field in required_fields if field not in order_data]
         if missing:
             current_app.logger.error(f"Missing required fields: {missing}")
