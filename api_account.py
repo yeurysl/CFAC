@@ -1,9 +1,8 @@
 #api_account.py
 from flask import Blueprint, request, jsonify, current_app
 from bson.objectid import ObjectId, InvalidId
-from flask_wtf.csrf import CSRFProtect, csrf_exempt
 import jwt
-from app import csrf  
+from extensions import csrf  
 
 # Create a new blueprint for account settings API endpoints
 api_account_bp = Blueprint('api_account', __name__, url_prefix='/api/account')
