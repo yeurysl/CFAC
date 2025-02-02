@@ -3,6 +3,7 @@ from flask import Blueprint, request, jsonify, current_app
 from bson.objectid import ObjectId, InvalidId
 from flask_wtf.csrf import CSRFProtect, csrf_exempt
 import jwt
+from app import csrf  
 
 # Create a new blueprint for account settings API endpoints
 api_account_bp = Blueprint('api_account', __name__, url_prefix='/api/account')
@@ -57,7 +58,7 @@ def fetch_account_settings():
     }
     return jsonify(account_settings), 200
 
-@csrf_exempt
+@csrf.exempt
 @api_account_bp.route('/', methods=['PUT'])
 def update_account_settings():
     data = request.get_json()
