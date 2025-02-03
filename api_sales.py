@@ -172,3 +172,83 @@ def create_order():
     except Exception as e:
         current_app.logger.error(f"Error creating order: {e}")
         return jsonify({"error": str(e)}), 500
+
+@api_sales_bp.route('/orders/<order_id>', methods=['PUT', 'PATCH'])
+def update_order(order_id):
+    # Authenticate the user
+    auth_header = request.headers.get('Authorization', '')
+    if not auth_header.startswith("Bearer "):
+        return jsonify({"error": "Missing or invalid Authorization header."}), 401
+
+    token = auth_header.replace("Bearer ", "").strip()
+    secret_key = current_app.config['JWT_SECRET']
+    user_id = decode_jwt(token, secret_key)
+    if not user_id:
+        return jsonify({"error": "Invalid or expired token"}), 401
+
+    # Optionally, verify the user exists (like in fetch_orders)
+    users_collection = current_app.config['USERS_COLLECTION']
+    user = users_collection.find_one({"_id": ObjectId(user_id)})
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    orders_collection = current_app.config.get('ORDERS_COLLECTION')
+    if orders_collection is None:
+        return jsonify({"error": "Orders collection not configured."}), 500
+
+    update_data = request.get_json()
+    if update_data is None:
+        return jsonify({"error": "Invalid or missing JSON data."}), 400
+
+    current_app.logger.info(f"Update data received for order {order_id}: {update_data}")
+
+    # Optionally perform validation on update_data.
+    # For a partial update, you might not require all keys.
+    
+    # Set updated timestamp if needed:
+    update_data["updated_date"] = datetime.utcnow()
+
+    # Update the order (using $set for a partial update)
+    result = orders_collection.update_one(
+        {"_id": ObjectId(order_id), "salesperson": user_id},  # Ensure salesperson owns the order
+        {"$set": update_data}
+    )
+
+    if result.matched_count == 0:
+        return jsonify({"error": "Order not found or unauthorized"}), 404
+
+    return jsonify({"message": "Order updated successfully!"}), 200
+
+@api_sales_bp.route('/orders/<order_id>', methods=['DELETE'])
+def delete_order(order_id):
+    # Authenticate the user
+    auth_header = request.headers.get('Authorization', '')
+    if not auth_header.startswith("Bearer "):
+        return jsonify({"error": "Missing or invalid Authorization header."}), 401
+
+    token = auth_header.replace("Bearer ", "").strip()
+    secret_key = current_app.config['JWT_SECRET']
+    user_id = decode_jwt(token, secret_key)
+    if not user_id:
+        return jsonify({"error": "Invalid or expired token"}), 401
+
+    # Optionally, verify the user exists:
+    users_collection = current_app.config['USERS_COLLECTION']
+    user = users_collection.find_one({"_id": ObjectId(user_id)})
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    orders_collection = current_app.config.get('ORDERS_COLLECTION')
+    if orders_collection is None:
+        return jsonify({"error": "Orders collection not configured."}), 500
+
+    # Delete the order; also ensure the salesperson is allowed to delete it.
+    result = orders_collection.delete_one({
+        "_id": ObjectId(order_id),
+        "salesperson": user_id
+    })
+
+    if result.deleted_count == 0:
+        return jsonify({"error": "Order not found or unauthorized"}), 404
+
+    return jsonify({"message": "Order deleted successfully!"}), 200
