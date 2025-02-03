@@ -4,10 +4,12 @@ from datetime import datetime
 from flask_login import current_user  
 import jwt
 from bson import ObjectId
+import stripe
 from jwt import ExpiredSignatureError, InvalidTokenError
 
 
 api_sales_bp = Blueprint('api_sales', __name__, url_prefix='/api')
+stripe.api_key = current_app.config['STRIPE_SECRET_KEY']
 
 
 
@@ -292,3 +294,35 @@ def delete_order(order_id):
 
     current_app.logger.info(f"Order {order_id} deleted successfully by user {user_id}.")
     return jsonify({"message": "Order deleted successfully!"}), 200
+
+
+
+
+
+
+
+
+
+
+
+@api_sales_bp.route('/create_payment_intent', methods=['POST'])
+def create_payment_intent():
+    try:
+        data = request.get_json()
+        amount = data.get("amount")
+        order_id = data.get("order_id")
+        if not amount or not order_id:
+            return jsonify({"error": "Missing amount or order_id"}), 400
+        
+        # Optionally, validate the order exists and is in a proper state
+
+        # Create a PaymentIntent with the specified amount (in cents)
+        intent = stripe.PaymentIntent.create(
+            amount=amount,
+            currency="usd",
+            metadata={"order_id": order_id}
+        )
+        return jsonify({"client_secret": intent.client_secret}), 200
+    except Exception as e:
+        current_app.logger.error(f"Error creating PaymentIntent: {e}")
+        return jsonify({"error": str(e)}), 500
