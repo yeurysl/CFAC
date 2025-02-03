@@ -308,8 +308,8 @@ def create_payment_intent():
             return jsonify({"error": "Missing order_id"}), 400
 
         # Query MongoDB for the order details.
-        order = current_app.mongo.db.orders.find_one({"_id": ObjectId(order_id)})
-        
+        order = current_app.config["MONGO_CLIENT"].orders.find_one({"_id": ObjectId(order_id)})
+
         if not order:
             return jsonify({"error": "Order not found"}), 404
 
