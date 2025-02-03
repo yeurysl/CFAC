@@ -302,24 +302,31 @@ def delete_order(order_id):
 
 
 
-
 @api_sales_bp.route('/create_payment_intent', methods=['POST'])
 def create_payment_intent():
     try:
         data = request.get_json()
-        amount = data.get("amount")
+        amount = data.get("amount")  # amount in cents
         order_id = data.get("order_id")
+        payment_time = data.get("payment_time", "pay_now")  # Default to pay_now if not provided
+        
         if not amount or not order_id:
             return jsonify({"error": "Missing amount or order_id"}), 400
-        
-        # Set the Stripe API key using current_app.config inside the route.
-        stripe.api_key = current_app.config['STRIPE_SECRET_KEY']
 
-        # Create a PaymentIntent with the specified amount (in cents)
+        stripe.api_key = current_app.config['STRIPE_SECRET_KEY']
+        
+        # Determine capture method based on the customer's choice.
+        # For "pay_now", use automatic capture (the default).
+        # For "pay_after_completion", set capture_method to "manual".
+        capture_method = "automatic"
+        if payment_time == "pay_after_completion":
+            capture_method = "manual"
+        
         intent = stripe.PaymentIntent.create(
             amount=amount,
             currency="usd",
-            metadata={"order_id": order_id}
+            capture_method=capture_method,
+            metadata={"order_id": order_id, "payment_time": payment_time}
         )
         return jsonify({"client_secret": intent.client_secret}), 200
     except Exception as e:
