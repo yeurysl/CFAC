@@ -218,6 +218,9 @@ def update_order(order_id):
         return jsonify({"error": "Order not found or unauthorized"}), 404
 
     return jsonify({"message": "Order updated successfully!"}), 200
+
+
+
 @api_sales_bp.route('/orders/<order_id>', methods=['DELETE'])
 def delete_order(order_id):
     # Authenticate the user
@@ -235,14 +238,19 @@ def delete_order(order_id):
 
     current_app.logger.info(f"JWT decoded successfully. User ID: {user_id}")
 
-    # Optionally, verify the user exists:
+    # Verify the user exists
     users_collection = current_app.config['USERS_COLLECTION']
-    user = users_collection.find_one({"_id": ObjectId(user_id)})
-    if not user:
+    try:
+        user_obj = users_collection.find_one({"_id": ObjectId(user_id)})
+    except Exception as e:
+        current_app.logger.error(f"Error fetching user: {e}")
+        return jsonify({"error": "Error fetching user"}), 500
+
+    if not user_obj:
         current_app.logger.error(f"User not found for ID: {user_id}")
         return jsonify({"error": "User not found"}), 404
 
-    current_app.logger.info(f"User found: {user.get('email', 'No Email Provided')} (ID: {user_id})")
+    current_app.logger.info(f"User found: {user_obj.get('email', 'No Email Provided')} (ID: {user_id})")
 
     orders_collection = current_app.config.get('ORDERS_COLLECTION')
     if orders_collection is None:
@@ -251,22 +259,32 @@ def delete_order(order_id):
 
     current_app.logger.info(f"Attempting to delete order with ID: {order_id} by user: {user_id}")
 
-    # Before deleting, try to fetch the order to see its details
-    order_doc = orders_collection.find_one({"_id": ObjectId(order_id)})
+    # Try to fetch the order document first
+    try:
+        order_doc = orders_collection.find_one({"_id": ObjectId(order_id)})
+    except Exception as e:
+        current_app.logger.error(f"Error fetching order: {e}")
+        return jsonify({"error": "Error fetching order"}), 500
+
     if order_doc:
-        current_app.logger.info(f"Found order: {order_doc}")
+        current_app.logger.info(f"Found order document: {order_doc}")
+        # Log the salesperson stored in the order for clarity
+        current_app.logger.info(f"Order salesperson: {order_doc.get('salesperson')}")
     else:
         current_app.logger.error(f"No order found with ID: {order_id}")
-    
-    # Delete the order; ensure the salesperson is allowed to delete it.
+        return jsonify({"error": "Order not found"}), 404
+
+    # Perform the deletion; ensure the salesperson matches.
     try:
         result = orders_collection.delete_one({
             "_id": ObjectId(order_id),
-            "salesperson": user_id  # Ensure this matches the stored type (string vs ObjectId)
+            "salesperson": user_id
         })
     except Exception as e:
         current_app.logger.error(f"Exception occurred while deleting order: {e}")
         return jsonify({"error": f"Exception occurred: {e}"}), 500
+
+    current_app.logger.info(f"Delete result: {result.deleted_count} document(s) removed.")
 
     if result.deleted_count == 0:
         current_app.logger.error("Order not found or unauthorized deletion attempt.")
