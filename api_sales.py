@@ -147,7 +147,6 @@ def create_order():
             order_data["creation_date"] = datetime.utcnow()
         # If you want to force guest orders, you might set:
         order_data["is_guest"] = True
-        order_data["user"] = None  # if applicable
 
         # You may also set defaults for payment_time and payment_status, if not provided:
         if "payment_time" not in order_data:
