@@ -9,7 +9,6 @@ from jwt import ExpiredSignatureError, InvalidTokenError
 
 
 api_sales_bp = Blueprint('api_sales', __name__, url_prefix='/api')
-stripe.api_key = current_app.config['STRIPE_SECRET_KEY']
 
 
 
@@ -304,7 +303,6 @@ def delete_order(order_id):
 
 
 
-
 @api_sales_bp.route('/create_payment_intent', methods=['POST'])
 def create_payment_intent():
     try:
@@ -314,7 +312,8 @@ def create_payment_intent():
         if not amount or not order_id:
             return jsonify({"error": "Missing amount or order_id"}), 400
         
-        # Optionally, validate the order exists and is in a proper state
+        # Set the Stripe API key using current_app.config inside the route.
+        stripe.api_key = current_app.config['STRIPE_SECRET_KEY']
 
         # Create a PaymentIntent with the specified amount (in cents)
         intent = stripe.PaymentIntent.create(
