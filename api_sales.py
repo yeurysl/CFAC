@@ -301,7 +301,6 @@ def delete_order(order_id):
 
 
 
-
 @api_sales_bp.route('/create_payment_intent', methods=['POST'])
 def create_payment_intent():
     try:
@@ -326,6 +325,7 @@ def create_payment_intent():
             amount=amount,
             currency="usd",
             capture_method=capture_method,
+            payment_method_types=["card"],  # This line ensures that card payments are supported.
             metadata={"order_id": order_id, "payment_time": payment_time}
         )
         return jsonify({"client_secret": intent.client_secret}), 200
