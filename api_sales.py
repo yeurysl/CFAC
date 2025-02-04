@@ -347,7 +347,7 @@ def create_payment_intent():
         update_data = {
             "payment_intent_id": intent.id,
             "client_secret": intent.client_secret,  # optional: use with caution
-            "payment_status": intent.status  # e.g., "requires_payment_method"
+            "stripe_payment_status": intent.status  # e.g., "requires_payment_method"
         }
         orders_collection.update_one({"_id": ObjectId(order_id)}, {"$set": update_data})
         current_app.logger.info("Order updated with PaymentIntent info.")
