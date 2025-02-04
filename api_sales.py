@@ -295,9 +295,6 @@ def delete_order(order_id):
 
 
 
-
-
-
 @api_sales_bp.route('/create_payment_intent', methods=['POST'])
 def create_payment_intent():
     try:
@@ -307,37 +304,36 @@ def create_payment_intent():
         if not order_id:
             return jsonify({"error": "Missing order_id"}), 400
 
-        # Query MongoDB for the order details.
-        order = current_app.config["MONGO_CLIENT"].orders.find_one({"_id": ObjectId(order_id)})
-
+        # Get the orders collection from the app configuration.
+        orders_collection = current_app.config['ORDERS_COLLECTION']
+        order = orders_collection.find_one({"_id": ObjectId(order_id)})
+        
         if not order:
             return jsonify({"error": "Order not found"}), 404
 
-        # Retrieve final_price from the order document (assumed to be in dollars)
+        # Retrieve the final price (in dollars) from the order document.
         final_price_dollars = order.get("final_price")
         if final_price_dollars is None:
             return jsonify({"error": "Order missing final price"}), 400
 
-        # Convert dollars to cents (Stripe expects the amount in the smallest currency unit)
+        # Convert dollars to cents.
         amount = int(float(final_price_dollars) * 100)
 
-        # Get payment_time from the order document.
-        # If it's not present, you can either default to "pay_now" or return an error.
+        # Get payment_time from the order document (defaults to "pay_now" if not set).
         payment_time = order.get("payment_time", "pay_now")
 
         stripe.api_key = current_app.config['STRIPE_SECRET_KEY']
         
-        # Determine the capture method based on the payment_time from the order.
-        capture_method = "automatic"  # default is automatic (for "pay_now")
+        # Determine the capture method based on payment_time.
+        capture_method = "automatic"  # default for "pay_now"
         if payment_time == "pay_after_completion":
             capture_method = "manual"
         
-        # Create the PaymentIntent on Stripe
         intent = stripe.PaymentIntent.create(
             amount=amount,
             currency="usd",
             capture_method=capture_method,
-            payment_method_types=["card"],  # Supports card payments (Apple Pay is auto-detected on the client)
+            payment_method_types=["card"],
             metadata={
                 "order_id": order_id,
                 "payment_time": payment_time
