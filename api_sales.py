@@ -304,28 +304,26 @@ def create_payment_intent():
         if not order_id:
             return jsonify({"error": "Missing order_id"}), 400
 
-        # Get the orders collection from the app configuration.
+        # Use the orders collection stored in app.config (as set in your db.py)
         orders_collection = current_app.config['ORDERS_COLLECTION']
         order = orders_collection.find_one({"_id": ObjectId(order_id)})
         
         if not order:
             return jsonify({"error": "Order not found"}), 404
 
-        # Retrieve the final price (in dollars) from the order document.
+        # Get the final price (in dollars) and convert it to cents.
         final_price_dollars = order.get("final_price")
         if final_price_dollars is None:
             return jsonify({"error": "Order missing final price"}), 400
 
-        # Convert dollars to cents.
         amount = int(float(final_price_dollars) * 100)
-
-        # Get payment_time from the order document (defaults to "pay_now" if not set).
+        # Get payment_time from the order document (defaulting to "pay_now")
         payment_time = order.get("payment_time", "pay_now")
 
         stripe.api_key = current_app.config['STRIPE_SECRET_KEY']
         
-        # Determine the capture method based on payment_time.
-        capture_method = "automatic"  # default for "pay_now"
+        # Use "automatic" capture for immediate payment.
+        capture_method = "automatic"
         if payment_time == "pay_after_completion":
             capture_method = "manual"
         
