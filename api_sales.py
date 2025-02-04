@@ -294,24 +294,22 @@ def delete_order(order_id):
     return jsonify({"message": "Order deleted successfully!"}), 200
 
 
+
+
 @api_sales_bp.route('/create_payment_intent', methods=['POST'])
 def create_payment_intent():
     try:
         current_app.logger.info("Received request to create payment intent.")
-        
         data = request.get_json()
-        current_app.logger.debug(f"Request JSON: {data}")
-        
         order_id = data.get("order_id")
         if not order_id:
             current_app.logger.error("Missing order_id in request.")
             return jsonify({"error": "Missing order_id"}), 400
 
-        # Use the orders collection stored in app.config (as set in your db.py)
+        # Retrieve the order from the collection
         orders_collection = current_app.config['ORDERS_COLLECTION']
         order = orders_collection.find_one({"_id": ObjectId(order_id)})
         current_app.logger.debug(f"Order fetched from DB: {order}")
-        
         if not order:
             current_app.logger.error(f"Order with id {order_id} not found.")
             return jsonify({"error": "Order not found"}), 404
@@ -327,13 +325,12 @@ def create_payment_intent():
         current_app.logger.info(f"Payment time set to: {payment_time}")
 
         stripe.api_key = current_app.config['STRIPE_SECRET_KEY']
-        current_app.logger.debug("Stripe API key set.")
-
         capture_method = "automatic"
         if payment_time == "pay_after_completion":
             capture_method = "manual"
         current_app.logger.info(f"Using capture method: {capture_method}")
 
+        # Create the PaymentIntent
         intent = stripe.PaymentIntent.create(
             amount=amount,
             currency="usd",
@@ -345,6 +342,16 @@ def create_payment_intent():
             }
         )
         current_app.logger.info(f"PaymentIntent created: {intent.id}")
+
+        # Patch the order to store the PaymentIntent info
+        update_data = {
+            "payment_intent_id": intent.id,
+            "client_secret": intent.client_secret,  # optional: use with caution
+            "payment_status": intent.status  # e.g., "requires_payment_method"
+        }
+        orders_collection.update_one({"_id": ObjectId(order_id)}, {"$set": update_data})
+        current_app.logger.info("Order updated with PaymentIntent info.")
+
         return jsonify({"client_secret": intent.client_secret}), 200
 
     except Exception as e:
