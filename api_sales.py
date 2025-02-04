@@ -294,39 +294,46 @@ def delete_order(order_id):
     return jsonify({"message": "Order deleted successfully!"}), 200
 
 
-
 @api_sales_bp.route('/create_payment_intent', methods=['POST'])
 def create_payment_intent():
     try:
-        data = request.get_json()
-        order_id = data.get("order_id")
+        current_app.logger.info("Received request to create payment intent.")
         
+        data = request.get_json()
+        current_app.logger.debug(f"Request JSON: {data}")
+        
+        order_id = data.get("order_id")
         if not order_id:
+            current_app.logger.error("Missing order_id in request.")
             return jsonify({"error": "Missing order_id"}), 400
 
         # Use the orders collection stored in app.config (as set in your db.py)
         orders_collection = current_app.config['ORDERS_COLLECTION']
         order = orders_collection.find_one({"_id": ObjectId(order_id)})
+        current_app.logger.debug(f"Order fetched from DB: {order}")
         
         if not order:
+            current_app.logger.error(f"Order with id {order_id} not found.")
             return jsonify({"error": "Order not found"}), 404
 
-        # Get the final price (in dollars) and convert it to cents.
         final_price_dollars = order.get("final_price")
         if final_price_dollars is None:
+            current_app.logger.error("Order missing final price.")
             return jsonify({"error": "Order missing final price"}), 400
 
         amount = int(float(final_price_dollars) * 100)
-        # Get payment_time from the order document (defaulting to "pay_now")
         payment_time = order.get("payment_time", "pay_now")
+        current_app.logger.info(f"Final price: {final_price_dollars} dollars, converted to {amount} cents.")
+        current_app.logger.info(f"Payment time set to: {payment_time}")
 
         stripe.api_key = current_app.config['STRIPE_SECRET_KEY']
-        
-        # Use "automatic" capture for immediate payment.
+        current_app.logger.debug("Stripe API key set.")
+
         capture_method = "automatic"
         if payment_time == "pay_after_completion":
             capture_method = "manual"
-        
+        current_app.logger.info(f"Using capture method: {capture_method}")
+
         intent = stripe.PaymentIntent.create(
             amount=amount,
             currency="usd",
@@ -337,8 +344,9 @@ def create_payment_intent():
                 "payment_time": payment_time
             }
         )
+        current_app.logger.info(f"PaymentIntent created: {intent.id}")
         return jsonify({"client_secret": intent.client_secret}), 200
 
     except Exception as e:
-        current_app.logger.error(f"Error creating PaymentIntent: {e}")
+        current_app.logger.exception("Error creating PaymentIntent")
         return jsonify({"error": str(e)}), 500
