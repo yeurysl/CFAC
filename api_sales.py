@@ -119,9 +119,7 @@ def create_order():
         # Log the received order data
         current_app.logger.info(f"Order data received: {order_data}")
 
-        # Validate required fields according to the website order structure.
-        # For example, your website order has keys:
-        #   guest_name, guest_email, vehicle_size, guest_address, selectedServices
+        # Validate required fields according to your website order structure.
         required_fields = [
             "guest_name", "guest_email", "vehicle_size",
             "guest_address", "selectedServices", "services_total", "fee", "final_price"
@@ -131,7 +129,7 @@ def create_order():
             current_app.logger.error(f"Missing required fields: {missing}")
             return jsonify({"error": f"Missing required fields: {missing}"}), 400
 
-        # Ensure guest_address is a dictionary containing required sub-fields
+        # Ensure guest_address is a dictionary containing required sub-fields.
         if not isinstance(order_data.get("guest_address"), dict):
             current_app.logger.error("guest_address must be provided as an object.")
             return jsonify({"error": "guest_address must be provided as an object."}), 400
@@ -142,36 +140,93 @@ def create_order():
             current_app.logger.error(f"Missing required address fields: {missing_address}")
             return jsonify({"error": f"Missing required address fields: {missing_address}"}), 400
 
-        # Set default values if needed
+        # Set default values if needed.
         if "creation_date" not in order_data:
             order_data["creation_date"] = datetime.utcnow()
-        # If you want to force guest orders, you might set:
         order_data["is_guest"] = True
 
-        # You may also set defaults for payment_time and payment_status, if not provided:
+        # Set defaults for payment-related fields.
         if "payment_time" not in order_data:
             order_data["payment_time"] = "pay_now"
+        # For the UI, you might leave the display payment status as "Unpaid"
         if "payment_status" not in order_data:
             order_data["payment_status"] = "Unpaid"
+        # We'll store the raw Stripe status in a separate field.
+        order_data["stripe_payment_status"] = "pending"
         if "service_package" not in order_data:
             order_data["service_package"] = ""
         if "senior_rv_discount" not in order_data:
             order_data["senior_rv_discount"] = False
         if "status" not in order_data:
             order_data["status"] = "ordered"
-        # scheduled_by and salesperson can be set if necessary.
-        
-        result = orders_collection.insert_one(order_data)
-        current_app.logger.info(f"Order inserted with id: {result.inserted_id}")
+        # Optionally set scheduled_by and salesperson if necessary.
 
+        # Insert the order into the database.
+        result = orders_collection.insert_one(order_data)
+        order_id = str(result.inserted_id)
+        current_app.logger.info(f"Order inserted with id: {order_id}")
+
+        # Create a PaymentIntent for this order.
+        final_price = float(order_data["final_price"])  # in dollars
+        amount = int(final_price * 100)  # convert dollars to cents
+
+        # Create the PaymentIntent via Stripe.
+        intent = stripe.PaymentIntent.create(
+            amount=amount,
+            currency="usd",
+            payment_method_types=["card"],
+            metadata={"order_id": order_id}
+        )
+        current_app.logger.info(f"PaymentIntent created: {intent.id}")
+
+        # Update the order with PaymentIntent details.
+        orders_collection.update_one(
+            {"_id": ObjectId(order_id)},
+            {"$set": {
+                "payment_intent_id": intent.id,
+                "client_secret": intent.client_secret,
+                "stripe_payment_status": intent.status
+            }}
+        )
+
+        # Create a Stripe Checkout Session (hosted payment page).
+        checkout_session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            mode="payment",
+            line_items=[{
+                "price_data": {
+                    "currency": "usd",
+                    "product_data": {
+                        "name": "Order #" + order_id,
+                        # You could also list the services or package details here.
+                    },
+                    "unit_amount": amount,
+                },
+                "quantity": 1,
+            }],
+            customer_email=order_data["guest_email"],
+            success_url=current_app.config.get("CHECKOUT_SUCCESS_URL", "https://yourdomain.com/payment_success?order_id={CHECKOUT_SESSION_ID}"),
+            cancel_url=current_app.config.get("CHECKOUT_CANCEL_URL", "https://yourdomain.com/payment_cancel?order_id={CHECKOUT_SESSION_ID}"),
+            metadata={"order_id": order_id}
+        )
+        current_app.logger.info(f"Checkout Session created: {checkout_session.id}")
+
+        # Return the order details and the payment link.
         return jsonify({
             "message": "Order created successfully!",
-            "order_id": str(result.inserted_id)
+            "order_id": order_id,
+            "checkout_url": checkout_session.url,
+            "client_secret": intent.client_secret
         }), 201
 
     except Exception as e:
         current_app.logger.error(f"Error creating order: {e}")
         return jsonify({"error": str(e)}), 500
+
+
+
+
+
 
 @api_sales_bp.route('/orders/<order_id>', methods=['PUT', 'PATCH'])
 def update_order(order_id):
