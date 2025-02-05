@@ -3,11 +3,11 @@ from flask import Blueprint, request, jsonify, current_app, render_template, Fla
 from datetime import datetime
 from flask_login import current_user  
 import jwt
-from flask_mail import Mail, Message
 from bson import ObjectId
 from app import mail 
 from config import Config
 import stripe
+from flask_mail import Message
 from jwt import ExpiredSignatureError, InvalidTokenError
 
 
