@@ -7,6 +7,7 @@ from flask import Flask
 
 from flask_mail import Mail, Message
 from bson import ObjectId
+from app import mail 
 from config import Config
 import stripe
 from jwt import ExpiredSignatureError, InvalidTokenError
@@ -16,7 +17,6 @@ app = Flask(__name__)
 api_sales_bp = Blueprint('api_sales', __name__, url_prefix='/api')
 app.config.from_object(Config)
 
-mail = Mail(app)
 
 
 
