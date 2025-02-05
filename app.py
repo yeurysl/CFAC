@@ -3,6 +3,7 @@
 import os
 import decimal
 import logging
+from notis import api_sales_bp 
 from flask import Flask
 from werkzeug.middleware.proxy_fix import ProxyFix
 from dotenv import load_dotenv

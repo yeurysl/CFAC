@@ -1,9 +1,12 @@
+#notis.py
 import os
 import logging
 import traceback
 from flask import current_app, render_template, url_for
 from postmarker.core import PostmarkClient
 from datetime import datetime
+from flask import Flask
+from flask_mail import Mail, Message
 from bson.objectid import ObjectId
 
 
@@ -404,3 +407,22 @@ CFAC AutoCare Team"""
         app.logger.error(f"Failed to send password reset notification to {user_email}: {e}")
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+@app.route("/send_test_email")
+def send_test_email():
+    msg = Message("Test Email", recipients=["recipient@example.com"])
+    msg.body = "This is a test email sent via Postmark using Flask-Mail!"
+    mail.send(msg)
+    return "Email sent!"
