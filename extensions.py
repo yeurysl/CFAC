@@ -13,6 +13,8 @@ from flask_mail import Mail
 bcrypt = Bcrypt()
 login_manager = LoginManager()
 csrf = CSRFProtect()
+mail = Mail()
+
 
 class User(UserMixin):
     def __init__(self, user_id, user_type):
