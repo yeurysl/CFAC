@@ -45,7 +45,7 @@ def create_app():
     # Load configuration from Config class
     app.config.from_object(Config)
     
-    mail = mail(app)
+    Mail = Mail(app)
 
 
     # Decimal precision
