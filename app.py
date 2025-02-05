@@ -8,7 +8,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from dotenv import load_dotenv
 from pymongo import MongoClient
 from config import Config
-from flask_mail import Mail, Message
+from flask_mail import mail, Message
 
 
 # Import extensions
@@ -45,7 +45,7 @@ def create_app():
     # Load configuration from Config class
     app.config.from_object(Config)
     
-    mail = Mail(app)
+    mail = mail(app)
 
 
     # Decimal precision
