@@ -435,6 +435,5 @@ def send_test_email():
     msg = Message("Test Email", recipients=["recipient@example.com"])
     msg.body = "This is a test email sent via Postmark using Flask-Mail!"
     # You need to import your 'mail' instance from your main app if not available here.
-    from app import mail  # Adjust the import based on your project structure
     mail.send(msg)
     return "Email sent!"
