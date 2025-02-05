@@ -3,6 +3,8 @@ from flask import Blueprint, request, jsonify, current_app
 from datetime import datetime
 from flask_login import current_user  
 import jwt
+from flask import Flask
+
 from flask_mail import Mail
 from bson import ObjectId
 from config import Config
