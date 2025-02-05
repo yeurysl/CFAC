@@ -1,3 +1,5 @@
+# config.py
+
 import os
 from dotenv import load_dotenv
 
@@ -13,3 +15,6 @@ class Config:
     POSTMARK_SERVER_TOKEN = os.getenv('POSTMARK_SERVER_TOKEN')
     ENV = os.getenv('ENV', 'development')
     JWT_SECRET = os.getenv('JWT_SECRET')  
+
+    CHECKOUT_SUCCESS_URL = "https://cfautocare.biz/home?order_id={CHECKOUT_SESSION_ID}"
+    CHECKOUT_CANCEL_URL = "https://cfautocare.biz/?order_id={CHECKOUT_SESSION_ID}"
