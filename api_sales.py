@@ -3,12 +3,18 @@ from flask import Blueprint, request, jsonify, current_app
 from datetime import datetime
 from flask_login import current_user  
 import jwt
+from flask_mail import Mail
 from bson import ObjectId
+from config import Config
 import stripe
 from jwt import ExpiredSignatureError, InvalidTokenError
 
+app = Flask(__name__)
 
 api_sales_bp = Blueprint('api_sales', __name__, url_prefix='/api')
+app.config.from_object(Config)
+
+mail = Mail(app)
 
 
 
