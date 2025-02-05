@@ -8,11 +8,10 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from dotenv import load_dotenv
 from pymongo import MongoClient
 from config import Config
-from flask_mail import Mail, Message
 
 
 # Import extensions
-from extensions import bcrypt, login_manager, csrf, create_unique_indexes
+from extensions import bcrypt, login_manager, csrf, create_unique_indexes, mail
 from db import init_db
 from utility import register_filters
 
@@ -52,6 +51,7 @@ def create_app():
     decimal.getcontext().prec = 28
 
     # Initialize Flask extensions
+    mail.init_app(app)
     bcrypt.init_app(app)         # Initialize bcrypt
     login_manager.init_app(app)  # Initialize login_manager
     csrf.init_app(app)           # Initialize csrf
