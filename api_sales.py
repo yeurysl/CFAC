@@ -5,7 +5,7 @@ from flask_login import current_user
 import jwt
 from flask import Flask
 
-from flask_mail import Mail
+from flask_mail import Mail, Message
 from bson import ObjectId
 from config import Config
 import stripe
