@@ -107,6 +107,8 @@ def get_services():
         return jsonify({"error": str(e)}), 500
     
 
+
+
 @api_sales_bp.route('/guest_order', methods=['POST'])
 def create_order():
     try:
@@ -121,12 +123,8 @@ def create_order():
             current_app.logger.error("No JSON data found.")
             return jsonify({"error": "Invalid or missing JSON data."}), 400
 
-        # Log the received order data
+        # Validate and set default values
         current_app.logger.info(f"Order data received: {order_data}")
-
-        # (Validation code omitted for brevity)
-
-        # Set default values if needed.
         if "creation_date" not in order_data:
             order_data["creation_date"] = datetime.utcnow()
         order_data["is_guest"] = True
@@ -136,32 +134,64 @@ def create_order():
         order_id = str(result.inserted_id)
         current_app.logger.info(f"Order inserted with id: {order_id}")
 
-        # **Set the Stripe API key here**
+        # Set the Stripe secret key.
         stripe.api_key = current_app.config.get('STRIPE_SECRET_KEY')
 
-        # Create a PaymentIntent for this order.
-        final_price = float(order_data["final_price"])  # in dollars
-        amount = int(final_price * 100)  # convert dollars to cents
+        # Calculate the amount (in cents).
+        final_price = float(order_data["final_price"])
+        amount = int(final_price * 100)
 
-        intent = stripe.PaymentIntent.create(
-            amount=amount,
-            currency="usd",
+        # Create a Stripe Checkout Session.
+        checkout_session = stripe.checkout.Session.create(
             payment_method_types=["card"],
+            mode="payment",
+            line_items=[{
+                "price_data": {
+                    "currency": "usd",
+                    "product_data": {
+                        "name": f"Order #{order_id}",
+                    },
+                    "unit_amount": amount,
+                },
+                "quantity": 1,
+            }],
+            customer_email=order_data.get("guest_email"),
+            success_url=current_app.config.get("CHECKOUT_SUCCESS_URL", "https://cfautocare.biz/"),
+            cancel_url=current_app.config.get("CHECKOUT_CANCEL_URL", "https://cfautocare.biz/"),
             metadata={"order_id": order_id}
         )
-        current_app.logger.info(f"PaymentIntent created: {intent.id}")
+        current_app.logger.info(f"Checkout Session created: {checkout_session.id}")
 
-        # (Rest of your code...)
+        # Update the order record with the checkout session details.
+        orders_collection.update_one(
+            {"_id": ObjectId(order_id)},
+            {"$set": {"checkout_session_id": checkout_session.id}}
+        )
+
+        # Send the checkout URL to the customer via email and/or SMS if available.
+        if order_data.get("guest_email"):
+            from_email = current_app.config.get("POSTMARK_SENDER_EMAIL")
+            subject = "Your Payment Link for Your Order"
+            text_body = (
+                f"Hello,\n\n"
+                f"Please complete your payment for Order #{order_id} by clicking on the link below:\n"
+                f"{checkout_session.url}\n\n"
+                f"Thank you!"
+            )
+            send_postmark_email(subject, order_data["guest_email"], from_email, text_body)
+        # (You can add similar logic for SMS if needed.)
+
+        # Return a response with the order ID and the checkout URL.
         return jsonify({
             "message": "Order created successfully!",
             "order_id": order_id,
-            "checkout_url": checkout_session.url,
-            "client_secret": intent.client_secret
+            "checkout_url": checkout_session.url
         }), 201
 
     except Exception as e:
-        current_app.logger.error(f"Error creating order: {e}")
+        current_app.logger.error(f"Error creating order: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
+
 
 
 
@@ -312,18 +342,20 @@ def create_payment_intent():
             current_app.logger.error("Order missing final price.")
             return jsonify({"error": "Order missing final price"}), 400
 
+        # Convert dollars to cents
         amount = int(float(final_price_dollars) * 100)
         payment_time = order.get("payment_time", "pay_now")
         current_app.logger.info(f"Final price: {final_price_dollars} dollars, converted to {amount} cents.")
         current_app.logger.info(f"Payment time set to: {payment_time}")
 
+        # Set your Stripe secret key
         stripe.api_key = current_app.config['STRIPE_SECRET_KEY']
         capture_method = "automatic"
         if payment_time == "pay_after_completion":
             capture_method = "manual"
         current_app.logger.info(f"Using capture method: {capture_method}")
 
-        # Create the PaymentIntent
+        # Create the PaymentIntent via Stripe
         intent = stripe.PaymentIntent.create(
             amount=amount,
             currency="usd",
@@ -336,10 +368,10 @@ def create_payment_intent():
         )
         current_app.logger.info(f"PaymentIntent created: {intent.id}")
 
-        # Patch the order to store the PaymentIntent info
+        # Update the order to store PaymentIntent info
         update_data = {
             "payment_intent_id": intent.id,
-            "client_secret": intent.client_secret,  # optional: use with caution
+            "client_secret": intent.client_secret,  # used on client side for confirmation
             "stripe_payment_status": intent.status  # e.g., "requires_payment_method"
         }
         orders_collection.update_one({"_id": ObjectId(order_id)}, {"$set": update_data})
@@ -353,6 +385,51 @@ def create_payment_intent():
 
 
 
+@api_sales_bp.route('/webhook', methods=['POST'])
+def stripe_webhook():
+    payload = request.data
+    sig_header = request.headers.get('Stripe-Signature')
+    endpoint_secret = current_app.config.get('STRIPE_WEBHOOK_SECRET')
+
+    try:
+        # Verify that the request came from Stripe
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, endpoint_secret
+        )
+    except ValueError as e:
+        current_app.logger.error("Invalid payload", exc_info=True)
+        return "Invalid payload", 400
+    except stripe.error.SignatureVerificationError as e:
+        current_app.logger.error("Invalid signature", exc_info=True)
+        return "Invalid signature", 400
+
+    # Handle the event based on its type
+    if event['type'] == 'payment_intent.succeeded':
+        intent = event['data']['object']
+        current_app.logger.info(f"PaymentIntent succeeded: {intent['id']}")
+        # Retrieve your order using metadata (or other identifier)
+        order_id = intent.get('metadata', {}).get('order_id')
+        if order_id:
+            # Update order status to paid in your database
+            orders_collection = current_app.config['ORDERS_COLLECTION']
+            orders_collection.update_one(
+                {"_id": ObjectId(order_id)},
+                {"$set": {"payment_status": "paid", "stripe_payment_status": intent['status']}}
+            )
+    elif event['type'] == 'checkout.session.completed':
+        session = event['data']['object']
+        current_app.logger.info(f"Checkout Session completed: {session['id']}")
+        order_id = session.get('metadata', {}).get('order_id')
+        if order_id:
+            # Update your order status here if you need to
+            orders_collection = current_app.config['ORDERS_COLLECTION']
+            orders_collection.update_one(
+                {"_id": ObjectId(order_id)},
+                {"$set": {"payment_status": "paid", "checkout_status": "completed"}}
+            )
+    # Handle other event types as needed.
+    
+    return '', 200
 
 
 

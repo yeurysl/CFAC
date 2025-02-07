@@ -86,38 +86,34 @@ def send_tech_notification_email(order, selected_services):
 
 
 
-def send_postmark_email(subject, to_email, from_email, text_body=None, html_body=None):
-    if not text_body and not html_body:
-        logger.error("Both text_body and html_body are missing.")
-        raise ValueError("At least one of text_body or html_body must be provided.")
+
+def send_postmark_email(subject, to_email, from_email, text_body, html_body=None):
+    """
+    Sends an email via Postmark.
     
+    :param subject: Subject line of the email.
+    :param to_email: Recipient's email address.
+    :param from_email: Sender's email address.
+    :param text_body: Plain-text body of the email.
+    :param html_body: (Optional) HTML body of the email.
+    :return: The response from Postmark.
+    """
+    # Validate email addresses.
     if not is_valid_email(to_email):
-        logger.error(f"Invalid recipient email address: {to_email}")
-        raise ValueError(f"Invalid recipient email address: {to_email}")
-    
+        raise ValueError("Invalid recipient email address")
     if not is_valid_email(from_email):
-        logger.error(f"Invalid sender email address: {from_email}")
-        raise ValueError(f"Invalid sender email address: {from_email}")
-
-    try:
-        email_payload = {
-            "From": from_email,
-            "To": to_email,
-            "Subject": subject,
-            "MessageStream": "outbound"  # or adjust this as per your configuration
-        }
-        if text_body:
-            email_payload["TextBody"] = text_body
-        if html_body:
-            email_payload["HtmlBody"] = html_body
-
-        response = postmark_client.emails.send(**email_payload)
-        logger.info(f"Email sent to {to_email} with subject '{subject}'.")
-        return response
-    except Exception as e:
-        logger.error(f"Failed to send email to {to_email}: {e}")
-        logger.error(traceback.format_exc())
-        raise e
+        raise ValueError("Invalid sender email address")
+    
+    # Use the Postmark client to send the email.
+    response = postmark_client.emails.send(
+        From=from_email,
+        To=to_email,
+        Subject=subject,
+        TextBody=text_body,
+        HtmlBody=html_body if html_body else text_body
+    )
+    
+    return response
 
 
 #Emails\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
