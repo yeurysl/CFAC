@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from pymongo import MongoClient
 from config import Config
 from flask_mail import Mail, Message
+from postmark_client import postmark_client, is_valid_email
 
 
 # Import extensions

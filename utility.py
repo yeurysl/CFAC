@@ -27,10 +27,6 @@ postmark_client = PostmarkClient(server_token=POSTMARK_SERVER_TOKEN)
 
 EMAIL_REGEX = re.compile(r"[^@]+@[^@]+\.[^@]+")
 
-def is_valid_email(email):
-    """Validate the email format."""
-    return EMAIL_REGEX.match(email) is not None
-
 def format_us_phone_number(phone_number):
     """Formats a US phone number to E.164 format (assumes 10 digits)."""
     digits = re.sub(r'\D', '', phone_number)

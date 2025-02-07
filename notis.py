@@ -8,7 +8,10 @@ from datetime import datetime
 from flask import Flask
 from flask_mail import Mail, Message
 from bson.objectid import ObjectId
+from postmark_client import postmark_client, is_valid_email
 
+
+logger = logging.getLogger(__name__)
 
 
 def send_tech_notification_email(order, selected_services):
@@ -17,7 +20,6 @@ def send_tech_notification_email(order, selected_services):
 
     :param order: The order document inserted into the database.
     """
-    logger = logging.getLogger(__name__)
     try:
         # Corrected Query: Fetch technicians with 'user_type' as 'tech'
         techs_cursor = users_collection.find({'user_type': 'tech'})
@@ -82,20 +84,10 @@ def send_tech_notification_email(order, selected_services):
     except Exception as e:
         logger.error(f"Error in send_tech_notification_email: {e}")
 
+
+
+
 def send_postmark_email(subject, to_email, from_email, text_body=None, html_body=None):
-    """
-    Sends an email using Postmark.
-
-    Args:
-        subject (str): Subject of the email.
-        to_email (str): Recipient's email address.
-        from_email (str): Sender's email address (must be verified in Postmark).
-        text_body (str, optional): Plain-text version of the email.
-        html_body (str, optional): HTML version of the email.
-
-    Returns:
-        dict: Response from Postmark API.
-    """
     if not text_body and not html_body:
         logger.error("Both text_body and html_body are missing.")
         raise ValueError("At least one of text_body or html_body must be provided.")
@@ -113,7 +105,7 @@ def send_postmark_email(subject, to_email, from_email, text_body=None, html_body
             "From": from_email,
             "To": to_email,
             "Subject": subject,
-            "MessageStream": "outbound"  # Adjust if you have multiple message streams
+            "MessageStream": "outbound"  # or adjust this as per your configuration
         }
         if text_body:
             email_payload["TextBody"] = text_body
@@ -126,7 +118,7 @@ def send_postmark_email(subject, to_email, from_email, text_body=None, html_body
     except Exception as e:
         logger.error(f"Failed to send email to {to_email}: {e}")
         logger.error(traceback.format_exc())
-        raise e  # Re-raise the exception to allow the calling function to handle it
+        raise e
 
 
 #Emails\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
