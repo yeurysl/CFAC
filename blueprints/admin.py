@@ -16,19 +16,21 @@ from forms import DeleteOrderForm, EditOrderForm, UpdateCompensationStatusForm
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
 
+
+
 @admin_bp.route('/main')
 @login_required
 @admin_required
 def admin_main():
     """
-    Main admin dashboard route.
+    Main admin dashboard route adapted for orders that use services.
     """
     try:
         # Access collections via current_app.config
         orders_collection = current_app.config['ORDERS_COLLECTION']
         users_collection = current_app.config['USERS_COLLECTION']
         estimaterequests_collection = current_app.config['ESTIMATE_REQUESTS_COLLECTION']
-        products_collection = current_app.config['PRODUCTS_COLLECTION']
+        services_collection = current_app.config['SERVICES_COLLECTION']  # New collection for services
 
         # 1. Fetch All Estimate Requests
         estimates = list(estimaterequests_collection.find())
@@ -68,41 +70,43 @@ def admin_main():
                 else:
                     order['salesperson_name'] = 'Not Assigned'
             else:
-                # For customer orders, fetch the user's email
-                user_email = order.get('user')
-                if user_email:
-                    user = users_collection.find_one({'email': user_email})
+                # For customer orders, use guest_email (or user) field as needed
+                email = order.get('guest_email') or order.get('user')
+                if email:
+                    user = users_collection.find_one({'email': email})
                     order['user_email'] = user.get('email', 'Unknown') if user else 'Unknown'
                 else:
                     order['user_email'] = 'Unknown'
 
-            # 5.2 Convert Date Fields
-            for date_field in ['order_date', 'service_date']:
+            # 5.2 Convert Date Fields (now expecting ISO-8601 format)
+            for date_field in ['order_date', 'service_date', 'creation_date']:
                 date_value = order.get(date_field)
                 if isinstance(date_value, str):
                     try:
-                        if date_field == 'service_date':
-                            order[date_field] = datetime.strptime(date_value, '%Y-%m-%d')
+                        if date_value.endswith('Z'):
+                            order[date_field] = datetime.strptime(date_value, '%Y-%m-%dT%H:%M:%SZ')
                         else:
-                            order[date_field] = datetime.strptime(date_value, '%Y-%m-%d %H:%M:%S')
+                            order[date_field] = datetime.fromisoformat(date_value)
                     except ValueError:
                         current_app.logger.error(
                             f"Invalid {date_field} format for order {order.get('_id')}: {date_value}"
                         )
                         order[date_field] = None
 
-            # 5.3 Get Product Details
-            product_ids = [pid for pid in order.get('products', []) if ObjectId.is_valid(pid)]
-            try:
-                product_ids = [ObjectId(pid) for pid in product_ids]
-                products = list(products_collection.find({'_id': {'$in': product_ids}}))
-                order['product_details'] = products
-            except Exception as e:
-                current_app.logger.error(f"Error fetching products for order {order.get('_id')}: {e}")
-                order['product_details'] = []
+            # 5.3 Get Service Details instead of product details
+            service_codes = order.get('selectedServices', [])
+            if service_codes:
+                # Assuming each service document has a 'service_code' field to match against
+                services = list(services_collection.find({'service_code': {'$in': service_codes}}))
+                order['service_details'] = services
+            else:
+                order['service_details'] = []
+
+            # Optionally, set a total field from your service data (if applicable)
+            order['total'] = order.get('final_price') or order.get('services_total')
 
             # 5.4 Fetch Technician Details if Scheduled
-            scheduled_by = order.get('added_to_scheduled_by')
+            scheduled_by = order.get('scheduled_by')
             if scheduled_by and ObjectId.is_valid(scheduled_by):
                 tech = users_collection.find_one({'_id': ObjectId(scheduled_by)})
                 order['tech_name'] = tech.get('name', 'Unknown Tech') if tech else 'Unknown Tech'
@@ -121,8 +125,11 @@ def admin_main():
     except Exception as e:
         current_app.logger.error(f"Error in admin_main route: {e}", exc_info=True)
         flash('An error occurred while fetching orders.', 'danger')
-        # If your home is in blueprint 'core' with route 'home', do url_for('core.home').
         return redirect(url_for('core.home'))
+
+
+
+
 
 
 @admin_bp.route('/view_order/<order_id>')
