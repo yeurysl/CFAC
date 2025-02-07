@@ -6,14 +6,12 @@ from flask_wtf import CSRFProtect
 from flask import current_app
 from bson.objectid import ObjectId
 import logging
-from flask_mail import Mail
 
 
 # Initialize extensions
 bcrypt = Bcrypt()
 login_manager = LoginManager()
 csrf = CSRFProtect()
-mail = Mail()
 
 
 class User(UserMixin):

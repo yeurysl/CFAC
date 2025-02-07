@@ -6,7 +6,6 @@ from flask import current_app, render_template, url_for
 from postmarker.core import PostmarkClient
 from datetime import datetime
 from flask import Flask
-from flask_mail import Mail, Message
 from bson.objectid import ObjectId
 from postmark_client import postmark_client, is_valid_email
 
