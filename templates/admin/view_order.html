@@ -53,16 +53,10 @@
                     N/A
                 {% endif %}
             </p>            
-            <p><strong>Total Amount:</strong> {{ order.total | currency }}</p>
+            <p><strong>Total Amount:</strong> {{ order.final_price | currency }}</p>
             <p><strong>Payment Method:</strong> {{ order.payment_method | default('N/A') }}</p>
             
-            <h4>Products:</h4>
-            <ul>
-                {% for product in order.product_details %}
-                <li>{{ product.name }} - {{ product.price | currency }}</li>
-                {% endfor %}
-            </ul>
-            
+         
             <h4>Additional Information:</h4>
             <p><strong>Status:</strong> {{ order.status | capitalize }}</p>
             <!-- Add more fields as necessary -->
