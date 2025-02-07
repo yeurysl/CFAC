@@ -95,7 +95,7 @@
                         </a>
                     </td>
                     <td>
-                        {% if order.order_date %}
+                        {% if order.creation_date %}
                             {{ order.creation_date | format_date_with_suffix }}
                         {% else %}
                             N/A
