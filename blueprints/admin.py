@@ -449,35 +449,51 @@ def compensation_page():
         total_orders = orders_collection.count_documents({})
         total_pages = (total_orders + per_page - 1) // per_page
 
-        orders_cursor = orders_collection.find().sort('service_date', -1).skip((page - 1) * per_page).limit(per_page)
+        orders_cursor = orders_collection.find().sort('service_date', -1)\
+                                             .skip((page - 1) * per_page)\
+                                             .limit(per_page)
         orders = list(orders_cursor)
 
         for order in orders:
+            # Ensure _id is a string for URL purposes
             order['_id'] = str(order['_id'])
-            tech_id = order.get('technician_id')
+            
+            # Retrieve technician using either key: 'technician' or 'technician_id'
+            tech_id = order.get('technician') or order.get('technician_id')
             if tech_id and ObjectId.is_valid(str(tech_id)):
                 technician = users_collection.find_one({'_id': ObjectId(tech_id)})
                 order['technician_name'] = technician.get('name', 'Unknown') if technician else 'Unknown'
             else:
                 order['technician_name'] = 'Not Assigned'
 
-            salesperson_id = order.get('salesperson_id')
+            # Retrieve salesperson using either key: 'salesperson' or 'salesperson_id'
+            salesperson_id = order.get('salesperson') or order.get('salesperson_id')
             if salesperson_id and ObjectId.is_valid(str(salesperson_id)):
                 salesperson = users_collection.find_one({'_id': ObjectId(salesperson_id)})
                 order['salesperson_name'] = salesperson.get('name', 'Unknown') if salesperson else 'Unknown'
             else:
                 order['salesperson_name'] = 'Not Assigned'
 
+       # Convert service_date to a datetime object.
             service_date = order.get('service_date')
             if isinstance(service_date, str):
                 try:
-                    order['service_date'] = datetime.strptime(service_date, '%Y-%m-%d')
+                    if 'T' in service_date:
+                        # Handle ISO 8601 format.
+                        if service_date.endswith('Z'):
+                            order['service_date'] = datetime.strptime(service_date, '%Y-%m-%dT%H:%M:%SZ')
+                        else:
+                            order['service_date'] = datetime.fromisoformat(service_date)
+                    else:
+                        # Fallback to the simpler date format.
+                        order['service_date'] = datetime.strptime(service_date, '%Y-%m-%d')
                 except ValueError:
                     current_app.logger.error(
                         f"Invalid service_date format for order ID {order.get('_id')}: {service_date}"
                     )
                     order['service_date'] = None
 
+        # Optionally, if you still need the update forms (for example, if you want to retain update functionality)
         forms = {order['_id']: UpdateCompensationStatusForm(prefix=order['_id']) for order in orders}
 
         return render_template(
@@ -486,7 +502,7 @@ def compensation_page():
             page=page,
             per_page=per_page,
             total_pages=total_pages,
-            forms=forms
+            forms=forms  # Remove this if your new template no longer uses the forms.
         )
     except Exception as e:
         current_app.logger.error(f"Error in compensation_page route: {e}", exc_info=True)
@@ -494,43 +510,40 @@ def compensation_page():
         return redirect(url_for('admin.admin_main'))
 
 
-@admin_bp.route('/update_compensation', methods=['POST'])
+
+@admin_bp.route('/create_compensation', methods=['POST'])
 @login_required
 @admin_required
-def update_compensation_status():
+def create_compensation():
     """
-    Updates compensation status for techs or sales users.
+    Creates the technician or salesperson compensation field on an order and sets it to 'Paid'.
     """
     try:
         orders_collection = current_app.config['ORDERS_COLLECTION']
-        form = UpdateCompensationStatusForm()
+        # Get parameters from the form submission.
+        order_id = request.form.get('order_id')
+        employee_type = request.form.get('employee_type')
 
-        if form.validate_on_submit():
-            order_id = form.order_id.data
-            employee_type = form.employee_type.data
-            new_status = form.new_status.data
-
-            if employee_type not in ['tech', 'salesperson'] or new_status not in ['Paid', 'Failed']:
-                flash('Invalid request parameters.', 'danger')
-                return redirect(url_for('admin.compensation_page'))
-
-            update_field = 'tech_compensation_status' if employee_type == 'tech' else 'salesperson_compensation_status'
-            result = orders_collection.update_one(
-                {'_id': ObjectId(order_id)},
-                {'$set': {update_field: new_status}}
-            )
-            if result.modified_count == 1:
-                flash(f"Successfully updated {employee_type} compensation status to '{new_status}'.", 'success')
-            else:
-                flash('No changes were made. Please check the order ID.', 'warning')
+        # Validate required parameters.
+        if not order_id or employee_type not in ['tech', 'salesperson']:
+            flash('Invalid request parameters.', 'danger')
             return redirect(url_for('admin.compensation_page'))
+
+        # Determine which field to update.
+        update_field = 'tech_compensation_status' if employee_type == 'tech' else 'salesperson_compensation_status'
+
+        # Always set the field to 'Paid' (this will create the field if it does not exist)
+        result = orders_collection.update_one(
+            {'_id': ObjectId(order_id)},
+            {'$set': {update_field: 'Paid'}}
+        )
+
+        if result.modified_count == 1:
+            flash(f"Successfully created {employee_type} compensation field as 'Paid'.", 'success')
         else:
-            for field, errors in form.errors.items():
-                for error in errors:
-                    current_app.logger.error(f"Error in {field}: {error}")
-            flash('Invalid form submission.', 'danger')
-            return redirect(url_for('admin.compensation_page'))
+            flash('No changes were made. Please check the order ID.', 'warning')
+        return redirect(url_for('admin.compensation_page'))
     except Exception as e:
-        current_app.logger.error(f"Error updating compensation status: {e}", exc_info=True)
+        current_app.logger.error(f"Error creating compensation field: {e}", exc_info=True)
         flash('An error occurred while updating compensation status.', 'danger')
         return redirect(url_for('admin.compensation_page'))

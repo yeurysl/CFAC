@@ -196,3 +196,16 @@ def employee_login():
             flash('Invalid password.', 'danger')
 
     return render_template('employee_login.html', form=form)
+
+@core_bp.route('/privacy_policy')
+def privacy_policy():
+    """
+    Render the Privacy Policy page.
+    """
+    return render_template('privacy_policy.html')
+@core_bp.route('/refund_policy')
+def refund_policy():
+    """
+    Render the Refund and Service Issue Policy page.
+    """
+    return render_template('refund_policy.html')
