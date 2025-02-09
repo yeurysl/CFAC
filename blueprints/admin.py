@@ -106,9 +106,9 @@ def admin_main():
             order['total'] = order.get('final_price') or order.get('services_total')
 
             # 5.4 Fetch Technician Details if Scheduled
-            scheduled_by = order.get('scheduled_by')
-            if scheduled_by and ObjectId.is_valid(scheduled_by):
-                tech = users_collection.find_one({'_id': ObjectId(scheduled_by)})
+            technician = order.get('technician')
+            if technician and ObjectId.is_valid(technician):
+                tech = users_collection.find_one({'_id': ObjectId(technician)})
                 order['tech_name'] = tech.get('name', 'Unknown Tech') if tech else 'Unknown Tech'
             else:
                 order['tech_name'] = 'Not Scheduled Yet'
@@ -182,39 +182,37 @@ def view_order(order_id):
             order['user_phone'] = user_record.get('phone_number', 'N/A') if user_record else 'N/A'
             order['user_address'] = user_record.get('address', {}) if user_record else {}
 
-        scheduled_by_id = order.get('scheduled_by')
-        if scheduled_by_id:
+        technician_id = order.get('technician')
+        if technician_id:
             try:
-                scheduled_by_user = users_collection.find_one({'_id': ObjectId(scheduled_by_id)})
-                if scheduled_by_user:
-                    order['scheduled_by_name'] = scheduled_by_user.get('name', 'Unknown')
-                    order['scheduled_by_email'] = scheduled_by_user.get('email', 'Unknown')
+                technician_user = users_collection.find_one({'_id': ObjectId(technician)})
+                if technician_user:
+                    order['technician_name'] = technician_user.get('name', 'Unknown')
+                    order['technician_email'] = technician_user.get('email', 'Unknown')
                 else:
-                    order['scheduled_by_name'] = 'Unknown'
-                    order['scheduled_by_email'] = 'Unknown'
+                    order['technician_name'] = 'Unknown'
+                    order['technician_name'] = 'Unknown'
             except Exception:
-                order['scheduled_by_name'] = 'Unknown'
-                order['scheduled_by_email'] = 'Unknown'
+                order['technician_name'] = 'Unknown'
+                order['technician_name'] = 'Unknown'
         else:
-            order['scheduled_by_name'] = 'Not Scheduled'
-            order['scheduled_by_email'] = ''
+            order['technician_name'] = 'Not Scheduled'
+            order['technician_name'] = ''
 
         for date_field in ['order_date', 'service_date']:
             if isinstance(order.get(date_field), str):
                 try:
                     if date_field == 'service_date':
-                        order[date_field] = datetime.strptime(
-                            order[date_field], '%Y-%m-%d'
-                        )
+                        # Parse ISO8601 date (assuming the trailing 'Z')
+                        order[date_field] = datetime.strptime(order[date_field], '%Y-%m-%dT%H:%M:%SZ')
                     else:
-                        order[date_field] = datetime.strptime(
-                            order[date_field], '%Y-%m-%d %H:%M:%S'
-                        )
+                        order[date_field] = datetime.strptime(order[date_field], '%Y-%m-%d %H:%M:%S')
                 except ValueError:
                     current_app.logger.error(
                         f"Invalid {date_field} format for order {order.get('_id')}: {order.get(date_field)}"
                     )
                     order[date_field] = None
+
 
         return render_template('admin/view_order.html', order=order, delete_form=delete_form)
     except Exception as e:

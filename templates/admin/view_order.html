@@ -33,9 +33,9 @@
             {% endif %}
 
             <!-- Display the User Who Scheduled the Order -->
-            <p><strong>Scheduled By:</strong> {{ order.scheduled_by_name }}
-                {% if order.scheduled_by_email %}
-                    ({{ order.scheduled_by_email }})
+            <p><strong>Technician:</strong> {{ order.technician }}
+                {% if order.technician %}
+                    ({{ order.technician_name }})
                 {% endif %}
             </p>
             

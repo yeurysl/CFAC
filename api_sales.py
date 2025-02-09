@@ -439,25 +439,25 @@ def stripe_webhook():
 
 
 
+@api_sales_bp.route('/get_payment_intent', methods=['POST'])
+def get_payment_intent():
+    order_id = request.json.get("order_id")
+    orders_collection = current_app.config.get('ORDERS_COLLECTION')
+    order = orders_collection.find_one({"_id": ObjectId(order_id)})
 
-@api_sales_bp.route("/send_test_email")
-def send_test_email():
+    if not order:
+        return jsonify({"error": "Order not found"}), 404
+
+    payment_intent_id = order.get("payment_intent_id")
+    if not payment_intent_id:
+        return jsonify({"error": "PaymentIntent not found for order"}), 400
+
+    # Fetch PaymentIntent from Stripe
+    stripe.api_key = current_app.config['STRIPE_SECRET_KEY']
     try:
-        # Use your environment variable for the sender email
-        sender_email = os.getenv("POSTMARK_SENDER_EMAIL")
-        # Define the recipient email for testing
-        recipient_email = "yeurysl17@gmail.com"
-        
-        # Call your Postmark email helper instead of Flask-Mail
-        response = send_postmark_email(
-            subject="Test Email via Postmark",
-            to_email=recipient_email,
-            from_email=sender_email,
-            text_body="This is a test email sent via Postmark!"
-        )
-        
-        current_app.logger.info(f"Test email response: {response}")
-        return "Postmark Test Email sent successfully!", 200
-    except Exception as e:
-        current_app.logger.error(f"Error sending test email via Postmark: {e}", exc_info=True)
-        return f"Error: {str(e)}", 500
+        payment_intent = stripe.PaymentIntent.retrieve(payment_intent_id)
+        return jsonify({
+            "client_secret": payment_intent.client_secret
+        }), 200
+    except stripe.error.StripeError as e:
+        return jsonify({"error": str(e)}), 500

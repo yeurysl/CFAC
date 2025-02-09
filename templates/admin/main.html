@@ -27,15 +27,20 @@
                     <th>Salesperson</th>
                     <th>User Email</th>
                     <th>Service Date</th>
-                    <th>Products</th>
                     <th>Total</th>
-                    <th>Actions</th>
+                    <th></th>
                     <th>Order Date</th>
                 </tr>
             </thead>
             <tbody>
                 {% for order in orders %}
                 <tr>
+                    <td>
+                        <a href="{{ url_for('admin.view_order', order_id=order['_id']) }}" class="btn btn-primary btn-sm">
+                            View Order
+                        </a>
+                    </td>
+
                     <td>{{ order.status | capitalize }}</td>
                     
                     <!-- Payment Status Column with Badges -->
@@ -81,19 +86,9 @@
                             N/A
                         {% endif %}
                     </td>
-                    <td>
-                        <ul class="list-unstyled mb-0">
-                            {% for product in order.product_details %}
-                            <li>{{ product.name }} ({{ product.price | currency }})</li>
-                            {% endfor %}
-                        </ul>
-                    </td>
+                  
                     <td>{{ order.final_price | currency }}</td>
-                    <td>
-                        <a href="{{ url_for('admin.view_order', order_id=order['_id']) }}" class="btn btn-primary btn-sm">
-                            View Order
-                        </a>
-                    </td>
+                  
                     <td>
                         {% if order.creation_date %}
                             {{ order.creation_date | format_date_with_suffix }}
