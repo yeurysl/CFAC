@@ -164,7 +164,7 @@ def create_order():
             "client_secret_downpayment": downpayment_intent.client_secret,
             "payment_intent_remaining_balance": remaining_intent.id,
             "client_secret_remaining_balance": remaining_intent.client_secret,
-            "payment_status": "pending",  # Set initial payment status as pending
+            "payment_status": "Pending",  # Set initial payment status as pending
             "has_downpayment_collected": "no"  # We'll update this after the down payment is collected
         }
         orders_collection.update_one({"_id": ObjectId(order_id)}, {"$set": update_data})
