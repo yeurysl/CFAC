@@ -116,18 +116,7 @@ def send_postmark_email(subject, to_email, from_email, text_body, html_body=None
     return response
 
 
-#Emails\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-def send_email(to_email, subject, message):
-    try:
-        email = PMMail(api_key='POSTMARK_SERVER_TOKEN',
-                       subject=subject,
-                       sender='no-reply@cfautocare.biz',
-                       to=to_email,
-                       text_body=message)
-        email.send()
-        print("Email sent successfully.")
-    except Exception as e:
-        print(f"Error sending email: {e}")
+
 
 #FOREMAILSENDING
 def send_order_confirmation_email(user, order_details):

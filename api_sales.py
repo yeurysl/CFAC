@@ -141,13 +141,16 @@ def create_order():
         # Set Stripe API key
         stripe.api_key = current_app.config['STRIPE_SECRET_KEY']
 
-        # Create the PaymentIntent for the down payment (40%)
+       # Create the PaymentIntent for the down payment (40%)
         downpayment_intent = stripe.PaymentIntent.create(
             amount=downpayment_amount,
             currency="usd",
             payment_method_types=["card"],
             metadata={"order_id": order_id, "payment_type": "downpayment"}
         )
+
+        # Log downpayment intent creation response
+        current_app.logger.info(f"Downpayment PaymentIntent created: {downpayment_intent.id}")
 
         # Create the PaymentIntent for the remaining balance (60%)
         remaining_intent = stripe.PaymentIntent.create(
@@ -157,6 +160,9 @@ def create_order():
             metadata={"order_id": order_id, "payment_type": "remaining_balance"},
             capture_method="manual"  # Manual capture, this will allow charging later
         )
+
+        # Log remaining balance PaymentIntent creation response
+        current_app.logger.info(f"Remaining balance PaymentIntent created: {remaining_intent.id}")
 
         # Create a Stripe Checkout session for the down payment
         downpayment_checkout_session = stripe.checkout.Session.create(
@@ -178,6 +184,9 @@ def create_order():
             mode="payment"  # Add the mode parameter here
         )
 
+        # Log downpayment checkout session response
+        current_app.logger.info(f"Downpayment Checkout Session created: {downpayment_checkout_session.id}")
+
         # Create a Stripe Checkout session for the remaining balance
         remaining_checkout_session = stripe.checkout.Session.create(
             payment_method_types=["card"],
@@ -198,6 +207,9 @@ def create_order():
             mode="payment"  # Add the mode parameter here
         )
 
+        # Log remaining checkout session response
+        current_app.logger.info(f"Remaining Balance Checkout Session created: {remaining_checkout_session.id}")
+
 
         # Update the order with PaymentIntent info (down payment and remaining balance)
         update_data = {
@@ -215,13 +227,14 @@ def create_order():
         # Send the checkout links to the customer
         send_postmark_email(
             subject="Your Payment Links for Order",
-            to=order_data["guest_email"],
+            to_email=order_data["guest_email"],  # Correct argument name
             from_email=current_app.config.get("POSTMARK_SENDER_EMAIL"),
             text_body=f"Please complete the payment for Order #{order_id}.\n\n"
-                      f"Down Payment: {downpayment_checkout_session.url}\n\n"
-                      f"Remaining Balance: {remaining_checkout_session.url}\n\n"
-                      f"Thank you for choosing us!"
+                    f"Down Payment: {downpayment_checkout_session.url}\n\n"
+                    f"Remaining Balance: {remaining_checkout_session.url}\n\n"
+                    f"Thank you for choosing us!"
         )
+
 
         return jsonify({
             "message": "Order created successfully!",
