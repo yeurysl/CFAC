@@ -127,71 +127,59 @@ def create_order():
         current_app.logger.info(f"Order data received: {order_data}")
         if "creation_date" not in order_data:
             order_data["creation_date"] = datetime.utcnow()
-        order_data["is_guest"] = True
 
         # Insert the order into the database.
         result = orders_collection.insert_one(order_data)
         order_id = str(result.inserted_id)
         current_app.logger.info(f"Order inserted with id: {order_id}")
 
-        # Set the Stripe secret key.
-        stripe.api_key = current_app.config.get('STRIPE_SECRET_KEY')
-
-        # Calculate the amount (in cents).
         final_price = float(order_data["final_price"])
-        amount = int(final_price * 100)
 
-        # Create a Stripe Checkout Session.
-        checkout_session = stripe.checkout.Session.create(
+        # Calculate down payment and remaining balance
+        downpayment_amount = int(final_price * 100 * 0.40)  # 40% of the total price
+        remaining_amount = int(final_price * 100 * 0.60)  # Remaining 60%
+
+        # Set Stripe API key
+        stripe.api_key = current_app.config['STRIPE_SECRET_KEY']
+
+        # Create the PaymentIntent for the down payment (40%)
+        downpayment_intent = stripe.PaymentIntent.create(
+            amount=downpayment_amount,
+            currency="usd",
             payment_method_types=["card"],
-            mode="payment",
-            line_items=[{
-                "price_data": {
-                    "currency": "usd",
-                    "product_data": {
-                        "name": f"Order #{order_id}",
-                    },
-                    "unit_amount": amount,
-                },
-                "quantity": 1,
-            }],
-            customer_email=order_data.get("guest_email"),
-            success_url=current_app.config.get("CHECKOUT_SUCCESS_URL", "https://cfautocare.biz/"),
-            cancel_url=current_app.config.get("CHECKOUT_CANCEL_URL", "https://cfautocare.biz/"),
-            metadata={"order_id": order_id}
-        )
-        current_app.logger.info(f"Checkout Session created: {checkout_session.id}")
-
-        # Update the order record with the checkout session details.
-        orders_collection.update_one(
-            {"_id": ObjectId(order_id)},
-            {"$set": {"checkout_session_id": checkout_session.id}}
+            metadata={"order_id": order_id, "payment_type": "downpayment"}
         )
 
-        # Send the checkout URL to the customer via email and/or SMS if available.
-        if order_data.get("guest_email"):
-            from_email = current_app.config.get("POSTMARK_SENDER_EMAIL")
-            subject = "Your Payment Link for Your Order"
-            text_body = (
-                f"Hello,\n\n"
-                f"Please complete your payment for Order #{order_id} by clicking on the link below:\n"
-                f"{checkout_session.url}\n\n"
-                f"Thank you!"
-            )
-            send_postmark_email(subject, order_data["guest_email"], from_email, text_body)
-        # (You can add similar logic for SMS if needed.)
+        # Create the PaymentIntent for the remaining balance (60%)
+        remaining_intent = stripe.PaymentIntent.create(
+            amount=remaining_amount,
+            currency="usd",
+            payment_method_types=["card"],
+            metadata={"order_id": order_id, "payment_type": "remaining_balance"},
+            capture_method="manual"  # Manual capture, this will allow charging later
+        )
 
-        # Return a response with the order ID and the checkout URL.
+        # Update the order with PaymentIntent info (down payment and remaining balance)
+        update_data = {
+            "payment_intent_downpayment": downpayment_intent.id,
+            "client_secret_downpayment": downpayment_intent.client_secret,
+            "payment_intent_remaining_balance": remaining_intent.id,
+            "client_secret_remaining_balance": remaining_intent.client_secret,
+            "payment_status": "downpaymentcollected",  # Initial status
+            "has_downpayment_collected": "no"  # We'll update this after the down payment is collected
+        }
+        orders_collection.update_one({"_id": ObjectId(order_id)}, {"$set": update_data})
+        current_app.logger.info(f"Order updated with both payment intents: {downpayment_intent.id}, {remaining_intent.id}")
+
         return jsonify({
             "message": "Order created successfully!",
-            "order_id": order_id,
-            "checkout_url": checkout_session.url
+            "downpayment_client_secret": downpayment_intent.client_secret,
+            "remaining_balance_client_secret": remaining_intent.client_secret
         }), 201
 
     except Exception as e:
         current_app.logger.error(f"Error creating order: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
-
 
 
 

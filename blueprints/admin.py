@@ -131,7 +131,7 @@ def admin_main():
                 order['tech_name'] = 'Not Scheduled Yet'
 
    # *** New code: Count users by type ***
-        tech_count = users_collection.count_documents({'user_type': 'technician'})
+        tech_count = users_collection.count_documents({'user_type': 'tech'})
         customer_count = users_collection.count_documents({'user_type': 'customer'})
         admin_count = users_collection.count_documents({'user_type': 'admin'})
         sales_count = users_collection.count_documents({'user_type': 'sales'})

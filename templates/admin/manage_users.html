@@ -21,7 +21,7 @@
                     <option value="">All User Types</option>
                     <option value="customer" {% if request.args.get('user_type') == 'customer' %}selected{% endif %}>Customer</option>
                     <option value="sales" {% if request.args.get('user_type') == 'sales' %}selected{% endif %}>Sales</option>
-                    <option value="technician" {% if request.args.get('user_type') == 'technician' %}selected{% endif %}>Technician</option>
+                    <option value="tech" {% if request.args.get('user_type') == 'tech' %}selected{% endif %}>Tech</option>
                     <option value="admin" {% if request.args.get('user_type') == 'admin' %}selected{% endif %}>Admin</option>
                 </select>
             </div>
