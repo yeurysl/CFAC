@@ -25,7 +25,6 @@ def generate_jwt(user_id, secret_key, expires_in=4):
     token = jwt.encode(payload, secret_key, algorithm="HS256")
     # In PyJWT 2.x, jwt.encode() returns a str in Python 3, which is what we want.
     return token
-
 @api_bp.route('/login', methods=['POST'])
 @csrf.exempt
 def api_login():
@@ -38,20 +37,25 @@ def api_login():
 
     users_collection = current_app.config.get('USERS_COLLECTION')
     user = users_collection.find_one({
-        'username': username,
-        'user_type': {'$in': ['admin', 'tech', 'sales']}
+        'username': username
     })
+    
+    # Check if user exists and verify the password
     if not user:
-        return jsonify({"error": "Invalid username or user type."}), 401
+        return jsonify({"error": "Invalid username."}), 401
 
     if not check_password_hash(user['password'], password):
         return jsonify({"error": "Invalid password."}), 401
 
-    # Replace the old "token = str(user['_id'])" with a JWT
+    # Optional: check user type (for technician-specific actions)
+    if user['user_type'] != 'tech' and user['user_type'] != 'sales':
+        return jsonify({"error": "User type not supported."}), 401
+
     secret_key = current_app.config['JWT_SECRET']
     jwt_token = generate_jwt(user['_id'], secret_key)
 
     return jsonify({
         "message": "Login successful",
-        "token": jwt_token
+        "token": jwt_token,
+        "user_type": user['user_type']  # Add the user type in the response for handling in the app
     }), 200

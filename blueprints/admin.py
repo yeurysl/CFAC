@@ -39,12 +39,29 @@ def admin_main():
         page = request.args.get('page', 1, type=int)
         per_page = 20
 
+
         # 3. Fetch Total Number of Orders
         total_orders = orders_collection.count_documents({})
+
+
+    # 2. Guest Orders: orders where the field "is_guest" is True
+        guest_orders = orders_collection.count_documents({'is_guest': True})
+        
+        # 3. Checkout Orders (customer orders): you can compute this as all orders minus guest orders
+        checkout_orders = total_orders - guest_orders
+
+        # Calculate percentages (guarding against division by zero)
+        guest_percentage = (guest_orders / total_orders * 100) if total_orders > 0 else 0
+        checkout_percentage = (checkout_orders / total_orders * 100) if total_orders > 0 else 0
+
+        # Total pages for pagination
+        total_pages = (total_orders + per_page - 1) // per_page
+
+
         total_pages = (total_orders + per_page - 1) // per_page
 
         # 4. Fetch Orders for the Current Page
-        orders_cursor = orders_collection.find().sort('order_date', -1).skip((page - 1) * per_page).limit(per_page)
+        orders_cursor = orders_collection.find().sort('creation_date', -1).skip((page - 1) * per_page).limit(per_page)
         orders = list(orders_cursor)
 
         # 5. Enrich Orders with Additional Details
@@ -79,12 +96,12 @@ def admin_main():
                     order['user_email'] = 'Unknown'
 
             # 5.2 Convert Date Fields (now expecting ISO-8601 format)
-            for date_field in ['order_date', 'service_date', 'creation_date']:
+            for date_field in [ 'service_date', 'creation_date']:
                 date_value = order.get(date_field)
                 if isinstance(date_value, str):
                     try:
                         if date_value.endswith('Z'):
-                            order[date_field] = datetime.strptime(date_value, '%Y-%m-%dT%H:%M:%SZ')
+                           order[date_field] = datetime.fromisoformat(date_value.replace("Z", "+00:00"))
                         else:
                             order[date_field] = datetime.fromisoformat(date_value)
                     except ValueError:
@@ -113,6 +130,12 @@ def admin_main():
             else:
                 order['tech_name'] = 'Not Scheduled Yet'
 
+   # *** New code: Count users by type ***
+        tech_count = users_collection.count_documents({'user_type': 'technician'})
+        customer_count = users_collection.count_documents({'user_type': 'customer'})
+        admin_count = users_collection.count_documents({'user_type': 'admin'})
+        sales_count = users_collection.count_documents({'user_type': 'sales'})
+
         # 6. Pass Variables to the Template
         return render_template(
             'admin/main.html',
@@ -120,7 +143,16 @@ def admin_main():
             orders=orders,
             page=page,
             per_page=per_page,
-            total_pages=total_pages
+            total_pages=total_pages,
+            tech_count=tech_count,
+            customer_count=customer_count,
+            admin_count=admin_count,
+            sales_count=sales_count,
+            total_orders=total_orders,
+            guest_orders=guest_orders,
+            checkout_orders=checkout_orders,
+            guest_percentage=guest_percentage,
+            checkout_percentage=checkout_percentage
         )
     except Exception as e:
         current_app.logger.error(f"Error in admin_main route: {e}", exc_info=True)
@@ -199,14 +231,13 @@ def view_order(order_id):
             order['technician_name'] = 'Not Scheduled'
             order['technician_name'] = ''
 
-        for date_field in ['order_date', 'service_date']:
+        for date_field in ['creation_date', 'service_date']:
             if isinstance(order.get(date_field), str):
                 try:
-                    if date_field == 'service_date':
-                        # Parse ISO8601 date (assuming the trailing 'Z')
-                        order[date_field] = datetime.strptime(order[date_field], '%Y-%m-%dT%H:%M:%SZ')
+                    if order[date_field].endswith('Z'):
+                        order[date_field] = datetime.fromisoformat(order[date_field].replace("Z", "+00:00"))
                     else:
-                        order[date_field] = datetime.strptime(order[date_field], '%Y-%m-%d %H:%M:%S')
+                        order[date_field] = datetime.fromisoformat(order[date_field])
                 except ValueError:
                     current_app.logger.error(
                         f"Invalid {date_field} format for order {order.get('_id')}: {order.get(date_field)}"
@@ -360,10 +391,13 @@ def manage_users():
         page = request.args.get('page', 1, type=int)
         per_page = 20
         search_query = request.args.get('search', '').strip()
+        user_type = request.args.get('user_type', '')
+        sort_by = request.args.get('sort_by', 'creation_date')
+        sort_order = request.args.get('sort_order', 'asc')
 
         query = {}
-        from bson.errors import InvalidId
         if search_query:
+            from bson.errors import InvalidId
             try:
                 query = {
                     '$or': [
@@ -376,11 +410,20 @@ def manage_users():
                     'email': {'$regex': search_query, '$options': 'i'}
                 }
 
+        if user_type:
+            query['user_type'] = user_type
+
+        sort_direction = 1 if sort_order == 'asc' else -1
+        if sort_by == 'creation_date':
+            sort_field = 'creation_date'
+        else:
+            sort_field = 'email'
+
         total_users = users_collection.count_documents(query)
         total_pages = (total_users + per_page - 1) // per_page
 
         users = list(users_collection.find(query)
-                     .sort('creation_date', -1)
+                     .sort(sort_field, sort_direction)
                      .skip((page - 1) * per_page)
                      .limit(per_page))
 
@@ -390,7 +433,11 @@ def manage_users():
             page=page,
             per_page=per_page,
             total_pages=total_pages,
-            delete_form=delete_form
+            delete_form=delete_form,
+            search_query=search_query,
+            user_type=user_type,
+            sort_by=sort_by,
+            sort_order=sort_order
         )
     except Exception as e:
         current_app.logger.error(f"Error in manage_users route: {e}", exc_info=True)

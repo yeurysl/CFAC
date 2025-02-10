@@ -12,55 +12,109 @@
             <strong>Order ID:</strong> {{ order._id }}
         </div>
         <div class="card-body">
-            <p><strong>Status:</strong> {{ order.status | capitalize }}</p>
-            <p><strong>Order Type:</strong> {{ order.order_type }}</p>
-            
-            {% if order.order_type == 'Guest Order' %}
-                <p><strong>Salesperson:</strong> {{ order.salesperson_name }}</p>
-            {% else %}
-                <p><strong>User Name:</strong> {{ order.user_name }}</p>
-                <p><strong>User Email:</strong> {{ order.user_email }}</p>
-                <p><strong>User Phone:</strong> {{ order.user_phone }}</p>
-                <p><strong>User Address:</strong>
-                    {{ order.user_address.street_address }},
-                    {% if order.user_address.unit_apt %}
-                        {{ order.user_address.unit_apt }},
-                    {% endif %}
-                    {{ order.user_address.city }},
-                    {{ order.user_address.country }},
-                    {{ order.user_address.zip_code }}
-                </p>
-            {% endif %}
-
-            <!-- Display the User Who Scheduled the Order -->
-            <p><strong>Technician:</strong> {{ order.technician }}
-                {% if order.technician %}
-                    ({{ order.technician_name }})
-                {% endif %}
-            </p>
-            
-            <p><strong>Order Date:</strong> 
-                {% if order.order_date %}
-                    {{ order.order_date.strftime('%B %d, %Y at %I:%M %p') }}
+            <!-- 1. Salesman (username and id) -->
+            <p>
+                <strong>Salesman:</strong>
+                {% if order.salesperson_name %}
+                    {{ order.salesperson_name }} (ID: {{ order.salesperson }})
                 {% else %}
                     N/A
                 {% endif %}
             </p>
-            <p><strong>Service Date & Time:</strong> 
+
+            <!-- 2. Guest or Customer Display -->
+            {% if order.order_type == 'Guest Order' %}
+                <h4>Guest Information:</h4>
+                <p><strong>Guest Email:</strong> {{ order.guest_email if order.guest_email else "N/A" }}</p>
+                <p><strong>Guest Name:</strong> {{ order.guest_name if order.guest_name else "N/A" }}</p>
+                <p><strong>Guest Address:</strong>
+                    {% if order.guest_address %}
+                        {{ order.guest_address.street_address }}
+                        {% if order.guest_address.unit_apt %}, {{ order.guest_address.unit_apt }}{% endif %},
+                        {{ order.guest_address.city }}, {{ order.guest_address.country }}, {{ order.guest_address.zip_code }}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </p>
+                <p><strong>Guest Phone:</strong> {{ order.guest_phone if order.guest_phone else "N/A" }}</p>
+            {% else %}
+                <p>
+                    <strong>Customer:</strong>
+                    {% if order.user_email %}
+                        {{ order.user_email }} (ID: {{ order.user }})
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </p>
+            {% endif %}
+
+            <!-- 3. Creation Date & Time -->
+            <p>
+                <strong>Creation Date & Time:</strong>
+                {% if order.creation_date %}
+                    {{ order.creation_date.strftime('%B %d, %Y at %I:%M %p') }}
+                {% else %}
+                    N/A
+                {% endif %}
+            </p>
+            <!-- 4. Service Date & Time -->
+            <p>
+                <strong>Service Date & Time:</strong>
                 {% if order.service_date %}
                     {{ order.service_date.strftime('%B %d, %Y at %I:%M %p') }}
                 {% else %}
                     N/A
                 {% endif %}
-            </p>            
-            <p><strong>Total Amount:</strong> {{ order.final_price | currency }}</p>
-            <p><strong>Payment Method:</strong> {{ order.payment_method | default('N/A') }}</p>
-            
-         
-            <h4>Additional Information:</h4>
-            <p><strong>Status:</strong> {{ order.status | capitalize }}</p>
-            <!-- Add more fields as necessary -->
+            </p>
 
+            <!-- 5. Final Price -->
+            <p>
+                <strong>Final Price:</strong> {{ order.final_price | currency }}
+            </p>
+
+            <!-- 6. Payment Status -->
+            <p>
+                <strong>Payment Status:</strong>
+                {% if order.payment_status %}
+                    {{ order.payment_status | capitalize }}
+                {% else %}
+                    N/A
+                {% endif %}
+            </p>
+
+            <!-- 7. Order Status -->
+            <p>
+                <strong>Order Status:</strong>
+                {% if order.status %}
+                    {{ order.status | capitalize }}
+                {% else %}
+                    N/A
+                {% endif %}
+            </p>
+
+            <!-- 8. Tech Compensation Status -->
+            <p>
+                <strong>Tech Compensation Status:</strong>
+                {% if order.tech_compensation_status %}
+                    {{ order.tech_compensation_status | capitalize }}
+                {% else %}
+                    Waiting
+                {% endif %}
+            </p>
+
+            <!-- 9. Salesman Compensation Status -->
+            <p>
+                <strong>Salesman Compensation Status:</strong>
+                {% if order.salesperson_compensation_status %}
+                    {{ order.salesperson_compensation_status | capitalize }}
+                {% else %}
+                    Waiting
+                {% endif %}
+            </p>
+
+            <!-- Additional Information (if needed) -->
+            <h4>Additional Information:</h4>
+            <!-- Add more fields as necessary -->
         </div>
         <div class="mt-3">
             <a href="{{ url_for('admin.edit_order', order_id=order._id) }}" class="btn btn-warning">Edit</a>
