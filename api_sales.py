@@ -108,7 +108,6 @@ def get_services():
     
 
 
-
 @api_sales_bp.route('/guest_order', methods=['POST'])
 def create_order():
     try:
@@ -165,7 +164,7 @@ def create_order():
             "client_secret_downpayment": downpayment_intent.client_secret,
             "payment_intent_remaining_balance": remaining_intent.id,
             "client_secret_remaining_balance": remaining_intent.client_secret,
-            "payment_status": "downpaymentcollected",  # Initial status
+            "payment_status": "pending",  # Set initial payment status as pending
             "has_downpayment_collected": "no"  # We'll update this after the down payment is collected
         }
         orders_collection.update_one({"_id": ObjectId(order_id)}, {"$set": update_data})
@@ -180,7 +179,6 @@ def create_order():
     except Exception as e:
         current_app.logger.error(f"Error creating order: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
-
 
 
 
@@ -330,10 +328,10 @@ def create_payment_intent():
             current_app.logger.error("Order missing final price.")
             return jsonify({"error": "Order missing final price"}), 400
 
-        # Convert dollars to cents
-        amount = int(float(final_price_dollars) * 100)
+        # Calculate 40% down payment amount
+        downpayment_amount = int(float(final_price_dollars) * 100 * 0.40)  # 40% of the total price
         payment_time = order.get("payment_time", "pay_now")
-        current_app.logger.info(f"Final price: {final_price_dollars} dollars, converted to {amount} cents.")
+        current_app.logger.info(f"Final price: {final_price_dollars} dollars, down payment: {downpayment_amount} cents.")
         current_app.logger.info(f"Payment time set to: {payment_time}")
 
         # Set your Stripe secret key
@@ -343,9 +341,9 @@ def create_payment_intent():
             capture_method = "manual"
         current_app.logger.info(f"Using capture method: {capture_method}")
 
-        # Create the PaymentIntent via Stripe
+        # Create the PaymentIntent via Stripe for the down payment
         intent = stripe.PaymentIntent.create(
-            amount=amount,
+            amount=downpayment_amount,
             currency="usd",
             capture_method=capture_method,
             payment_method_types=["card"],
@@ -360,10 +358,11 @@ def create_payment_intent():
         update_data = {
             "payment_intent_id": intent.id,
             "client_secret": intent.client_secret,  # used on client side for confirmation
-            "stripe_payment_status": intent.status  # e.g., "requires_payment_method"
+            "stripe_payment_status": intent.status,  # e.g., "requires_payment_method"
+            "payment_status": "downpaymentcollected"  # Set the payment status to 'downpaymentcollected'
         }
         orders_collection.update_one({"_id": ObjectId(order_id)}, {"$set": update_data})
-        current_app.logger.info("Order updated with PaymentIntent info.")
+        current_app.logger.info("Order updated with PaymentIntent info and down payment status.")
 
         return jsonify({"client_secret": intent.client_secret}), 200
 
@@ -381,9 +380,7 @@ def stripe_webhook():
 
     try:
         # Verify that the request came from Stripe
-        event = stripe.Webhook.construct_event(
-            payload, sig_header, endpoint_secret
-        )
+        event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
     except ValueError as e:
         current_app.logger.error("Invalid payload", exc_info=True)
         return "Invalid payload", 400
@@ -391,33 +388,131 @@ def stripe_webhook():
         current_app.logger.error("Invalid signature", exc_info=True)
         return "Invalid signature", 400
 
-    # Handle the event based on its type
+    # Handle the event
     if event['type'] == 'payment_intent.succeeded':
         intent = event['data']['object']
         current_app.logger.info(f"PaymentIntent succeeded: {intent['id']}")
-        # Retrieve your order using metadata (or other identifier)
+
         order_id = intent.get('metadata', {}).get('order_id')
-        if order_id:
-            # Update order status to paid in your database
-            orders_collection = current_app.config['ORDERS_COLLECTION']
+        payment_type = intent.get('metadata', {}).get('payment_type')
+
+        if not order_id:
+            current_app.logger.error(f"Order ID not found in payment intent: {intent['id']}")
+            return '', 400  # No order ID in the event
+
+        # Retrieve the order from the database
+        orders_collection = current_app.config['ORDERS_COLLECTION']
+        order = orders_collection.find_one({"_id": ObjectId(order_id)})
+
+        if not order:
+            current_app.logger.error(f"Order not found: {order_id}")
+            return '', 400  # Order not found in the database
+
+        # Determine if it's the down payment or the remaining balance
+        if payment_type == 'downpayment':
+            # Update the order status to downpaymentcollected
             orders_collection.update_one(
                 {"_id": ObjectId(order_id)},
-                {"$set": {"payment_status": "paid", "stripe_payment_status": intent['status']}}
+                {"$set": {
+                    "has_downpayment_collected": "yes",
+                    "payment_status": "downpaymentcollected"
+                }}
             )
-    elif event['type'] == 'checkout.session.completed':
-        session = event['data']['object']
-        current_app.logger.info(f"Checkout Session completed: {session['id']}")
-        order_id = session.get('metadata', {}).get('order_id')
-        if order_id:
-            # Update your order status here if you need to
-            orders_collection = current_app.config['ORDERS_COLLECTION']
+            current_app.logger.info(f"Down payment collected for order {order_id}")
+        
+        elif payment_type == 'remaining_balance':
+            # Update the order status to completed
             orders_collection.update_one(
                 {"_id": ObjectId(order_id)},
-                {"$set": {"payment_status": "paid", "checkout_status": "completed"}}
+                {"$set": {
+                    "payment_status": "completed"
+                }}
             )
-    # Handle other event types as needed.
-    
+            current_app.logger.info(f"Remaining balance collected for order {order_id}")
+
+        return '', 200  # Respond with success
+
+    # Handle other event types as needed (e.g., payment_intent.payment_failed)
+
     return '', 200
+
+
+@api_sales_bp.route('/collect_downpayment', methods=['POST'])
+def collect_downpayment():
+    order_id = request.json.get("order_id")
+    payment_intent_id = request.json.get("payment_intent_id")
+
+    orders_collection = current_app.config.get('ORDERS_COLLECTION')
+    order = orders_collection.find_one({"_id": ObjectId(order_id)})
+
+    if not order:
+        return jsonify({"error": "Order not found"}), 404
+
+    if order.get("payment_intent_downpayment") != payment_intent_id:
+        return jsonify({"error": "Invalid PaymentIntent ID for down payment"}), 400
+
+    # Capture the down payment
+    try:
+        intent = stripe.PaymentIntent.retrieve(payment_intent_id)
+        intent.confirm()  # Confirm the payment intent for down payment
+
+        # Update the order status after payment collection
+        orders_collection.update_one(
+            {"_id": ObjectId(order_id)},
+            {"$set": {
+                "has_downpayment_collected": "yes",
+                "payment_status": "downpaymentcollected"
+            }}
+        )
+
+        return jsonify({"message": "Down payment collected and order updated"}), 200
+    except stripe.error.StripeError as e:
+        return jsonify({"error": str(e)}), 500
+
+
+
+
+
+
+
+
+@api_sales_bp.route('/collect_remaining_balance', methods=['POST'])
+def collect_remaining_balance():
+    order_id = request.json.get("order_id")
+    payment_intent_id = request.json.get("payment_intent_id")
+
+    orders_collection = current_app.config.get('ORDERS_COLLECTION')
+    order = orders_collection.find_one({"_id": ObjectId(order_id)})
+
+    if not order:
+        return jsonify({"error": "Order not found"}), 404
+
+    if order.get("payment_intent_remaining_balance") != payment_intent_id:
+        return jsonify({"error": "Invalid PaymentIntent ID for remaining balance"}), 400
+
+    # Capture the remaining balance
+    try:
+        intent = stripe.PaymentIntent.retrieve(payment_intent_id)
+        intent.capture()  # Capture the remaining balance
+
+        # Update the order status to 'completed' after the remaining balance is collected
+        orders_collection.update_one(
+            {"_id": ObjectId(order_id)},
+            {"$set": {
+                "payment_status": "completed"
+            }}
+        )
+
+        return jsonify({"message": "Remaining balance collected and order completed"}), 200
+    except stripe.error.StripeError as e:
+        return jsonify({"error": str(e)}), 500
+
+
+
+
+
+
+
 
 
 
