@@ -174,7 +174,8 @@ def create_order():
             customer_email=order_data.get("guest_email"),
             success_url=current_app.config.get("CHECKOUT_SUCCESS_URL", "https://cfautocare.biz/"),
             cancel_url=current_app.config.get("CHECKOUT_CANCEL_URL", "https://cfautocare.biz/"),
-            metadata={"order_id": order_id, "payment_type": "downpayment"}
+            metadata={"order_id": order_id, "payment_type": "downpayment"},
+            mode="payment"  # Add the mode parameter here
         )
 
         # Create a Stripe Checkout session for the remaining balance
@@ -193,8 +194,10 @@ def create_order():
             customer_email=order_data.get("guest_email"),
             success_url=current_app.config.get("CHECKOUT_SUCCESS_URL", "https://cfautocare.biz/"),
             cancel_url=current_app.config.get("CHECKOUT_CANCEL_URL", "https://cfautocare.biz/"),
-            metadata={"order_id": order_id, "payment_type": "remaining_balance"}
+            metadata={"order_id": order_id, "payment_type": "remaining_balance"},
+            mode="payment"  # Add the mode parameter here
         )
+
 
         # Update the order with PaymentIntent info (down payment and remaining balance)
         update_data = {
