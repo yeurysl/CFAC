@@ -5,6 +5,7 @@ from bson.objectid import ObjectId, InvalidId
 from datetime import datetime
 import re
 import json
+import stripe
 from forms import EmployeeLoginForm, UpdateAccountForm
 from extensions import User 
 from utility import register_filters
@@ -209,3 +210,43 @@ def refund_policy():
     Render the Refund and Service Issue Policy page.
     """
     return render_template('refund_policy.html')
+
+
+
+
+@core_bp.route('/payment_success')
+def payment_success():
+    # Extract the Stripe Checkout session ID from the query parameters
+    session_id = request.args.get("session_id")
+    if not session_id:
+        return "Session ID missing", 400
+
+    # Set your Stripe secret key and retrieve the session details
+    stripe.api_key = current_app.config['STRIPE_SECRET_KEY']
+    try:
+        session = stripe.checkout.Session.retrieve(session_id)
+    except Exception as e:
+        current_app.logger.error(f"Error retrieving Stripe session: {e}")
+        return "Error retrieving payment session", 500
+
+    # Extract the internal order_id from the PaymentIntent metadata
+    # Note: When using a Checkout session with `payment_intent_data`,
+    # the PaymentIntent metadata is available in the session.
+    order_id = session.payment_intent_data.get("metadata", {}).get("order_id")
+    if not order_id:
+        current_app.logger.error("Order ID missing from session metadata")
+        return "Order ID missing", 400
+
+    # Retrieve the order from your database
+    orders_collection = current_app.config.get('ORDERS_COLLECTION')
+    if not orders_collection:
+        return "Orders collection not configured", 500
+
+    order = orders_collection.find_one({"_id": ObjectId(order_id)})
+    if not order:
+        current_app.logger.error(f"Order not found: {order_id}")
+        return "Order not found", 404
+
+    # Render a custom payment success template with the order details.
+    # You can pass additional order details (e.g., time, date, location) as needed.
+    return render_template("payment_success.html", order=order)
