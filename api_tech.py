@@ -34,7 +34,8 @@ def fetch_orders_with_downpayment():
             orders.append(order)
 
         if not orders:
-            return jsonify({"error": "No orders with downpayment found."}), 404
+            # No orders with downpayment found, return a message
+            return jsonify({"message": "No orders available to be scheduled"}), 404
 
         # Return the fetched orders
         return jsonify({"orders": orders}), 200
