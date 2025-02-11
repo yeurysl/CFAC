@@ -48,7 +48,7 @@ def fetch_orders_with_downpayment():
 
 
 @api_tech_bp.route('/orders/<order_id>', methods=['PATCH'])
-def update_order(order_id):
+def update_order(order_id, user_id):
     try:
         orders_collection = current_app.config.get('MONGO_CLIENT').orders
         
@@ -63,7 +63,7 @@ def update_order(order_id):
         # Update the order in the database
         result = orders_collection.update_one(
             {"_id": ObjectId(order_id)},
-            {"$set": {"technician": technician}}
+            {"$set": {"technician": user_id}}
         )
         
         if result.matched_count == 0:
