@@ -67,20 +67,29 @@ def update_order(order_id):
     if not order:
         return jsonify({"error": "Order not found"}), 404
 
-    # Update technician field if provided
+    # Get the update data from the request
     update_data = request.get_json()
     if "technician" in update_data:
-        update_data["orderhasbeenscheduled"] = True
-        update_data["updated_date"] = datetime.utcnow()
+        # Create a dictionary that includes all the fields you want to update
+        update_fields = {
+            "technician": update_data["technician"],
+            "orderhasbeenscheduled": True,
+            "updated_date": datetime.utcnow()
+        }
 
-        orders_collection.update_one(
+        # Update the order with the new data
+        result = orders_collection.update_one(
             {"_id": ObjectId(order_id)},
-            {"$set": {"technician": update_data["technician"]}}
+            {"$set": update_fields}
         )
-        return jsonify({"message": "Order updated successfully."}), 200
+        
+        if result.modified_count > 0:
+            return jsonify({"message": "Order updated successfully."}), 200
+        else:
+            return jsonify({"error": "Order update failed."}), 500
     else:
         return jsonify({"error": "Technician not provided"}), 400
-    
+
 
 
 
