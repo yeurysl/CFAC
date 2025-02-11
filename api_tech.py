@@ -54,25 +54,20 @@ def fetch_orders_with_downpayment():
 
 @api_tech_bp.route('/orders/<order_id>', methods=['PATCH'])
 def update_order(order_id):
-    auth_header = request.headers.get('Authorization', '')
-    if not auth_header.startswith("Bearer "):
-        return jsonify({"error": "Missing or invalid Authorization header."}), 401
-
-    token = auth_header.replace("Bearer ", "").strip()
-    secret_key = current_app.config['JWT_SECRET']
-    user_id = decode_jwt(token, secret_key)  # Decode the JWT and extract user_id
-
+    # Check authentication
+    token = request.headers.get('Authorization').replace('Bearer ', '')
+    user_id = decode_jwt(token, current_app.config['JWT_SECRET'])
     if not user_id:
-        return jsonify({"error": "Invalid or expired token"}), 401
+        return jsonify({"error": "Invalid token"}), 401
 
-    # Proceed with updating the order after the JWT validation
-    orders_collection = current_app.config['ORDERS_COLLECTION']
+    # Fetch the order from the database
+    orders_collection = current_app.config.get('ORDERS_COLLECTION')
     order = orders_collection.find_one({"_id": ObjectId(order_id)})
 
     if not order:
         return jsonify({"error": "Order not found"}), 404
 
-    # Update technician field if the user_id is valid
+    # Update technician field if provided
     update_data = request.get_json()
     if "technician" in update_data:
         orders_collection.update_one(
@@ -82,3 +77,13 @@ def update_order(order_id):
         return jsonify({"message": "Order updated successfully."}), 200
     else:
         return jsonify({"error": "Technician not provided"}), 400
+def decode_jwt(token, secret_key):
+    try:
+        # Decode the JWT token
+        payload = jwt.decode(token, secret_key, algorithms=["HS256"])
+        # Return the user ID (or whatever you want from the payload)
+        return payload.get("sub")
+    except ExpiredSignatureError:
+        return None  # Token has expired
+    except InvalidTokenError:
+        return None  # Invalid token
