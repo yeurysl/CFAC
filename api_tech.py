@@ -1,6 +1,11 @@
 from flask import Blueprint, request, jsonify, current_app
 from bson import ObjectId
 from datetime import datetime
+from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
+import jwt
+
+
+
 
 api_tech_bp = Blueprint('api_tech', __name__, url_prefix='/api/tech')
 
@@ -48,27 +53,32 @@ def fetch_orders_with_downpayment():
 
 
 @api_tech_bp.route('/orders/<order_id>', methods=['PATCH'])
-def update_order(order_id, user_id):
-    try:
-        orders_collection = current_app.config.get('MONGO_CLIENT').orders
-        
-        # Get the data from the request
-        data = request.get_json()
-        
-        # Update the technician field
-        technician = data.get('technician')
-        if not technician:
-            return jsonify({"error": "Technician ID is required."}), 400
-        
-        # Update the order in the database
-        result = orders_collection.update_one(
+def update_order(order_id):
+    auth_header = request.headers.get('Authorization', '')
+    if not auth_header.startswith("Bearer "):
+        return jsonify({"error": "Missing or invalid Authorization header."}), 401
+
+    token = auth_header.replace("Bearer ", "").strip()
+    secret_key = current_app.config['JWT_SECRET']
+    user_id = decode_jwt(token, secret_key)  # Decode the JWT and extract user_id
+
+    if not user_id:
+        return jsonify({"error": "Invalid or expired token"}), 401
+
+    # Proceed with updating the order after the JWT validation
+    orders_collection = current_app.config['ORDERS_COLLECTION']
+    order = orders_collection.find_one({"_id": ObjectId(order_id)})
+
+    if not order:
+        return jsonify({"error": "Order not found"}), 404
+
+    # Update technician field if the user_id is valid
+    update_data = request.get_json()
+    if "technician" in update_data:
+        orders_collection.update_one(
             {"_id": ObjectId(order_id)},
-            {"$set": {"technician": user_id}}
+            {"$set": {"technician": update_data["technician"]}}
         )
-        
-        if result.matched_count == 0:
-            return jsonify({"error": "Order not found."}), 404
-        
         return jsonify({"message": "Order updated successfully."}), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    else:
+        return jsonify({"error": "Technician not provided"}), 400
