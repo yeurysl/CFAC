@@ -539,18 +539,6 @@ def collect_remaining_balance():
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
 @api_sales_bp.route('/get_payment_intent', methods=['POST'])
 def get_payment_intent():
     order_id = request.json.get("order_id")
@@ -573,3 +561,45 @@ def get_payment_intent():
         }), 200
     except stripe.error.StripeError as e:
         return jsonify({"error": str(e)}), 500
+
+
+
+
+
+@api_sales_bp.route('/compensated_orders', methods=['GET'])
+def fetch_compensated_orders():
+    try:
+        # Retrieve the salesperson's ID from the query parameter.
+        salesperson_id = request.args.get("salesperson")
+        if not salesperson_id:
+            return jsonify({"error": "Salesperson ID is required."}), 400
+
+        # Access the orders collection from your database configuration.
+        orders_collection = current_app.config.get('ORDERS_COLLECTION')
+        if orders_collection is None:
+            return jsonify({"error": "Orders collection not configured."}), 500
+
+        # Build the query.
+        # This query returns all orders where the 'salesperson' field matches the provided salesperson_id.
+        # You can further filter based on compensation status if needed.
+        query = {"salesperson": salesperson_id}
+        orders_cursor = orders_collection.find(query)
+        orders = []
+
+        for order in orders_cursor:
+            order['_id'] = str(order['_id'])
+            # Optionally convert datetime fields to ISO strings
+            if 'creation_date' in order and isinstance(order['creation_date'], datetime):
+                order['creation_date'] = order['creation_date'].isoformat()
+            if 'service_date' in order and isinstance(order['service_date'], datetime):
+                order['service_date'] = order['service_date'].isoformat()
+            orders.append(order)
+
+        if not orders:
+            return jsonify({"message": "No compensated orders found."}), 404
+
+        return jsonify({"orders": orders}), 200
+
+    except Exception as e:
+        current_app.logger.error(f"Error fetching compensated orders: {str(e)}", exc_info=True)
+        return jsonify({"error": f"Error fetching compensated orders: {str(e)}"}), 500

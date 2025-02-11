@@ -151,3 +151,4 @@ def fetch_scheduled_orders():
     except Exception as e:
         current_app.logger.error(f"Error fetching scheduled orders: {str(e)}", exc_info=True)
         return jsonify({"error": f"Error fetching scheduled orders: {str(e)}"}), 500
+
