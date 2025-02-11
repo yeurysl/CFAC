@@ -43,3 +43,31 @@ def fetch_orders_with_downpayment():
         # Log the error with more detailed information
         current_app.logger.error(f"Error fetching orders with downpayment: {str(e)}")
         return jsonify({"error": f"Error fetching orders: {str(e)}"}), 500
+
+
+
+@api_tech_bp.route('/orders/<order_id>', methods=['PATCH'])
+def update_order(order_id):
+    try:
+        orders_collection = current_app.config.get('MONGO_CLIENT').orders
+        
+        # Get the data from the request
+        data = request.get_json()
+        
+        # Update the technician field
+        technician = data.get('technician')
+        if not technician:
+            return jsonify({"error": "Technician ID is required."}), 400
+        
+        # Update the order in the database
+        result = orders_collection.update_one(
+            {"_id": ObjectId(order_id)},
+            {"$set": {"technician": technician}}
+        )
+        
+        if result.matched_count == 0:
+            return jsonify({"error": "Order not found."}), 404
+        
+        return jsonify({"message": "Order updated successfully."}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
