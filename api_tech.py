@@ -15,8 +15,14 @@ def fetch_orders_with_downpayment():
         # Get the orders collection
         orders_collection = current_app.config.get('MONGO_CLIENT').orders
 
-        # Query orders with downpayment
-        orders_cursor = orders_collection.find({"has_downpayment_collected": "yes"})
+            # Query orders with downpayment
+        orders_cursor = orders_collection.find({
+                "has_downpayment_collected": "yes",
+                "$or": [
+                    {"orderhasbeenscheduled": {"$exists": False}},
+                    {"orderhasbeenscheduled": False}
+                ]
+            })        
         orders = []
 
         # Iterate through the orders and collect them
