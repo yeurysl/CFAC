@@ -424,63 +424,42 @@ def stripe_webhook():
     endpoint_secret = current_app.config.get('STRIPE_WEBHOOK_SECRET')
 
     try:
-        # Verify that the request came from Stripe
         event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
-    except ValueError as e:
-        current_app.logger.error("Invalid payload", exc_info=True)
-        return "Invalid payload", 400
-    except stripe.error.SignatureVerificationError as e:
-        current_app.logger.error("Invalid signature", exc_info=True)
-        return "Invalid signature", 400
 
-    # Handle the event
-    if event['type'] == 'payment_intent.succeeded':
-        intent = event['data']['object']
-        current_app.logger.info(f"PaymentIntent succeeded: {intent['id']}")
+        if event['type'] == 'payment_intent.succeeded':
+            intent = event['data']['object']
+            current_app.logger.info(f"PaymentIntent succeeded: {intent['id']}")
 
-        order_id = intent.get('metadata', {}).get('order_id')
-        payment_type = intent.get('metadata', {}).get('payment_type')
+            order_id = intent.get('metadata', {}).get('order_id')
 
-        if not order_id:
-            current_app.logger.error(f"Order ID not found in payment intent: {intent['id']}")
-            return '', 400  # No order ID in the event
+            if not order_id:
+                current_app.logger.error(f"Order ID not found in payment intent: {intent['id']}")
+                return '', 400  # Respond with error if order_id is not found
 
-        # Retrieve the order from the database
-        orders_collection = current_app.config['ORDERS_COLLECTION']
-        order = orders_collection.find_one({"_id": ObjectId(order_id)})
+            orders_collection = current_app.config['ORDERS_COLLECTION']
+            order = orders_collection.find_one({"_id": ObjectId(order_id)})
 
-        if not order:
-            current_app.logger.error(f"Order not found: {order_id}")
-            return '', 400  # Order not found in the database
+            if not order:
+                current_app.logger.error(f"Order not found: {order_id}")
+                return '', 400
 
-        # Determine if it's the down payment or the remaining balance
-        if payment_type == 'downpayment':
-            # Update the order status to downpaymentcollected
-            orders_collection.update_one(
-                {"_id": ObjectId(order_id)},
-                {"$set": {
-                    "has_downpayment_collected": "yes",
-                    "payment_status": "downpaymentcollected"
-                }}
-            )
-            current_app.logger.info(f"Down payment collected for order {order_id}")
-        
-        elif payment_type == 'remaining_balance':
-            # Update the order status to completed
-            orders_collection.update_one(
-                {"_id": ObjectId(order_id)},
-                {"$set": {
-                    "payment_status": "completed"
-                }}
-            )
-            current_app.logger.info(f"Remaining balance collected for order {order_id}")
+            # Update the order status based on payment type
+            payment_type = intent.get('metadata', {}).get('payment_type')
+            if payment_type == 'downpayment':
+                orders_collection.update_one(
+                    {"_id": ObjectId(order_id)},
+                    {"$set": {"has_downpayment_collected": "yes", "payment_status": "downpaymentcollected"}}
+                )
+            elif payment_type == 'remaining_balance':
+                orders_collection.update_one(
+                    {"_id": ObjectId(order_id)},
+                    {"$set": {"payment_status": "completed"}}
+                )
+            return '', 200
 
-        return '', 200  # Respond with success
-
-    # Handle other event types as needed (e.g., payment_intent.payment_failed)
-
-    return '', 200
-
+    except Exception as e:
+        current_app.logger.error(f"Error processing webhook: {e}")
+        return '', 400
 
 @api_sales_bp.route('/collect_downpayment', methods=['POST'])
 def collect_downpayment():

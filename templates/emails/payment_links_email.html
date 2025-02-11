@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Down Payment for Your Order</title>
+    <title>Payment Links for Your Order</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -39,16 +39,6 @@
             font-size: 16px;
             margin: 10px 0;
         }
-        table {
-            width: 100%;
-            margin-top: 20px;
-            border-collapse: collapse;
-        }
-        table th, table td {
-            padding: 10px;
-            text-align: left;
-            border: 1px solid #ddd;
-        }
         .footer {
             font-size: 12px;
             color: #999;
@@ -64,31 +54,17 @@
 <body>
 
 <div class="container">
-    <h1>Down Payment for Your Order</h1>
+    <h1>Payment Links for Your Order</h1>
     <p>Dear {{ customer_name }},</p>
-    <p>Thank you for your order! Please proceed with the down payment for your order <strong>#{{ order_id }}</strong>:</p>
-
+    <p>Thank you for your order! Below are the payment links for your order <strong>#{{ order_id }}</strong>:</p>
+    
     <p><strong>1. Down Payment</strong></p>
-    <p>To proceed with the down payment, click the button below:</p>
+    <p>To proceed with the down payment of your order, click the button below:</p>
     <a href="{{ downpayment_checkout_url }}" class="button">Pay Down Payment</a>
 
-    <p>Invoice for the Down Payment:</p>
-    <table>
-        <tr>
-            <th>Service</th>
-            <th>Amount</th>
-        </tr>
-        {% for service in selected_services %}
-        <tr>
-            <td>{{ service }}</td>
-            <td>${{ (final_price * 0.40) }}</td>
-        </tr>
-        {% endfor %}
-        <tr>
-            <td><strong>Total Down Payment</strong></td>
-            <td><strong>${{ (final_price * 0.40) }}</strong></td>
-        </tr>
-    </table>
+    <p><strong>2. Remaining Balance</strong></p>
+    <p>Once the down payment is complete, you can pay the remaining balance using the button below:</p>
+    <a href="{{ remaining_balance_checkout_url }}" class="button">Pay Remaining Balance</a>
 
     <p>If you have any questions or need assistance, feel free to reach out to our support team.</p>
     
