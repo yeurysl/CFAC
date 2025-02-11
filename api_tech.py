@@ -111,3 +111,43 @@ def decode_jwt(token, secret_key):
         return None  # Token has expired
     except InvalidTokenError:
         return None  # Invalid token
+    
+
+
+
+
+
+
+
+
+@api_tech_bp.route('/scheduled_orders', methods=['GET'])
+def fetch_scheduled_orders():
+    try:
+        # Get the technician ID from the query parameters
+        technician_id = request.args.get("technician")
+        if not technician_id:
+            return jsonify({"error": "Technician ID is required."}), 400
+
+        orders_collection = current_app.config.get('ORDERS_COLLECTION')
+        if orders_collection is None:
+            return jsonify({"error": "Orders collection not configured."}), 500
+
+        # Query for orders where the technician field matches the given technician_id.
+        # This does not filter out orders based on any scheduling flag.
+        orders_cursor = orders_collection.find({"technician": technician_id})
+        orders = []
+        for order in orders_cursor:
+            order['_id'] = str(order['_id'])
+            # Convert datetime fields to ISO strings if necessary
+            if 'service_date' in order and isinstance(order['service_date'], datetime):
+                order['service_date'] = order['service_date'].isoformat()
+            orders.append(order)
+
+        if not orders:
+            return jsonify({"message": "No scheduled orders found."}), 404
+
+        return jsonify({"orders": orders}), 200
+
+    except Exception as e:
+        current_app.logger.error(f"Error fetching scheduled orders: {str(e)}", exc_info=True)
+        return jsonify({"error": f"Error fetching scheduled orders: {str(e)}"}), 500
