@@ -158,7 +158,6 @@ def create_order():
             capture_method="manual"  # Manual capture, this will allow charging later
         )
 
-        # Create a Stripe Checkout session for the down payment
         downpayment_checkout_session = stripe.checkout.Session.create(
             payment_method_types=["card"],
             line_items=[{
@@ -174,11 +173,14 @@ def create_order():
             customer_email=order_data.get("guest_email"),
             success_url=current_app.config.get("CHECKOUT_SUCCESS_URL", "https://cfautocare.biz/"),
             cancel_url=current_app.config.get("CHECKOUT_CANCEL_URL", "https://cfautocare.biz/"),
-            metadata={"order_id": order_id, "payment_type": "downpayment"},
-            mode="payment"  # Add the mode parameter here
+            payment_intent_data={
+                "metadata": {"order_id": order_id, "payment_type": "downpayment"}
+            },
+            mode="payment"
         )
 
-        # Create a Stripe Checkout session for the remaining balance
+
+                # Create a Stripe Checkout session for the remaining balance
         remaining_checkout_session = stripe.checkout.Session.create(
             payment_method_types=["card"],
             line_items=[{
@@ -194,9 +196,12 @@ def create_order():
             customer_email=order_data.get("guest_email"),
             success_url=current_app.config.get("CHECKOUT_SUCCESS_URL", "https://cfautocare.biz/"),
             cancel_url=current_app.config.get("CHECKOUT_CANCEL_URL", "https://cfautocare.biz/"),
-            metadata={"order_id": order_id, "payment_type": "remaining_balance"},
-            mode="payment"  # Add the mode parameter here
+            payment_intent_data={
+                "metadata": {"order_id": order_id, "payment_type": "remaining_balance"}
+            },
+            mode="payment"
         )
+
 
         # Update the order with PaymentIntent info (down payment and remaining balance)
         update_data = {
