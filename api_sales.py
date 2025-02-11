@@ -6,7 +6,8 @@ import jwt
 from bson import ObjectId
 from config import Config
 import stripe
-from notis import send_postmark_email
+from notis import send_payment_links
+import requests
 from jwt import ExpiredSignatureError, InvalidTokenError
 from postmark_client import is_valid_email  # already imported above
 import os
@@ -107,7 +108,6 @@ def get_services():
         return jsonify({"error": str(e)}), 500
     
 
-
 @api_sales_bp.route('/guest_order', methods=['POST'])
 def create_order():
     try:
@@ -141,16 +141,13 @@ def create_order():
         # Set Stripe API key
         stripe.api_key = current_app.config['STRIPE_SECRET_KEY']
 
-       # Create the PaymentIntent for the down payment (40%)
+        # Create the PaymentIntent for the down payment (40%)
         downpayment_intent = stripe.PaymentIntent.create(
             amount=downpayment_amount,
             currency="usd",
             payment_method_types=["card"],
             metadata={"order_id": order_id, "payment_type": "downpayment"}
         )
-
-        # Log downpayment intent creation response
-        current_app.logger.info(f"Downpayment PaymentIntent created: {downpayment_intent.id}")
 
         # Create the PaymentIntent for the remaining balance (60%)
         remaining_intent = stripe.PaymentIntent.create(
@@ -160,9 +157,6 @@ def create_order():
             metadata={"order_id": order_id, "payment_type": "remaining_balance"},
             capture_method="manual"  # Manual capture, this will allow charging later
         )
-
-        # Log remaining balance PaymentIntent creation response
-        current_app.logger.info(f"Remaining balance PaymentIntent created: {remaining_intent.id}")
 
         # Create a Stripe Checkout session for the down payment
         downpayment_checkout_session = stripe.checkout.Session.create(
@@ -184,9 +178,6 @@ def create_order():
             mode="payment"  # Add the mode parameter here
         )
 
-        # Log downpayment checkout session response
-        current_app.logger.info(f"Downpayment Checkout Session created: {downpayment_checkout_session.id}")
-
         # Create a Stripe Checkout session for the remaining balance
         remaining_checkout_session = stripe.checkout.Session.create(
             payment_method_types=["card"],
@@ -207,10 +198,6 @@ def create_order():
             mode="payment"  # Add the mode parameter here
         )
 
-        # Log remaining checkout session response
-        current_app.logger.info(f"Remaining Balance Checkout Session created: {remaining_checkout_session.id}")
-
-
         # Update the order with PaymentIntent info (down payment and remaining balance)
         update_data = {
             "payment_intent_downpayment": downpayment_intent.id,
@@ -224,29 +211,21 @@ def create_order():
         }
         orders_collection.update_one({"_id": ObjectId(order_id)}, {"$set": update_data})
 
-        # Send the checkout links to the customer
-        send_postmark_email(
-            subject="Your Payment Links for Order",
-            to_email=order_data["guest_email"],  # Correct argument name
-            from_email=current_app.config.get("POSTMARK_SENDER_EMAIL"),
-            text_body=f"Please complete the payment for Order #{order_id}.\n\n"
-                    f"Down Payment: {downpayment_checkout_session.url}\n\n"
-                    f"Remaining Balance: {remaining_checkout_session.url}\n\n"
-                    f"Thank you for choosing us!"
-        )
+        # Call the send_payment_links function from notis.py
+        result = send_payment_links(order_id)
 
+        # Check if sending payment links was successful
+        if result[1] != 200:
+            current_app.logger.error(f"Failed to send payment links: {result[0]}")
+            return jsonify({"error": "Failed to send payment links"}), 500
 
         return jsonify({
-            "message": "Order created successfully!",
-            "downpayment_checkout_url": downpayment_checkout_session.url,
-            "remaining_balance_checkout_url": remaining_checkout_session.url
+            "message": "Order created successfully and payment links sent to customer!"
         }), 201
 
     except Exception as e:
         current_app.logger.error(f"Error creating order: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
-
-
 
 @api_sales_bp.route('/orders/<order_id>', methods=['PUT', 'PATCH'])
 def update_order(order_id):

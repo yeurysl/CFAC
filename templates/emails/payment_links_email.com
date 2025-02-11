@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Links for Your Order</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #4CAF50;
+            text-align: center;
+        }
+        p {
+            font-size: 16px;
+            line-height: 1.6;
+            color: #333;
+        }
+        .button {
+            background-color: #4CAF50;
+            color: #fff;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            display: inline-block;
+            font-size: 16px;
+            margin: 10px 0;
+        }
+        .footer {
+            font-size: 12px;
+            color: #999;
+            text-align: center;
+            margin-top: 20px;
+        }
+        .footer a {
+            color: #4CAF50;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Payment Links for Your Order</h1>
+    <p>Dear {{ customer_name }},</p>
+    <p>Thank you for your order! Below are the payment links for your order <strong>#{{ order_id }}</strong>:</p>
+    
+    <p><strong>1. Down Payment</strong></p>
+    <p>To proceed with the down payment of your order, click the button below:</p>
+    <a href="{{ downpayment_checkout_url }}" class="button">Pay Down Payment</a>
+
+    <p><strong>2. Remaining Balance</strong></p>
+    <p>Once the down payment is complete, you can pay the remaining balance using the button below:</p>
+    <a href="{{ remaining_balance_checkout_url }}" class="button">Pay Remaining Balance</a>
+
+    <p>If you have any questions or need assistance, feel free to reach out to our support team.</p>
+    
+    <p>Thank you for choosing us!</p>
+
+    <div class="footer">
+        <p>&copy; {{ current_year }} CFAC AutoCare | All rights reserved.</p>
+        <p><a href="https://cfautocare.biz">Visit our website</a></p>
+    </div>
+</div>
+
+</body>
+</html>

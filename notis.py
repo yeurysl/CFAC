@@ -336,62 +336,75 @@ def send_payment_collected_notifications(order, payment_method):
         app.logger.error(f"Error sending payment collected notifications: {e}", exc_info=True)
 
 
-def send_generic_email(recipient_email, subject, html_body, text_body=None):
-    """
-    Sends an email to the specified recipient with both HTML and plain-text content.
 
-    Args:
-        recipient_email (str): The recipient's email address.
-        subject (str): The subject of the email.
-        html_body (str): The HTML content of the email.
-        text_body (str, optional): The plain-text content of the email.
 
-    Returns:
-        None
-    """
-    sender_email = os.getenv('POSTMARK_SENDER_EMAIL')  # Ensure this matches your verified sender
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def send_payment_links(order_id):
     try:
-        postmark_client.emails.send(
-            From=sender_email,
-            To=recipient_email,
-            Subject=subject,
-            HtmlBody=html_body,
-            TextBody=text_body,
-            MessageStream="outbound"
+        # Fetch the order from the database
+        orders_collection = current_app.config.get('ORDERS_COLLECTION')
+        order = orders_collection.find_one({"_id": ObjectId(order_id)})
+
+        if not order:
+            return {"error": "Order not found"}, 404
+
+        # Retrieve the downpayment and remaining balance checkout URLs from the order
+        downpayment_checkout_url = order.get("downpayment_checkout_url")
+        remaining_balance_checkout_url = order.get("remaining_balance_checkout_url")
+
+        if not downpayment_checkout_url or not remaining_balance_checkout_url:
+            return {"error": "Payment links are not yet generated"}, 400
+
+        # Prepare email content (HTML and Text)
+        html_body = render_template(
+            'emails/payment_links_email.html',  # Path to the HTML template
+            customer_name=order.get("guest_name", "Customer"),
+            order_id=order_id,
+            downpayment_checkout_url=downpayment_checkout_url,
+            remaining_balance_checkout_url=remaining_balance_checkout_url,
+            current_year=datetime.utcnow().year
         )
-        app.logger.info(f"Email sent to {recipient_email} with subject '{subject}'.")
+
+        text_body = f"""
+        Dear {order.get("guest_name", "Customer")},
+
+        Thank you for your order! Below are the payment links for your order #{order_id}:
+
+        1. Down Payment: {downpayment_checkout_url}
+        2. Remaining Balance: {remaining_balance_checkout_url}
+
+        If you have any questions or need assistance, feel free to reach out to our support team.
+
+        Thank you for choosing us!
+        """
+
+        # Send email with payment links
+        send_postmark_email(
+            subject="Your Payment Links for Order",
+            to_email=order["guest_email"],
+            from_email=current_app.config.get("POSTMARK_SENDER_EMAIL"),
+            text_body=text_body,
+            html_body=html_body
+        )
+
+        return {"message": "Payment links sent successfully!"}, 200
+
     except Exception as e:
-        app.logger.error(f"Failed to send email to {recipient_email}: {e}")
-
-        #For password reset
-def notify_password_reset_required(user_email):
-    try:
-        reset_url = url_for('reset_password_request', _external=True)
-        msg = Message('Password Reset Required',
-                      recipients=[user_email])
-        msg.body = f"""Dear user,
-
-We have detected an issue with your account's password security. Please reset your password using the following link: {reset_url}
-
-If you did not request this, please contact our support team immediately.
-
-Best regards,
-CFAC AutoCare Team"""
-        mail.send(msg)
-    except Exception as e:
-        app.logger.error(f"Failed to send password reset notification to {user_email}: {e}")
-
-
-
-
-
-
-
-
-
-
-
-
+        current_app.logger.error(f"Error sending payment links: {e}", exc_info=True)
+        return {"error": str(e)}, 500
 
 
