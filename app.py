@@ -84,6 +84,7 @@ def create_app():
 
     # Exempt API routes from CSRF protection
     csrf.exempt(api_sales_bp)
+    csrf.exempt(api_tech_bp)
 
     # Now in an app context, call create_unique_indexes() + register_filters()
     with app.app_context():
