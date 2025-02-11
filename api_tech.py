@@ -70,6 +70,9 @@ def update_order(order_id):
     # Update technician field if provided
     update_data = request.get_json()
     if "technician" in update_data:
+        update_data["orderhasbeenscheduled"] = True
+        update_data["updated_date"] = datetime.utcnow()
+
         orders_collection.update_one(
             {"_id": ObjectId(order_id)},
             {"$set": {"technician": update_data["technician"]}}
@@ -77,6 +80,12 @@ def update_order(order_id):
         return jsonify({"message": "Order updated successfully."}), 200
     else:
         return jsonify({"error": "Technician not provided"}), 400
+    
+
+
+
+
+
 def decode_jwt(token, secret_key):
     try:
         # Decode the JWT token
