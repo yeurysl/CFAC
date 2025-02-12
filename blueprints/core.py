@@ -221,20 +221,23 @@ def payment_success():
     if not session_id:
         return "Session ID missing", 400
 
-    # Set your Stripe secret key and retrieve the session details
+    # Set your Stripe secret key
     stripe.api_key = current_app.config['STRIPE_SECRET_KEY']
+
     try:
-        session = stripe.checkout.Session.retrieve(session_id)
+        # Expand the PaymentIntent so that we can access its metadata
+        session = stripe.checkout.Session.retrieve(
+            session_id,
+            expand=["payment_intent"]
+        )
     except Exception as e:
         current_app.logger.error(f"Error retrieving Stripe session: {e}")
         return "Error retrieving payment session", 500
 
     # Extract the internal order_id from the PaymentIntent metadata
-    # Note: When using a Checkout session with `payment_intent_data`,
-    # the PaymentIntent metadata is available in the session.
-    order_id = session.payment_intent_data.get("metadata", {}).get("order_id")
+    order_id = session.payment_intent.metadata.get("order_id")
     if not order_id:
-        current_app.logger.error("Order ID missing from session metadata")
+        current_app.logger.error("Order ID missing from PaymentIntent metadata")
         return "Order ID missing", 400
 
     # Retrieve the order from your database
@@ -248,5 +251,4 @@ def payment_success():
         return "Order not found", 404
 
     # Render a custom payment success template with the order details.
-    # You can pass additional order details (e.g., time, date, location) as needed.
     return render_template("payment_success.html", order=order)
