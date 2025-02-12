@@ -52,7 +52,7 @@ def customer_home():
     # Default image
     default_image = url_for('static', filename='default_service.jpg')
 
-    return render_template('home.html', services=services, vehicle_sizes=vehicle_sizes, default_image=default_image)
+    return render_template('customer/home.html', services=services, vehicle_sizes=vehicle_sizes, default_image=default_image)
 
 
 

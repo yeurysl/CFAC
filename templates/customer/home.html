@@ -102,37 +102,16 @@
   </div>
 </div>
 
-<!-- OR Section -->
-<div class="container mt-5 text-center">
-  <h1>Or</h1>
-  <hr class="custom-hr">
-</div>
-<div class="text-center mt-3">
-  <a href="tel:+18138609587" class="btn call-now-btn">
-    Click Here to Book a Service<br>
-    <span class="phone-number">(813) 860-9587</span>
-  </a>
+<!-- Track Your Orders Button -->
+<div class="row mt-4">
+  <div class="col text-center">
+    <a href="{{ url_for('customer.my_orders') }}" class="btn custom-track-orders">
+      Track Your Orders
+    </a>
+  </div>
 </div>
 
-<div class="container mt-5 text-center">
-  <h1>Where we service</h1>
-  <hr class="custom-hr">
-</div>
 
-<!-- Container-fluid for a full-width map image -->
-<div class="container-fluid p-0">
-  <picture>
-    <source 
-      media="(min-width: 768px)" 
-      srcset="{{ url_for('static', filename='creatives/largemap.svg') }}"
-    >
-    <img 
-      src="{{ url_for('static', filename='creatives/smallmap.svg') }}" 
-      alt="smallmap" 
-      class="img-fluid full-width-image"
-    >
-  </picture>
-</div>
 <div class="container mt-5 text-center">
   <hr class="custom-hr">
 </div>
