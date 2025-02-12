@@ -386,7 +386,7 @@ def my_orders():
                         if service:
                             vehicle_size = cart_item.get('vehicle_size')
                             price_info = service.get('price_by_vehicle_size', {}).get(vehicle_size, {})
-                            service['price'] = price_info.get('total', 0)
+                            service['price'] = price_info.get('final_price', 0)
                             service['label'] = service.get('label') or 'Unnamed Service'
                             services_in_cart.append(service)
                     total = calculate_cart_total(services_in_cart)
