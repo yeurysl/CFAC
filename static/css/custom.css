@@ -460,3 +460,50 @@ a:hover .clickable-image {
   width: 100%;
   /* Additional styling as desired */
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.order-status-bar {
+  display: flex;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.status-step {
+  flex: 1;
+  display: flex;              /* Enable flex layout on each section */
+  align-items: center;        /* Center vertically */
+  justify-content: center;    /* Center horizontally */
+  text-align: center;
+  padding: 10px;
+  background-color: #f8f8f8;
+  transition: background-color 0.3s ease;
+  cursor: pointer;
+}
+
+.status-step.active {
+  background-color: #535e69; 
+  color: #fff;
+}
+
+.status-step:not(:last-child) {
+  border-right: 1px solid #ccc;
+}
+
+
+
+
+

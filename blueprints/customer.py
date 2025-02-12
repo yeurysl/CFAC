@@ -553,3 +553,7 @@ def reset_password(token):
             return redirect(url_for('customer.reset_password_request'))
 
     return render_template('customer/reset_password.html', form=form)
+
+
+
+

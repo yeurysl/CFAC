@@ -1,5 +1,4 @@
 <!-- templates/customer/my_orders.html -->
-<!-- templates/customer/my_orders.html -->
 {% extends 'base.html' %}
 
 {% block title %}My Orders{% endblock %}
@@ -11,78 +10,42 @@
     {% if orders %}
         {% for order in orders %}
             <!-- Card Start -->
-            <div class="card mb-4 shadow-sm">
-                <!-- Card Header -->
-                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                   
-                    <!-- Display a status badge (e.g., "Ordered", "Processing", "Scheduled") -->
-                    <span class="badge bg-light text-dark">
-                        {{ order.status if order.status else 'Processing' }}
-                    </span>
+            <div class="card mb-3 shadow-sm">
+                <!-- Header: Display service date/time using your datetime filter -->
+                <div class="card-header" style="background-color: #001f3f; color: #fff;">
+                    {% if order.service_date %}
+                        {{ order.service_date | format_datetime_with_suffix }}
+                    {% else %}
+                        N/A
+                    {% endif %}
                 </div>
-                
-                <!-- Card Body -->
+                <!-- Card Body: Display status bar and final price -->
                 <div class="card-body">
-                    
-                    <div class="row mb-3">
-                        <div class="col-md-4 col-sm-5 col-12 fw-semibold text-muted">
-                            Order Date:
+                    <!-- Status Bar -->
+                    {% if order.status|lower == 'completed' %}
+                        <div class="order-status-bar">
+                          <div class="status-step active">Completed</div>
                         </div>
-                        <div class="col-md-8 col-sm-7 col-12">
-                            {% if order.creation_date %}
-                                {{ order.creation_date.strftime('%B %d, %Y at %I:%M %p') }}
-                            {% else %}
-                                Not specified
-                            {% endif %}
+                    {% else %}
+                        <div class="order-status-bar">
+                            <div class="status-step {% if order.status|lower == 'ordered' %}active{% endif %}">
+                              Ordered
+                            </div>
+                            <div class="status-step {% if order.orderhasbeenscheduled|lower == 'true' %}active{% endif %}">
+                              Assigned to Tech
+                            </div>
+                            <div class="status-step {% if order.status|lower == 'completed' %}active{% endif %}">
+                              Completed
+                            </div>
                         </div>
-                    </div>
-                    
-                    <div class="row mb-3">
-                        <div class="col-md-4 col-sm-5 col-12 fw-semibold text-muted">
-                            Service Date:
-                        </div>
-                        <div class="col-md-8 col-sm-7 col-12">
-                            <td>
-                                {% if order.service_date %}
-                                    {{ order.service_date | format_datetime_with_suffix }}
-                                {% else %}
-                                    N/A
-                                {% endif %}
-                            </td>
-                        </div>
-                    </div>
-                    
-                    
-             
-                    <div class="row mb-3">
-                        <div class="col-md-4 col-sm-5 col-12 fw-semibold text-muted">
-                            Scheduled By:
-                        </div>
-                        <div class="col-md-8 col-sm-7 col-12">
-                            {% if order.scheduled_by_name %}
-                                {{ order.scheduled_by_name }}
-                            {% else %}
-                                Not scheduled yet
-                            {% endif %}
-                        </div>
-                    </div>
-                    
-                    <!-- Total Row -->
-                    <div class="row mb-3">
-                        <div class="col-md-4 col-sm-5 col-12 fw-semibold text-muted">
-                            Total:
-                        </div>
-                        <div class="col-md-8 col-sm-7 col-12">
-                            {{ order.final_price | currency }}
-                        </div>
-                    </div>
-                    
-                </div>  <!-- End Card Body -->
-                
-              
+                    {% endif %}
+                      
+                    <p class="mb-0">
+                        <strong>Total:</strong> {{ order.final_price | currency }}
+                    </p>
+                </div>
             </div>
             <!-- Card End -->
-            
         {% endfor %}
     {% else %}
         <p>You have not placed any orders yet.</p>
