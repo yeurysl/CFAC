@@ -124,7 +124,7 @@ def create_order():
             return jsonify({"error": "Invalid or missing JSON data."}), 400
 
         # Set the 'is_guest' key to 'yes' for all guest orders.
-        order_data["is_guest"] = "yes"
+        order_data["is_guest"] = True
 
         # Validate and set default values
         current_app.logger.info(f"Order data received: {order_data}")
