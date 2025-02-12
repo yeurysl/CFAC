@@ -49,8 +49,8 @@
 
     <div class="order-details">
       <p><strong>Order ID:</strong> {{ order._id }}</p>
-      <p><strong>Order Date:</strong> {{ order.creation_date }}</p>
-      <p><strong>Service Date:</strong> {{ order.service_date }}</p>
+      <p><strong>Order Date:</strong> {{ order.creation_date.strftime('%B %d, %Y at %I:%M %p') }}</p>
+      <p><strong>Service Date:</strong> {{ order.service_date.strftime('%B %d, %Y at %I:%M %p') }}</p>
       <p><strong>Location:</strong> {{ order.guest_address.street_address }}, {{ order.guest_address.city }}, {{ order.guest_address.country }}</p>
       <!-- Add any additional details as needed -->
     </div>
