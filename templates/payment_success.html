@@ -58,7 +58,7 @@
       </p>
       <p><strong>Service Date:</strong> 
          {% if order.service_date %}
-           {{ order.service_date | format_date_with_suffix }}
+           {{ order.service_date | format_datetime_with_suffix }}
          {% else %}
            N/A
          {% endif %}

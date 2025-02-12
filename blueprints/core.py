@@ -5,6 +5,7 @@ from bson.objectid import ObjectId, InvalidId
 from datetime import datetime
 import re
 import json
+from dateutil.parser import parse 
 import stripe
 from forms import EmployeeLoginForm, UpdateAccountForm
 from extensions import User 
@@ -213,6 +214,8 @@ def refund_policy():
 
 
 
+
+
 @core_bp.route('/payment_success')
 def payment_success():
     # Extract the Stripe Checkout session ID from the query parameters
@@ -248,12 +251,12 @@ def payment_success():
         current_app.logger.error(f"Order not found: {order_id}")
         return "Order not found", 404
 
-    # Convert date strings to datetime objects (if needed)
+    # Convert date fields to datetime objects (if they're stored as strings)
     for date_field in ['creation_date', 'service_date']:
         date_value = order.get(date_field)
         if isinstance(date_value, str):
             try:
-                # If the string ends with 'Z', replace it with '+00:00' for proper ISO formatting
+                # If the string ends with 'Z', replace it with '+00:00' for ISO compatibility
                 if date_value.endswith('Z'):
                     order[date_field] = datetime.fromisoformat(date_value.replace("Z", "+00:00"))
                 else:
@@ -264,5 +267,4 @@ def payment_success():
                 )
                 order[date_field] = None
 
-    # Render a custom payment success template with the order details.
     return render_template("payment_success.html", order=order)
