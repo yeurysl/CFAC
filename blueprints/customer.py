@@ -355,12 +355,12 @@ def customer_login():
 @customer_required
 def my_orders():
     """
-    Displays the current user's orders, including guest orders that match the user's email or phone,
-    with dates converted to datetime objects so they can be formatted consistently.
+    Displays the current user's orders (including guest orders that match the user's email or phone),
+    converting date strings to datetime objects so they can be formatted consistently.
     """
     users_collection = current_app.config['USERS_COLLECTION']
     orders_collection = current_app.config['ORDERS_COLLECTION']
-    services_collection = current_app.config['SERVICES_COLLECTION']  # Ensure this is defined
+    services_collection = current_app.config['SERVICES_COLLECTION']
 
     user_id = current_user.id
     user = users_collection.find_one({'_id': ObjectId(user_id)})
@@ -368,56 +368,8 @@ def my_orders():
         flash('User not found.', 'danger')
         return redirect(url_for('customer.customer_home'))
 
-    # Handle potential payment intent redirection (same as before)
-    payment_intent_id = request.args.get('payment_intent')
-    if payment_intent_id:
-        try:
-            intent = stripe.PaymentIntent.retrieve(payment_intent_id)
-            if intent.status == 'succeeded':
-                existing_order = orders_collection.find_one({'payment_intent_id': payment_intent_id})
-                if not existing_order:
-                    cart = session.get('cart', [])
-                    if not cart:
-                        flash('No items found in your cart to complete the order.', 'danger')
-                        return redirect(url_for('customer.customer_home'))
-                    services_in_cart = []
-                    for cart_item in cart:
-                        service = services_collection.find_one({'_id': ObjectId(cart_item['service_id'])})
-                        if service:
-                            vehicle_size = cart_item.get('vehicle_size')
-                            price_info = service.get('price_by_vehicle_size', {}).get(vehicle_size, {})
-                            service['price'] = price_info.get('final_price', 0)
-                            service['label'] = service.get('label') or 'Unnamed Service'
-                            services_in_cart.append(service)
-                    total = calculate_cart_total(services_in_cart)
-                    order = {
-                        'user': current_user.id,
-                        'services': cart,
-                        'total': total,
-                        'order_date': datetime.now(),
-                        'service_date': intent.metadata.get('service_date'),
-                        'service_time': intent.metadata.get('service_time'),
-                        'payment_method': intent.payment_method,
-                        'payment_intent_id': payment_intent_id,
-                        'status': 'ordered',
-                        'address': user.get('address', {}),
-                        'creation_date': datetime.utcnow()
-                    }
-                    orders_collection.insert_one(order)
-                    flash('Your order has been placed successfully!', 'success')
-                    session.pop('cart', None)
-            elif intent.status == 'requires_action':
-                flash('Additional authentication required. Please complete the payment.', 'warning')
-            else:
-                flash('Your payment could not be processed. Please try again.', 'danger')
-        except stripe.error.StripeError as e:
-            current_app.logger.error(f"Stripe error during order finalization: {e}")
-            flash('Payment verification failed. Please contact support.', 'danger')
-        except Exception as e:
-            current_app.logger.error(f"Error during order finalization: {e}")
-            flash('An unexpected error occurred. Please try again.', 'danger')
-
-    # Build query to fetch orders for the current user or matching guest details
+    # Build a query that returns orders belonging to the user or guest orders where the guest email
+    # or phone number matches the current user's details.
     query = {
         "$or": [
             {"user": str(user_id)},
@@ -432,14 +384,14 @@ def my_orders():
     }
     user_orders = list(orders_collection.find(query).sort('order_date', -1))
 
-    # Convert date strings to datetime objects (if necessary) so they can be formatted in the template
+    # Convert date strings to datetime objects (if necessary) so they can be formatted in the template.
     date_fields = ['creation_date', 'order_date', 'service_date']
     for order in user_orders:
         for field in date_fields:
             date_value = order.get(field)
             if date_value and isinstance(date_value, str):
                 try:
-                    # If the date ends with 'Z', replace it for ISO compatibility
+                    # Replace trailing 'Z' with '+00:00' for ISO compatibility if necessary.
                     if date_value.endswith('Z'):
                         order[field] = datetime.fromisoformat(date_value.replace("Z", "+00:00"))
                     else:
@@ -450,14 +402,17 @@ def my_orders():
                     )
                     order[field] = None
 
-        # Build service details for display
+        # Build service details for display.
         order['service_details'] = []
         for item in order.get('services', []):
             service = services_collection.find_one({'_id': ObjectId(item['service_id'])})
             if service:
-                service['price'] = item.get('total', 0)
+                # If you need to display a per-service price, adjust here.
+                # Otherwise, you can simply include the service info.
+                service['price'] = item.get('final_price', 0)
                 order['service_details'].append(service)
 
+        # Add a human-friendly technician name (if scheduled) or a default text.
         if order.get('status', '').lower() == 'scheduled' and order.get('scheduled_by'):
             tech_user = users_collection.find_one({'username': order['scheduled_by']})
             order['scheduled_by_name'] = tech_user.get('name', 'Technician') if tech_user else 'Technician'
