@@ -171,7 +171,7 @@ def create_order():
                 "quantity": 1,
             }],
             customer_email=order_data.get("guest_email"),
-            success_url=current_app.config.get("CHECKOUT_SUCCESS_URL", "https://cfautocare.biz/payment_success"),
+            success_url=current_app.config.get("CHECKOUT_SUCCESS_URL", "https://cfautocare.biz/payment_success?session_id={CHECKOUT_SESSION_ID}"),
             cancel_url=current_app.config.get("CHECKOUT_CANCEL_URL", "https://cfautocare.biz/payment_cancel"),
             payment_intent_data={
                 "metadata": {"order_id": order_id, "payment_type": "downpayment"}
