@@ -83,36 +83,13 @@
                             Total:
                         </div>
                         <div class="col-md-8 col-sm-7 col-12">
-                            {{ order.total | currency }}
+                            {{ order.final_price | currency }}
                         </div>
                     </div>
                     
                 </div>  <!-- End Card Body -->
                 
-                <!-- Services List -->
-                <ul class="list-group list-group-flush">
-                    <li class="list-group-item bg-light fw-semibold">
-                        Services:
-                    </li>
-                    {% for service in order.service_details %}
-                        <li class="list-group-item">
-                            <!-- Service Title and Optional Price -->
-                            <div class="d-flex w-100 justify-content-between">
-                                <h5 class="mb-1">{{ service.label }}</h5>
-                                <!-- Uncomment if you want to display individual service total -->
-                                {# <small class="text-muted">{{ service.total | currency }}</small> #}
-                            </div>
-                            
-                            <!-- Optional service description or category -->
-                            {% if service.description %}
-                                <p class="mb-1 text-muted">{{ service.description }}</p>
-                            {% endif %}
-                            
-                            <!-- Additional fields can go here, e.g. category, completion_time, etc. -->
-                            {# <small>Category: {{ service.category }}</small> #}
-                        </li>
-                    {% endfor %}
-                </ul>
+              
             </div>
             <!-- Card End -->
             
