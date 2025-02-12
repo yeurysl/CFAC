@@ -248,5 +248,21 @@ def payment_success():
         current_app.logger.error(f"Order not found: {order_id}")
         return "Order not found", 404
 
+    # Convert date strings to datetime objects (if needed)
+    for date_field in ['creation_date', 'service_date']:
+        date_value = order.get(date_field)
+        if isinstance(date_value, str):
+            try:
+                # If the string ends with 'Z', replace it with '+00:00' for proper ISO formatting
+                if date_value.endswith('Z'):
+                    order[date_field] = datetime.fromisoformat(date_value.replace("Z", "+00:00"))
+                else:
+                    order[date_field] = datetime.fromisoformat(date_value)
+            except ValueError:
+                current_app.logger.error(
+                    f"Invalid {date_field} format for order {order.get('_id')}: {date_value}"
+                )
+                order[date_field] = None
+
     # Render a custom payment success template with the order details.
     return render_template("payment_success.html", order=order)
