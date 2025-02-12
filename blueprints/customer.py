@@ -432,7 +432,7 @@ def my_orders():
             "$or": [
                 {"user": str(user_id)},
                 {"$and": [
-                    {"is_guest": "yes"},
+                    {"is_guest": True},
                     {"$or": [
                         {"guest_email": user.get("email")},
                         {"guest_phone_number": user.get("phone_number")}
