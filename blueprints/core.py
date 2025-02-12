@@ -213,7 +213,6 @@ def refund_policy():
 
 
 
-
 @core_bp.route('/payment_success')
 def payment_success():
     # Extract the Stripe Checkout session ID from the query parameters
@@ -221,9 +220,8 @@ def payment_success():
     if not session_id:
         return "Session ID missing", 400
 
-    # Set your Stripe secret key
+    # Set your Stripe secret key and retrieve the session details
     stripe.api_key = current_app.config['STRIPE_SECRET_KEY']
-
     try:
         # Expand the PaymentIntent so that we can access its metadata
         session = stripe.checkout.Session.retrieve(
@@ -242,7 +240,7 @@ def payment_success():
 
     # Retrieve the order from your database
     orders_collection = current_app.config.get('ORDERS_COLLECTION')
-    if not orders_collection:
+    if orders_collection is None:
         return "Orders collection not configured", 500
 
     order = orders_collection.find_one({"_id": ObjectId(order_id)})
