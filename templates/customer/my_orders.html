@@ -24,15 +24,16 @@
                 <!-- Card Body -->
                 <div class="card-body">
                     
-                    <!-- Order Info Row -->
                     <div class="row mb-3">
-                        <!-- Left Column: Labels -->
                         <div class="col-md-4 col-sm-5 col-12 fw-semibold text-muted">
                             Order Date:
                         </div>
-                        <!-- Right Column: Data -->
                         <div class="col-md-8 col-sm-7 col-12">
-                            {{ order.creation_date.strftime('%B %d, %Y at %I:%M %p') }}
+                            {% if order.creation_date %}
+                                {{ order.creation_date.strftime('%B %d, %Y at %I:%M %p') }}
+                            {% else %}
+                                Not specified
+                            {% endif %}
                         </div>
                     </div>
                     
@@ -48,6 +49,7 @@
                             {% endif %}
                         </div>
                     </div>
+                    
                     
                     <div class="row mb-3">
                         <div class="col-md-4 col-sm-5 col-12 fw-semibold text-muted">

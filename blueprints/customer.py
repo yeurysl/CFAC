@@ -355,7 +355,8 @@ def customer_login():
 @customer_required
 def my_orders():
     """
-    Displays the current user's orders.
+    Displays the current user's orders, including guest orders that match the user's email or phone,
+    with dates converted to datetime objects so they can be formatted consistently.
     """
     users_collection = current_app.config['USERS_COLLECTION']
     orders_collection = current_app.config['ORDERS_COLLECTION']
@@ -367,24 +368,18 @@ def my_orders():
         flash('User not found.', 'danger')
         return redirect(url_for('customer.customer_home'))
 
-    # Check if Stripe redirected back with payment_intent
+    # Handle potential payment intent redirection (same as before)
     payment_intent_id = request.args.get('payment_intent')
     if payment_intent_id:
         try:
-            # Retrieve the PaymentIntent from Stripe
             intent = stripe.PaymentIntent.retrieve(payment_intent_id)
-
             if intent.status == 'succeeded':
-                # Payment succeeded; check if the order already exists to prevent duplication
                 existing_order = orders_collection.find_one({'payment_intent_id': payment_intent_id})
                 if not existing_order:
-                    # Assuming you stored the cart in the session before redirecting to Stripe
                     cart = session.get('cart', [])
                     if not cart:
                         flash('No items found in your cart to complete the order.', 'danger')
                         return redirect(url_for('customer.customer_home'))
-
-                    # Calculate total again to ensure consistency
                     services_in_cart = []
                     for cart_item in cart:
                         service = services_collection.find_one({'_id': ObjectId(cart_item['service_id'])})
@@ -392,31 +387,26 @@ def my_orders():
                             vehicle_size = cart_item.get('vehicle_size')
                             price_info = service.get('price_by_vehicle_size', {}).get(vehicle_size, {})
                             service['price'] = price_info.get('total', 0)
-                            service['label'] = service.get('label') or service.get('label', 'Unnamed Service')
+                            service['label'] = service.get('label') or 'Unnamed Service'
                             services_in_cart.append(service)
-
                     total = calculate_cart_total(services_in_cart)
-
-                    # Create the order
                     order = {
                         'user': current_user.id,
-                        'services': cart,  # Store service IDs and details
+                        'services': cart,
                         'total': total,
                         'order_date': datetime.now(),
-                        'service_date': intent.metadata.get('service_date'),  # Assuming you passed this metadata
-                        'service_time': intent.metadata.get('service_time'),  # Assuming you passed this metadata
+                        'service_date': intent.metadata.get('service_date'),
+                        'service_time': intent.metadata.get('service_time'),
                         'payment_method': intent.payment_method,
-                        'payment_intent_id': payment_intent_id,  # Store PaymentIntent ID
+                        'payment_intent_id': payment_intent_id,
                         'status': 'ordered',
                         'address': user.get('address', {}),
                         'creation_date': datetime.utcnow()
                     }
                     orders_collection.insert_one(order)
-
                     flash('Your order has been placed successfully!', 'success')
                     session.pop('cart', None)
             elif intent.status == 'requires_action':
-                # Additional authentication required; should have been handled already
                 flash('Additional authentication required. Please complete the payment.', 'warning')
             else:
                 flash('Your payment could not be processed. Please try again.', 'danger')
@@ -427,22 +417,40 @@ def my_orders():
             current_app.logger.error(f"Error during order finalization: {e}")
             flash('An unexpected error occurred. Please try again.', 'danger')
 
-        # Retrieve the user's orders
+    # Build query to fetch orders for the current user or matching guest details
     query = {
-            "$or": [
-                {"user": str(user_id)},
-                {"$and": [
-                    {"is_guest": True},
-                    {"$or": [
-                        {"guest_email": user.get("email")},
-                        {"guest_phone_number": user.get("phone_number")}
-                    ]}
+        "$or": [
+            {"user": str(user_id)},
+            {"$and": [
+                {"is_guest": True},
+                {"$or": [
+                    {"guest_email": user.get("email")},
+                    {"guest_phone_number": user.get("phone_number")}
                 ]}
-            ]
-        }
-
+            ]}
+        ]
+    }
     user_orders = list(orders_collection.find(query).sort('order_date', -1))
+
+    # Convert date strings to datetime objects (if necessary) so they can be formatted in the template
+    date_fields = ['creation_date', 'order_date', 'service_date']
     for order in user_orders:
+        for field in date_fields:
+            date_value = order.get(field)
+            if date_value and isinstance(date_value, str):
+                try:
+                    # If the date ends with 'Z', replace it for ISO compatibility
+                    if date_value.endswith('Z'):
+                        order[field] = datetime.fromisoformat(date_value.replace("Z", "+00:00"))
+                    else:
+                        order[field] = datetime.fromisoformat(date_value)
+                except Exception as e:
+                    current_app.logger.error(
+                        f"Error converting {field} for order {order.get('_id')}: {date_value} - {e}"
+                    )
+                    order[field] = None
+
+        # Build service details for display
         order['service_details'] = []
         for item in order.get('services', []):
             service = services_collection.find_one({'_id': ObjectId(item['service_id'])})
@@ -457,6 +465,8 @@ def my_orders():
             order['scheduled_by_name'] = 'Not scheduled yet'
 
     return render_template('customer/my_orders.html', orders=user_orders)
+
+
 
 
 @customer_bp.route('/register', methods=['GET', 'POST'])
