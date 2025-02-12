@@ -42,28 +42,18 @@
                             Service Date:
                         </div>
                         <div class="col-md-8 col-sm-7 col-12">
-                            {% if order.service_date %}
-                                {{ order.service_date.strftime('%B %d, %Y') }}
-                            {% else %}
-                                Not specified
-                            {% endif %}
+                            <td>
+                                {% if order.service_date %}
+                                    {{ order.service_date | format_date_with_suffix }}
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </td>
                         </div>
                     </div>
                     
                     
-                    <div class="row mb-3">
-                        <div class="col-md-4 col-sm-5 col-12 fw-semibold text-muted">
-                            Service Time:
-                        </div>
-                        <div class="col-md-8 col-sm-7 col-12">
-                            {% if order.service_time %}
-                                {{ order.service_time | format_time }}
-                            {% else %}
-                                Not specified
-                            {% endif %}
-                        </div>
-                    </div>
-                    
+             
                     <div class="row mb-3">
                         <div class="col-md-4 col-sm-5 col-12 fw-semibold text-muted">
                             Scheduled By:
