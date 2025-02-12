@@ -108,6 +108,7 @@ def get_services():
         return jsonify({"error": str(e)}), 500
     
 
+
 @api_sales_bp.route('/guest_order', methods=['POST'])
 def create_order():
     try:
@@ -121,6 +122,9 @@ def create_order():
         if order_data is None:
             current_app.logger.error("No JSON data found.")
             return jsonify({"error": "Invalid or missing JSON data."}), 400
+
+        # Set the 'is_guest' key to 'yes' for all guest orders.
+        order_data["is_guest"] = "yes"
 
         # Validate and set default values
         current_app.logger.info(f"Order data received: {order_data}")
@@ -179,8 +183,7 @@ def create_order():
             mode="payment"
         )
 
-
-                # Create a Stripe Checkout session for the remaining balance
+        # Create a Stripe Checkout session for the remaining balance
         remaining_checkout_session = stripe.checkout.Session.create(
             payment_method_types=["card"],
             line_items=[{
@@ -195,13 +198,12 @@ def create_order():
             }],
             customer_email=order_data.get("guest_email"),
             success_url=current_app.config.get("CHECKOUT_SUCCESS_URL", "https://cfautocare.biz/payment_success"),
-            cancel_url=current_app.config.get("CHECKOUT_CANCEL_URL", "https://cfautocare.biz/payment_cancel"),
+            cancel_url=current_app.config.get("CHECKOUT_CANCEL_URL", "https://cfautocare.biz"),
             payment_intent_data={
                 "metadata": {"order_id": order_id, "payment_type": "remaining_balance"}
             },
             mode="payment"
         )
-
 
         # Update the order with PaymentIntent info (down payment and remaining balance)
         update_data = {
@@ -231,6 +233,10 @@ def create_order():
     except Exception as e:
         current_app.logger.error(f"Error creating order: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
+
+
+
+
 
 @api_sales_bp.route('/orders/<order_id>', methods=['PUT', 'PATCH'])
 def update_order(order_id):
