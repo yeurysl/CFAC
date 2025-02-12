@@ -427,10 +427,21 @@ def my_orders():
             current_app.logger.error(f"Error during order finalization: {e}")
             flash('An unexpected error occurred. Please try again.', 'danger')
 
-    # Retrieve the user's orders
-    user_orders = list(
-        orders_collection.find({'user': str(user_id)}).sort('order_date', -1)
-    )
+        # Retrieve the user's orders
+    query = {
+            "$or": [
+                {"user": str(user_id)},
+                {"$and": [
+                    {"is_guest": "yes"},
+                    {"$or": [
+                        {"guest_email": user.get("email")},
+                        {"guest_phone_number": user.get("phone_number")}
+                    ]}
+                ]}
+            ]
+        }
+
+    user_orders = list(orders_collection.find(query).sort('order_date', -1))
     for order in user_orders:
         order['service_details'] = []
         for item in order.get('services', []):
