@@ -879,7 +879,18 @@ document.addEventListener('DOMContentLoaded', function() {
 .dropdown-item.selected .check-icon {
   display: inline-block;
 }
-
+#serviceDropdown {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#serviceDropdown {
+  min-width: 250px;  /* Prevents the button from shrinking below 250px */
+  /* Optionally, you can set a fixed width if that fits your design:
+  width: 250px; */
+  overflow: hidden;  /* Ensures no unexpected overflow */
+  white-space: normal;  /* Allow text to wrap if needed */
+}
 
 </style>
 {% endblock %}
