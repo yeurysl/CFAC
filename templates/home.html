@@ -69,12 +69,13 @@
           <ul class="dropdown-menu w-100" aria-labelledby="serviceDropdown">
             <!-- Packages Header -->
             <li class="dropdown-header">Packages</li>
+            
+            <!-- Full Interior with Sub-Packages -->
             <li>
               <a class="dropdown-item package-option" href="#" data-package="fullInterior">
                 Full Interior
               </a>
             </li>
-            <!-- Sub-package options under Full Interior -->
             <li class="dropdown-item sub-package" data-parent-package="fullInterior">
               <a class="dropdown-item sub-package-option" href="#" data-subpackage="carpets">
                 Carpets
@@ -85,24 +86,72 @@
                 Plastic Floors
               </a>
             </li>
-            <li><hr class="dropdown-divider"></li>
-            <!-- Individual Services Header -->
-            <li class="dropdown-header">Individual Services</li>
-            {% for service in services if service.active %}
+            
+            <!-- Other Package Selectors -->
             <li>
-              <a 
-                class="dropdown-item service-option" 
-                href="#" 
-                data-service-id="{{ service._id }}" 
-                data-service-key="{{ service.key }}" 
-                data-service-label="{{ service.label }}"
-              >
-                <span class="check-icon me-2"><i class="bi bi-check-circle-fill"></i></span>
-                {{ service.label }}
+              <a class="dropdown-item package-option" href="#" data-package="fullExterior">
+                Full Exterior
               </a>
             </li>
-            {% endfor %}
+            <li>
+              <a class="dropdown-item package-option" href="#" data-package="fullDetail">
+                Full Detail
+              </a>
+            </li>
+            
+            <li><hr class="dropdown-divider"></li>
+            
+                    <!-- Individual Services Header -->
+          <li class="dropdown-header">Interior Services</li>
+          {% for service in services if service.active and service.category == 'Interior' %}
+          <li>
+            <a 
+              class="dropdown-item service-option" 
+              href="#" 
+              data-service-id="{{ service._id }}" 
+              data-service-key="{{ service.key }}" 
+              data-service-label="{{ service.label }}"
+            >
+              <span class="check-icon me-2"><i class="bi bi-check-circle-fill"></i></span>
+              {{ service.label }}
+            </a>
+          </li>
+          {% endfor %}
+
+          <li class="dropdown-header">Exterior Services</li>
+          {% for service in services if service.active and service.category == 'Exterior' %}
+          <li>
+            <a 
+              class="dropdown-item service-option" 
+              href="#" 
+              data-service-id="{{ service._id }}" 
+              data-service-key="{{ service.key }}" 
+              data-service-label="{{ service.label }}"
+            >
+              <span class="check-icon me-2"><i class="bi bi-check-circle-fill"></i></span>
+              {{ service.label }}
+            </a>
+          </li>
+          {% endfor %}
+
+          <li class="dropdown-header">Additional Services</li>
+          {% for service in services if service.active and service.category == 'Additional' %}
+          <li>
+            <a 
+              class="dropdown-item service-option" 
+              href="#" 
+              data-service-id="{{ service._id }}" 
+              data-service-key="{{ service.key }}" 
+              data-service-label="{{ service.label }}"
+            >
+              <span class="check-icon me-2"><i class="bi bi-check-circle-fill"></i></span>
+              {{ service.label }}
+            </a>
+          </li>
+          {% endfor %}
+
           </ul>
+          
           
 
           
@@ -482,12 +531,6 @@ const packages = {
       { id: "6780627528fc752af68c43e6", key: "seats_dry_detail", label: "Seats Dry Detail(Vacuum)" },
       { id: "6780627528fc752af68c43e7", key: "seats_wet_detail", label: "Seats Wet Detail (Leather)" },
       { id: "6780627528fc752af68c43e8", key: "seats_shampoo", label: "Seats Shampoo (Fabric)" },
-      { id: "6780627528fc752af68c43e9", key: "floors_dry_detail", label: "Floors Dry Detail" },
-      { id: "6780627528fc752af68c43ea", key: "floors_wet_detail", label: "Floors Wet Detail" },
-      { id: "6780627528fc752af68c43eb", key: "carpet_dry_detail", label: "Carpet Dry Detail (Vacuum)" },
-      { id: "6780627528fc752af68c43ec", key: "carpet_wet_detail", label: "Carpet Wet Detail (Shampoo)" },
-      { id: "6780627528fc752af68c43ed", key: "seatbelts_detail", label: "Seatbelts Detail" },
-      { id: "6780627528fc752af68c43f2", key: "headliner_cleaning", label: "Headliner Cleaning" },
       { id: "6780627528fc752af68c43f3", key: "light_pet_hair_removal", label: "Light Pet Hair Removal" }
     ]
   },
@@ -511,16 +554,10 @@ const packages = {
         { id: "6780627528fc752af68c43e6", key: "seats_dry_detail", label: "Seats Dry Detail(Vacuum)" },
         { id: "6780627528fc752af68c43e7", key: "seats_wet_detail", label: "Seats Wet Detail (Leather)" },
         { id: "6780627528fc752af68c43e8", key: "seats_shampoo", label: "Seats Shampoo (Fabric)" },
-        { id: "6780627528fc752af68c43e9", key: "floors_dry_detail", label: "Floors Dry Detail" },
-        { id: "6780627528fc752af68c43ea", key: "floors_wet_detail", label: "Floors Wet Detail" },
-        { id: "6780627528fc752af68c43eb", key: "carpet_dry_detail", label: "Carpet Dry Detail (Vacuum)" },
-        { id: "6780627528fc752af68c43ec", key: "carpet_wet_detail", label: "Carpet Wet Detail (Shampoo)" },
-        { id: "6780627528fc752af68c43ed", key: "seatbelts_detail", label: "Seatbelts Detail" },
-        { id: "6780627528fc752af68c43f2", key: "headliner_cleaning", label: "Headliner Cleaning" },
         { id: "6780627528fc752af68c43f3", key: "light_pet_hair_removal", label: "Light Pet Hair Removal" }
       ],
       ...[
-        { id: "6780627528fc752af68c43ee", key: "exterior_handwash", label: "Exterior Handwash and Windows (inside/outside)" },
+        { id: "6780627528fc752af68c43ee", key: "exterior_handwash", label: "Exterior Handwash and Windows" },
         { id: "6780627528fc752af68c43ef", key: "bug_tar_removal", label: "Bug and Tar Removal" },
         { id: "6780627528fc752af68c43f0", key: "tire_rim_detail", label: "Tire and Rim Detail/Shine" },
         { id: "6780627528fc752af68c43f1", key: "claybar_wax", label: "Claybar/Wax" },
@@ -542,8 +579,8 @@ const subPackages = {
   plasticFloors: {
     label: "Plastic Floors",
     services: [
-      { id: "6780627528fc752af68c43e4", key: "interior_plastics_dry_detail", label: "Interior Plastics Dry Detail" },
-      { id: "6780627528fc752af68c43e5", key: "interior_plastics_wet_detail", label: "Interior Plastics Wet Detail/Protectants" }
+      { id: "6780627528fc752af68c43e9", key: "floors_dry_detail", label: "Floors Dry Detail" },
+      { id: "6780627528fc752af68c43ea", key: "floors_wet_detail", label: "Floors Wet Detail" }
     ]
   }
 };
@@ -710,31 +747,20 @@ document.addEventListener('DOMContentLoaded', function() {
       updateServiceDropdownText();
     });
   });
+// Sub-package selection: Toggle sub-package options (for Full Interior only).
+document.querySelectorAll('.sub-package-option').forEach(item => {
+  item.addEventListener('click', function(e) {
+    e.preventDefault();
+    const subPkgKey = this.getAttribute('data-subpackage');
+    const isSelected = this.classList.contains('selected');
 
-  // Sub-package selection: Toggle sub-package options (for Full Interior only).
-  document.querySelectorAll('.sub-package-option').forEach(item => {
-    item.addEventListener('click', function(e) {
-      e.preventDefault();
-      const subPkgKey = this.getAttribute('data-subpackage');
-      const isSelected = this.classList.contains('selected');
-
-      if (!isSelected) {
-        this.classList.add('selected');
-        if (subPackages[subPkgKey] && subPackages[subPkgKey].services) {
-          subPackages[subPkgKey].services.forEach(s => {
-            if (!selectedServices.find(item => item.id === s.id)) {
-              selectedServices.push(s);
-              const serviceOption = document.querySelector(`.service-option[data-service-id="${s.id}"]`);
-              if (serviceOption) {
-                serviceOption.classList.add('selected');
-              }
-            }
-          });
-        }
-      } else {
-        this.classList.remove('selected');
-        if (subPackages[subPkgKey] && subPackages[subPkgKey].services) {
-          subPackages[subPkgKey].services.forEach(s => {
+    // Define a helper to deselect a given sub-package.
+    function deselectSubPackage(key) {
+      const otherElem = document.querySelector(`.sub-package-option[data-subpackage="${key}"]`);
+      if (otherElem && otherElem.classList.contains('selected')) {
+        otherElem.classList.remove('selected');
+        if (subPackages[key] && subPackages[key].services) {
+          subPackages[key].services.forEach(s => {
             selectedServices = selectedServices.filter(item => item.id !== s.id);
             const serviceOption = document.querySelector(`.service-option[data-service-id="${s.id}"]`);
             if (serviceOption) {
@@ -743,9 +769,48 @@ document.addEventListener('DOMContentLoaded', function() {
           });
         }
       }
-      updateServiceDropdownText();
-    });
+    }
+
+    // When selecting one sub-package, deselect its conflicting sibling.
+    if (!isSelected) {
+      // If selecting plasticFloors, deselect carpets.
+      if (subPkgKey === "plasticFloors") {
+        deselectSubPackage("carpets");
+      }
+      // If selecting carpets, deselect plasticFloors.
+      if (subPkgKey === "carpets") {
+        deselectSubPackage("plasticFloors");
+      }
+      // Now, mark this sub-package as selected and add its services.
+      this.classList.add('selected');
+      if (subPackages[subPkgKey] && subPackages[subPkgKey].services) {
+        subPackages[subPkgKey].services.forEach(s => {
+          if (!selectedServices.find(item => item.id === s.id)) {
+            selectedServices.push(s);
+            const serviceOption = document.querySelector(`.service-option[data-service-id="${s.id}"]`);
+            if (serviceOption) {
+              serviceOption.classList.add('selected');
+            }
+          }
+        });
+      }
+    } else {
+      // Deselect this sub-package and remove its services.
+      this.classList.remove('selected');
+      if (subPackages[subPkgKey] && subPackages[subPkgKey].services) {
+        subPackages[subPkgKey].services.forEach(s => {
+          selectedServices = selectedServices.filter(item => item.id !== s.id);
+          const serviceOption = document.querySelector(`.service-option[data-service-id="${s.id}"]`);
+          if (serviceOption) {
+            serviceOption.classList.remove('selected');
+          }
+        });
+      }
+    }
+    updateServiceDropdownText();
   });
+});
+
 
   // Book Now button event listener.
   document.getElementById('bookNowBtn').addEventListener('click', function() {
@@ -856,7 +921,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   .sub-package {
   padding-left: 20px;
-  background-color: #f7f7f7;
+  background-color: #ffffff;
 }
 
 
