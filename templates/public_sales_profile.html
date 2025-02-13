@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Sales Profile{% endblock %}
+{% block content %}
+<div class="container my-5">
+  <h1>{{ user.name }}</h1>
+  <p><strong>Role:</strong> Sales</p>
+  {% if user.email %}
+    <p><strong>Email:</strong> {{ user.email }}</p>
+  {% endif %}
+  <!-- Include any additional sales-specific public details -->
+  <a href="{{ url_for('core.home') }}" class="btn btn-secondary mt-3">Back to Home</a>
+</div>
+{% endblock %}

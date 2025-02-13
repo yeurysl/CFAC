@@ -266,3 +266,39 @@ def payment_success():
                 order[date_field] = None
 
     return render_template("payment_success.html", order=order)
+
+
+
+
+
+@core_bp.route('/public_profile/tech/<user_id>')
+def public_tech_profile(user_id):
+    users_collection = current_app.config['USERS_COLLECTION']
+    try:
+        user = users_collection.find_one({'_id': ObjectId(user_id)})
+    except Exception as e:
+        flash("Invalid user ID.", "danger")
+        return redirect(url_for('core.home'))
+    
+    if not user or user.get('user_type') != 'tech':
+        flash("Tech user not found.", "danger")
+        return redirect(url_for('core.home'))
+    
+    return render_template("public_tech_profile.html", user=user)
+
+
+@core_bp.route('/public_profile/sales/<user_id>')
+def public_sales_profile(user_id):
+    users_collection = current_app.config['USERS_COLLECTION']
+    try:
+        user = users_collection.find_one({'_id': ObjectId(user_id)})
+    except Exception as e:
+        flash("Invalid user ID.", "danger")
+        return redirect(url_for('core.home'))
+    
+    if not user or user.get('user_type') != 'sales':
+        flash("Sales user not found.", "danger")
+        return redirect(url_for('core.home'))
+    
+    return render_template("public_sales_profile.html", user=user)
+

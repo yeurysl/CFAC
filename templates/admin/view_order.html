@@ -12,15 +12,32 @@
             <strong>Order ID:</strong> {{ order._id }}
         </div>
         <div class="card-body">
-            <!-- 1. Salesman (username and id) -->
+                <!-- Salesman Information -->
             <p>
                 <strong>Salesman:</strong>
-                {% if order.salesperson_name %}
-                    {{ order.salesperson_name }} (ID: {{ order.salesperson }})
+                {% if order.salesperson_name and order.salesperson and order.salesperson_name != 'N/A' %}
+                {{ order.salesperson_name }}
+                <a href="{{ url_for('core.public_sales_profile', user_id=order.salesperson) }}" class="btn btn-info btn-sm ms-2">
+                    View Profile
+                </a>
                 {% else %}
-                    N/A
+                N/A
                 {% endif %}
             </p>
+            
+                        <!-- Technician Information -->
+            <p>
+                <strong>Technician:</strong>
+                {% if order.technician_name and order.technician and order.technician_name != 'Not Scheduled' %}
+                {{ order.technician_name }}
+                <a href="{{ url_for('core.public_tech_profile', user_id=order.technician) }}" class="btn btn-info btn-sm ms-2">
+                    View Profile
+                </a>
+                {% else %}
+                Not Scheduled
+                {% endif %}
+            </p>
+            
 
             <!-- 2. Guest or Customer Display -->
             {% if order.order_type == 'Guest Order' %}

@@ -217,7 +217,7 @@ def view_order(order_id):
         technician_id = order.get('technician')
         if technician_id:
             try:
-                technician_user = users_collection.find_one({'_id': ObjectId(technician)})
+                technician_user = users_collection.find_one({'_id': ObjectId(technician_id)})
                 if technician_user:
                     order['technician_name'] = technician_user.get('name', 'Unknown')
                     order['technician_email'] = technician_user.get('email', 'Unknown')
