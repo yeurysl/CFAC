@@ -541,7 +541,6 @@ const packages = {
       { id: "6780627528fc752af68c43ef", key: "bug_tar_removal", label: "Bug and Tar Removal" },
       { id: "6780627528fc752af68c43f0", key: "tire_rim_detail", label: "Tire and Rim Detail/Shine" },
       { id: "6780627528fc752af68c43f1", key: "claybar_wax", label: "Claybar/Wax" },
-      { id: "6780627528fc752af68c43f7", key: "truckbed", label: "Truckbed" }
     ]
   },
   fullDetail: {
@@ -811,7 +810,19 @@ document.querySelectorAll('.sub-package-option').forEach(item => {
   });
 });
 
-
+  // Close dropdown when user taps outside (simulate auto-close)
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.dropdown')) {
+      // For each open dropdown, manually hide it using Bootstrap's dropdown hide method.
+      const dropdownToggles = document.querySelectorAll('[data-bs-toggle="dropdown"]');
+      dropdownToggles.forEach(toggle => {
+        const dropdownInstance = bootstrap.Dropdown.getInstance(toggle);
+        if (dropdownInstance) {
+          dropdownInstance.hide();
+        }
+      });
+    }
+  });
   // Book Now button event listener.
   document.getElementById('bookNowBtn').addEventListener('click', function() {
     if (!selectedVehicleSize || selectedServices.length === 0) {
