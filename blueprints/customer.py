@@ -557,3 +557,19 @@ def reset_password(token):
 
 
 
+@customer_bp.route('/view_order/<order_id>')
+@login_required
+def view_order(order_id):
+    from bson.objectid import ObjectId
+    orders_collection = current_app.config['ORDERS_COLLECTION']
+    try:
+        order = orders_collection.find_one({'_id': ObjectId(order_id)})
+    except Exception as e:
+        flash("Invalid order ID.", "danger")
+        return redirect(url_for('customer.my_orders'))
+    
+    if not order:
+        flash("Order not found.", "danger")
+        return redirect(url_for('customer.my_orders'))
+    
+    return render_template('customer/view_order.html', order=order)

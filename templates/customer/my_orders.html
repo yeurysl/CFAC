@@ -8,75 +8,76 @@
     <h1 class="my-4 text-center">My Orders</h1>
 
     {% if orders %}
-        {% for order in orders %}
-            <!-- Card Start -->
-            <div class="card mb-3 shadow-sm">
-                <!-- Header: Display service date/time using your datetime filter -->
-                <div class="card-header" style="background-color: #001f3f; color: #fff; display: flex; justify-content: space-between; align-items: center;">
-                    <div class="header-datetime">
-                      {% if order.service_date %}
-                        {{ order.service_date | format_datetime_with_suffix }}
-                      {% else %}
-                        N/A
-                      {% endif %}
-                    </div>
-                    <div>
-                      <small>Order ID: {{ order._id }}</small>
-                    </div>
-                  </div>
-                  
-                  
-                <!-- Card Body: Display status bar and final price -->
-                <div class="card-body">
-                    <!-- Status Bar -->
-                    {% if order.status|lower == 'completed' %}
-                    <div class="order-status-bar">
-                      <div class="status-step completed-active">
-                        Completed
-                      </div>
-                    </div>
-                  {% else %}
-                    <div class="order-status-bar">
-                      <div class="status-step {% if order.status|lower == 'ordered' %}active{% endif %}">
-                        Ordered
-                      </div>
-                      <div class="status-step {% if order.orderhasbeenscheduled|lower == 'true' %}active{% endif %}">
-                        Assigned to Tech
-                      </div>
-                      <div class="status-step {% if order.status|lower == 'completed' %}active{% endif %}">
-                        Completed
-                      </div>
-                    </div>
-                  {% endif %}
-                  
-                      
-                    <p class="mb-0">
-                        <strong>Total:</strong> {{ order.final_price | currency }}
-                    </p>
-
-
-
-                      {% if order.payment_status|lower == 'completed' %}
-                        <div class="payment-status-bar">
-                          <div class="payment-status-step active">
-                            Completed Payment
-                          </div>
-                        </div>
-                      {% else %}
-                        <div class="payment-status-bar">
-                          <div class="payment-status-step {% if order.payment_status|lower == 'downpaymentcollected' %}active{% endif %}">
-                            Made Down Payment
-                          </div>
-                          <div class="payment-status-step">
-                            Completed Payment
-                          </div>
-                        </div>
-                      {% endif %}
-                      
-                </div>
+    {% for order in orders %}
+    <div class="card order-card mb-3">
+      <!-- Card Header -->
+      <div class="card-header" style="background-color: #001f3f; color: #fff; display: flex; justify-content: space-between; align-items: center;">
+        <div class="header-datetime">
+          {% if order.service_date %}
+            {{ order.service_date | format_datetime_with_suffix }}
+          {% else %}
+            N/A
+          {% endif %}
+        </div>
+        <div>
+          <small>Order ID: {{ order._id }}</small>
+        </div>
+      </div>
+      
+      <!-- Card Body -->
+      <div class="card-body">
+        <!-- Status Bar -->
+        {% if order.status|lower == 'completed' %}
+          <div class="order-status-bar">
+            <div class="status-step completed-active">
+              Completed
             </div>
-            <!-- Card End -->
-        {% endfor %}
+          </div>
+        {% else %}
+          <div class="order-status-bar">
+            <div class="status-step {% if order.status|lower == 'ordered' %}active{% endif %}">
+              Ordered
+            </div>
+            <div class="status-step {% if order.orderhasbeenscheduled|lower == 'true' %}active{% endif %}">
+              Assigned to Tech
+            </div>
+            <div class="status-step {% if order.status|lower == 'completed' %}active{% endif %}">
+              Completed
+            </div>
+          </div>
+        {% endif %}
+        
+        <p class="mb-0">
+          <strong>Total:</strong> {{ order.final_price | currency }}
+        </p>
+        
+        {% if order.payment_status|lower == 'completed' %}
+          <div class="payment-status-bar">
+            <div class="payment-status-step active">
+              Completed Payment
+            </div>
+          </div>
+        {% else %}
+          <div class="payment-status-bar">
+            <div class="payment-status-step {% if order.payment_status|lower == 'downpaymentcollected' %}active{% endif %}">
+              Made Down Payment
+            </div>
+            <div class="payment-status-step">
+              Completed Payment
+            </div>
+          </div>
+        {% endif %}
+        
+        <!-- View Order Details Bar -->
+        <div class="view-order-bar mt-3">
+          <a href="{{ url_for('customer.view_order', order_id=order._id) }}">
+            View Order Details
+          </a>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+    
     {% else %}
         <p>You have not placed any orders yet.</p>
         <a href="{{ url_for('customer.customer_home') }}" class="btn btn-secondary">Continue Shopping</a>

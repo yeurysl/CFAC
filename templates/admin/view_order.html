@@ -69,19 +69,19 @@
             <p>
                 <strong>Creation Date & Time:</strong>
                 {% if order.creation_date %}
-                    {{ order.creation_date.strftime('%B %d, %Y at %I:%M %p') }}
-                {% else %}
-                    N/A
-                {% endif %}
+                {{ order.creation_date | format_datetime_with_suffix }}
+              {% else %}
+                N/A
+              {% endif %}
             </p>
             <!-- 4. Service Date & Time -->
             <p>
                 <strong>Service Date & Time:</strong>
                 {% if order.service_date %}
-                    {{ order.service_date.strftime('%B %d, %Y at %I:%M %p') }}
-                {% else %}
-                    N/A
-                {% endif %}
+                {{ order.service_date | format_datetime_with_suffix }}
+              {% else %}
+                N/A
+              {% endif %}
             </p>
 
             <!-- 5. Final Price -->

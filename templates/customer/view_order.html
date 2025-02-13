@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}View Order{% endblock %}
+{% block content %}
+<div class="container my-5">
+  <h2>Order Details</h2>
+  <a href="{{ url_for('customer.my_orders') }}" class="btn btn-secondary mb-3">Back to My Orders</a>
+  
+  <div class="card">
+    <div class="card-header">
+      <strong>Order ID:</strong> {{ order._id }}
+    </div>
+    <div class="card-body">
+      <p><strong>Total:</strong> {{ order.final_price | currency }}</p>
+      <p><strong>Payment Status:</strong> {{ order.payment_status | capitalize if order.payment_status else 'N/A' }}</p>
+      <p><strong>Order Status:</strong> {{ order.status | capitalize if order.status else 'N/A' }}</p>
+      <p><strong>Creation Date & Time:</strong> 
+        {% if order.creation_date %}
+        {{ order.creation_date | format_datetime_with_suffix }}
+      {% else %}
+        N/A
+      {% endif %}
+      </p>
+      <p><strong>Service Date & Time:</strong> 
+        {% if order.service_date %}
+        {{ order.service_date | format_datetime_with_suffix }}
+      {% else %}
+        N/A
+      {% endif %}
+      </p>
+      <!-- Add any additional details you want to display about the order -->
+    </div>
+  </div>
+</div>
+{% endblock %}

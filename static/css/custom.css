@@ -541,7 +541,7 @@ a:hover .clickable-image {
 }
 
 .payment-status-step.active {
-  background: linear-gradient(180deg, #2727c5, #13134d); /* Elegant blue gradient */
+  background: linear-gradient(180deg, #20284b, #406bcf); /* Elegant blue gradient */
   color: #fff;
   font-weight: 600;
 }
@@ -553,4 +553,39 @@ a:hover .clickable-image {
 .header-datetime {
   font-size: 1.25rem;  /* Adjust size as needed */
   font-weight: bold;
+}
+
+
+
+
+
+.view-order-bar {
+  background: linear-gradient(90deg, #a8a8a8, #777777); /* Use your desired gradient */
+  display: flex;
+  justify-content: center;
+  width: 250px;  /* Fixed width for a compact look */
+  border: 1px solid #e0e0e0; /* Light border */
+  overflow: hidden;
+  font-size: 0.9rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-radius: 5px;
+  padding: 10px;
+  text-align: center;
+  margin-top: 40px;
+  cursor: pointer;
+}
+
+.view-order-bar a {
+  color: #fff;
+  text-decoration: none;
+  font-weight: bold;
+  display: block; /* Ensures the link fills the container */
+}
+.order-card {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  margin-bottom: 1rem;
 }
