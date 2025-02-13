@@ -66,7 +66,6 @@
           
 
 
-
           <ul class="dropdown-menu w-100" aria-labelledby="serviceDropdown">
             <!-- Packages Header -->
             <li class="dropdown-header">Packages</li>
@@ -75,14 +74,15 @@
                 Full Interior
               </a>
             </li>
-            <li>
-              <a class="dropdown-item package-option" href="#" data-package="fullExterior">
-                Full Exterior
+            <!-- Sub-package options under Full Interior -->
+            <li class="dropdown-item sub-package" data-parent-package="fullInterior">
+              <a class="dropdown-item sub-package-option" href="#" data-subpackage="carpets">
+                Carpets
               </a>
             </li>
-            <li>
-              <a class="dropdown-item package-option" href="#" data-package="fullDetail">
-                Full Detail
+            <li class="dropdown-item sub-package" data-parent-package="fullInterior">
+              <a class="dropdown-item sub-package-option" href="#" data-subpackage="plasticFloors">
+                Plastic Floors
               </a>
             </li>
             <li><hr class="dropdown-divider"></li>
@@ -471,6 +471,8 @@
 
 <script>
 
+
+// Define your package selections (existing)
 const packages = {
   fullInterior: {
     label: "Full Interior",
@@ -502,6 +504,7 @@ const packages = {
   fullDetail: {
     label: "Full Detail",
     services: [
+      // Combine services from fullInterior and fullExterior
       ...[
         { id: "6780627528fc752af68c43e4", key: "interior_plastics_dry_detail", label: "Interior Plastics Dry Detail" },
         { id: "6780627528fc752af68c43e5", key: "interior_plastics_wet_detail", label: "Interior Plastics Wet Detail/Protectants" },
@@ -517,12 +520,30 @@ const packages = {
         { id: "6780627528fc752af68c43f3", key: "light_pet_hair_removal", label: "Light Pet Hair Removal" }
       ],
       ...[
-        { id: "6780627528fc752af68c43ee", key: "exterior_handwash", label: "Exterior Handwash and Windows" },
+        { id: "6780627528fc752af68c43ee", key: "exterior_handwash", label: "Exterior Handwash and Windows (inside/outside)" },
         { id: "6780627528fc752af68c43ef", key: "bug_tar_removal", label: "Bug and Tar Removal" },
         { id: "6780627528fc752af68c43f0", key: "tire_rim_detail", label: "Tire and Rim Detail/Shine" },
         { id: "6780627528fc752af68c43f1", key: "claybar_wax", label: "Claybar/Wax" },
         { id: "6780627528fc752af68c43f7", key: "truckbed", label: "Truckbed" }
       ]
+    ]
+  }
+};
+
+// Define sub-package selections for Full Interior:
+const subPackages = {
+  carpets: {
+    label: "Carpets",
+    services: [
+      { id: "6780627528fc752af68c43eb", key: "carpet_dry_detail", label: "Carpet Dry Detail (Vacuum)" },
+      { id: "6780627528fc752af68c43ec", key: "carpet_wet_detail", label: "Carpet Wet Detail (Shampoo)" }
+    ]
+  },
+  plasticFloors: {
+    label: "Plastic Floors",
+    services: [
+      { id: "6780627528fc752af68c43e4", key: "interior_plastics_dry_detail", label: "Interior Plastics Dry Detail" },
+      { id: "6780627528fc752af68c43e5", key: "interior_plastics_wet_detail", label: "Interior Plastics Wet Detail/Protectants" }
     ]
   }
 };
@@ -535,7 +556,7 @@ function roundToNearest30(date) {
 
 document.addEventListener('DOMContentLoaded', function() {
 
-  // Initialize Flatpickr on the datetime input with 30-minute increments
+  // Initialize Flatpickr on the datetime input with 30-minute increments.
   flatpickr("#appointmentDateTime", {
     enableTime: true,
     dateFormat: "Y-m-d\\TH:i",
@@ -601,11 +622,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  // Set default vehicle size text and update display image
+  // Set default vehicle size text and update display image.
   document.getElementById('vehicleSizeDropdown').textContent = "Coupe 2 Seater";
   updateDisplayImage();
 
-  // Vehicle size selection event
+  // Vehicle size selection event.
   document.querySelectorAll('.vehicle-size-option').forEach(item => {
     item.addEventListener('click', function(e) {
       e.preventDefault();
@@ -615,7 +636,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
-  // Multi-select for individual service options
+  // Multi-select for individual service options.
   document.querySelectorAll('.service-option').forEach(item => {
     item.addEventListener('click', function(e) {
       e.preventDefault();
@@ -623,7 +644,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const serviceKey = this.getAttribute('data-service-key');
       const serviceLabel = this.getAttribute('data-service-label');
 
-      // If this is the Truckbed option, ensure vehicle size is truck_2_seater or truck_4_seater
+      // If this is the Truckbed option, ensure vehicle size is truck-related.
       if (serviceKey === "truckbed") {
         if (selectedVehicleSize !== "truck_2_seater" && selectedVehicleSize !== "truck_4_seater") {
           alert("The Truckbed option is only available if your vehicle is a Truck (2 or 4 seater).");
@@ -644,12 +665,13 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   function updateServiceDropdownText() {
-  const serviceDropdown = document.getElementById('serviceDropdown');
-  serviceDropdown.textContent = "Select Service";
-}
+    // We no longer display the selected services in the button;
+    // simply reset it to a constant label.
+    const serviceDropdown = document.getElementById('serviceDropdown');
+    serviceDropdown.textContent = "Select Service";
+  }
 
-
-  // Package selection: Toggle package options at the top of the dropdown
+  // Package selection: Toggle package options.
   document.querySelectorAll('.package-option').forEach(item => {
     item.addEventListener('click', function(e) {
       e.preventDefault();
@@ -660,9 +682,8 @@ document.addEventListener('DOMContentLoaded', function() {
         this.classList.add('selected');
         if (packages[pkgKey] && packages[pkgKey].services) {
           packages[pkgKey].services.forEach(s => {
-            // Check truckbed condition for package services too
+            // Check truckbed condition for package services.
             if (s.key === "truckbed" && (selectedVehicleSize !== "truck_2_seater" && selectedVehicleSize !== "truck_4_seater")) {
-              // Skip adding truckbed service if not allowed
               return;
             }
             if (!selectedServices.find(item => item.id === s.id)) {
@@ -690,7 +711,43 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
-  // Book Now button event listener
+  // Sub-package selection: Toggle sub-package options (for Full Interior only).
+  document.querySelectorAll('.sub-package-option').forEach(item => {
+    item.addEventListener('click', function(e) {
+      e.preventDefault();
+      const subPkgKey = this.getAttribute('data-subpackage');
+      const isSelected = this.classList.contains('selected');
+
+      if (!isSelected) {
+        this.classList.add('selected');
+        if (subPackages[subPkgKey] && subPackages[subPkgKey].services) {
+          subPackages[subPkgKey].services.forEach(s => {
+            if (!selectedServices.find(item => item.id === s.id)) {
+              selectedServices.push(s);
+              const serviceOption = document.querySelector(`.service-option[data-service-id="${s.id}"]`);
+              if (serviceOption) {
+                serviceOption.classList.add('selected');
+              }
+            }
+          });
+        }
+      } else {
+        this.classList.remove('selected');
+        if (subPackages[subPkgKey] && subPackages[subPkgKey].services) {
+          subPackages[subPkgKey].services.forEach(s => {
+            selectedServices = selectedServices.filter(item => item.id !== s.id);
+            const serviceOption = document.querySelector(`.service-option[data-service-id="${s.id}"]`);
+            if (serviceOption) {
+              serviceOption.classList.remove('selected');
+            }
+          });
+        }
+      }
+      updateServiceDropdownText();
+    });
+  });
+
+  // Book Now button event listener.
   document.getElementById('bookNowBtn').addEventListener('click', function() {
     if (!selectedVehicleSize || selectedServices.length === 0) {
       alert("Please select a vehicle size and at least one service.");
@@ -796,6 +853,12 @@ document.addEventListener('DOMContentLoaded', function() {
     padding: 0; /* No padding */
     margin: 0; /* No margin */
   }
+
+  .sub-package {
+  padding-left: 20px;
+  background-color: #f7f7f7;
+}
+
 
   .custom-footer p {
     margin: 0.5rem 0; /* Minimal vertical spacing between paragraphs */
