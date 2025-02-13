@@ -3,7 +3,7 @@ from bson import ObjectId
 from datetime import datetime
 from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 import jwt
-
+import math
 
 
 
@@ -76,11 +76,16 @@ def update_order(order_id):
     # Get the update data from the request
     update_data = request.get_json()
     if "technician" in update_data:
+        # Compute tech pay from services_total (rounded down)
+        services_total = order.get("services_total", 0)
+        tech_pay = math.floor(services_total)
+        
         # Create a dictionary that includes all the fields you want to update
         update_fields = {
             "technician": update_data["technician"],
             "orderhasbeenscheduled": True,
-            "updated_date": datetime.utcnow()
+            "updated_date": datetime.utcnow(),
+            "tech_pay": tech_pay  # New field for the tech's pay
         }
 
         # Update the order with the new data
