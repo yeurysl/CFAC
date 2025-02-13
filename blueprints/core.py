@@ -174,12 +174,10 @@ def employee_login():
         username = form.username.data.strip()
         password = form.password.data
 
-        # Example of how you might fetch user from the database
-        # Adjust to match your DB logic
         users_collection = current_app.config['USERS_COLLECTION']
         user_record = users_collection.find_one({
             'username': username,
-            'user_type': {'$in': ['admin', 'tech', 'sales']}
+            'user_type': {'$in': ['admin']}
         })
 
         if not user_record:
@@ -193,7 +191,7 @@ def employee_login():
             user_obj = User(str(user_record['_id']), user_record['user_type'])
             login_user(user_obj)
             flash(f'Logged in successfully as {user_record["user_type"]}.', 'success')
-            return redirect(url_for('core.home'))
+            return redirect(url_for('admin.admin_main'))
         else:
             flash('Invalid password.', 'danger')
 

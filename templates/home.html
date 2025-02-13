@@ -58,11 +58,36 @@
             type="button" 
             id="serviceDropdown" 
             data-bs-toggle="dropdown" 
+            data-bs-auto-close="false" 
             aria-expanded="false"
           >
             Select Service
           </button>
+          
+
+
+
           <ul class="dropdown-menu w-100" aria-labelledby="serviceDropdown">
+            <!-- Packages Header -->
+            <li class="dropdown-header">Packages</li>
+            <li>
+              <a class="dropdown-item package-option" href="#" data-package="fullInterior">
+                Full Interior
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item package-option" href="#" data-package="fullExterior">
+                Full Exterior
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item package-option" href="#" data-package="fullDetail">
+                Full Detail
+              </a>
+            </li>
+            <li><hr class="dropdown-divider"></li>
+            <!-- Individual Services Header -->
+            <li class="dropdown-header">Individual Services</li>
             {% for service in services if service.active %}
             <li>
               <a 
@@ -72,11 +97,16 @@
                 data-service-key="{{ service.key }}" 
                 data-service-label="{{ service.label }}"
               >
+                <span class="check-icon me-2"><i class="bi bi-check-circle-fill"></i></span>
                 {{ service.label }}
               </a>
             </li>
             {% endfor %}
           </ul>
+          
+
+          
+          
         </div>
       </div>
     </div>
@@ -438,138 +468,250 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
 <!-- Consolidated JavaScript Code -->
+
 <script>
-  // Helper function: Round a Date object to the nearest 30 minutes.
-  function roundToNearest30(date) {
-    const ms = 1800000; // 30 minutes in milliseconds
-    return new Date(Math.round(date.getTime() / ms) * ms);
+
+const packages = {
+  fullInterior: {
+    label: "Full Interior",
+    services: [
+      { id: "6780627528fc752af68c43e4", key: "interior_plastics_dry_detail", label: "Interior Plastics Dry Detail" },
+      { id: "6780627528fc752af68c43e5", key: "interior_plastics_wet_detail", label: "Interior Plastics Wet Detail/Protectants" },
+      { id: "6780627528fc752af68c43e6", key: "seats_dry_detail", label: "Seats Dry Detail(Vacuum)" },
+      { id: "6780627528fc752af68c43e7", key: "seats_wet_detail", label: "Seats Wet Detail (Leather)" },
+      { id: "6780627528fc752af68c43e8", key: "seats_shampoo", label: "Seats Shampoo (Fabric)" },
+      { id: "6780627528fc752af68c43e9", key: "floors_dry_detail", label: "Floors Dry Detail" },
+      { id: "6780627528fc752af68c43ea", key: "floors_wet_detail", label: "Floors Wet Detail" },
+      { id: "6780627528fc752af68c43eb", key: "carpet_dry_detail", label: "Carpet Dry Detail (Vacuum)" },
+      { id: "6780627528fc752af68c43ec", key: "carpet_wet_detail", label: "Carpet Wet Detail (Shampoo)" },
+      { id: "6780627528fc752af68c43ed", key: "seatbelts_detail", label: "Seatbelts Detail" },
+      { id: "6780627528fc752af68c43f2", key: "headliner_cleaning", label: "Headliner Cleaning" },
+      { id: "6780627528fc752af68c43f3", key: "light_pet_hair_removal", label: "Light Pet Hair Removal" }
+    ]
+  },
+  fullExterior: {
+    label: "Full Exterior",
+    services: [
+      { id: "6780627528fc752af68c43ee", key: "exterior_handwash", label: "Exterior Handwash and Windows (inside/outside)" },
+      { id: "6780627528fc752af68c43ef", key: "bug_tar_removal", label: "Bug and Tar Removal" },
+      { id: "6780627528fc752af68c43f0", key: "tire_rim_detail", label: "Tire and Rim Detail/Shine" },
+      { id: "6780627528fc752af68c43f1", key: "claybar_wax", label: "Claybar/Wax" },
+      { id: "6780627528fc752af68c43f7", key: "truckbed", label: "Truckbed" }
+    ]
+  },
+  fullDetail: {
+    label: "Full Detail",
+    services: [
+      ...[
+        { id: "6780627528fc752af68c43e4", key: "interior_plastics_dry_detail", label: "Interior Plastics Dry Detail" },
+        { id: "6780627528fc752af68c43e5", key: "interior_plastics_wet_detail", label: "Interior Plastics Wet Detail/Protectants" },
+        { id: "6780627528fc752af68c43e6", key: "seats_dry_detail", label: "Seats Dry Detail(Vacuum)" },
+        { id: "6780627528fc752af68c43e7", key: "seats_wet_detail", label: "Seats Wet Detail (Leather)" },
+        { id: "6780627528fc752af68c43e8", key: "seats_shampoo", label: "Seats Shampoo (Fabric)" },
+        { id: "6780627528fc752af68c43e9", key: "floors_dry_detail", label: "Floors Dry Detail" },
+        { id: "6780627528fc752af68c43ea", key: "floors_wet_detail", label: "Floors Wet Detail" },
+        { id: "6780627528fc752af68c43eb", key: "carpet_dry_detail", label: "Carpet Dry Detail (Vacuum)" },
+        { id: "6780627528fc752af68c43ec", key: "carpet_wet_detail", label: "Carpet Wet Detail (Shampoo)" },
+        { id: "6780627528fc752af68c43ed", key: "seatbelts_detail", label: "Seatbelts Detail" },
+        { id: "6780627528fc752af68c43f2", key: "headliner_cleaning", label: "Headliner Cleaning" },
+        { id: "6780627528fc752af68c43f3", key: "light_pet_hair_removal", label: "Light Pet Hair Removal" }
+      ],
+      ...[
+        { id: "6780627528fc752af68c43ee", key: "exterior_handwash", label: "Exterior Handwash and Windows (inside/outside)" },
+        { id: "6780627528fc752af68c43ef", key: "bug_tar_removal", label: "Bug and Tar Removal" },
+        { id: "6780627528fc752af68c43f0", key: "tire_rim_detail", label: "Tire and Rim Detail/Shine" },
+        { id: "6780627528fc752af68c43f1", key: "claybar_wax", label: "Claybar/Wax" },
+        { id: "6780627528fc752af68c43f7", key: "truckbed", label: "Truckbed" }
+      ]
+    ]
   }
+};
 
-  document.addEventListener('DOMContentLoaded', function() {
+// Helper function: Round a Date object to the nearest 30 minutes.
+function roundToNearest30(date) {
+  const ms = 1800000; // 30 minutes in milliseconds
+  return new Date(Math.round(date.getTime() / ms) * ms);
+}
 
-    // Initialize Flatpickr on the datetime input with 30-minute increments
-    flatpickr("#appointmentDateTime", {
-      enableTime: true,
-      dateFormat: "Y-m-d\\TH:i",  // ISO-like format without seconds
-      time_24hr: true,
-      minuteIncrement: 30,
-      defaultDate: roundToNearest30(new Date())
-    });
+document.addEventListener('DOMContentLoaded', function() {
 
-    // Set default selection for vehicle size
-    let selectedVehicleSize = "coupe_2_seater";
-    let selectedService = null;
-
-    // Mapping from vehicle size to an object with image URL and alt text.
-    const vehicleSizeData = {
-      "coupe_2_seater": {
-        imageUrl: "{{ url_for('static', filename='creatives/coupe.jpg') }}",
-        altText: "Image of a 2-seater coupe"
-      },
-      "hatchback_2_door": {
-        imageUrl: "{{ url_for('static', filename='creatives/hatchback2door.jpg') }}",
-        altText: "Image of a 2-door hatchback"
-      },
-      "hatchback_4_door": {
-        imageUrl: "{{ url_for('static', filename='creatives/hatchback4door.png') }}",
-        altText: "Image of a 4-door hatchback"
-      },
-      "minivan_6_seater": {
-        imageUrl: "{{ url_for('static', filename='creatives/minivan.avif') }}",
-        altText: "Image of a 6-seater minivan"
-      },
-      "sedan_2_door": {
-        imageUrl: "{{ url_for('static', filename='creatives/sedan2door.webp') }}",
-        altText: "Image of a 2-door sedan"
-      },
-      "sedan_4_door": {
-        imageUrl: "{{ url_for('static', filename='creatives/sedan.jpg') }}",
-        altText: "Image of a 4-door sedan"
-      },
-      "suv_4_seater": {
-        imageUrl: "{{ url_for('static', filename='creatives/suv4door.webp') }}",
-        altText: "Image of a 4-seater SUV"
-      },
-      "suv_6_seater": {
-        imageUrl: "{{ url_for('static', filename='creatives/suv4door.webp') }}",
-        altText: "Image of a 6-seater SUV"
-      },
-      "truck_2_seater": {
-        imageUrl: "{{ url_for('static', filename='creatives/truck2seater.jpg') }}",
-        altText: "Image of a 2-seater truck"
-      },
-      "truck_4_seater": {
-        imageUrl: "{{ url_for('static', filename='creatives/truck4seater.png') }}",
-        altText: "Image of a 4-seater truck"
-      }
-    };
-
-    function updateDisplayImage() {
-      const imageElement = document.getElementById('service-display-image');
-      if (selectedVehicleSize && vehicleSizeData[selectedVehicleSize]) {
-        imageElement.src = vehicleSizeData[selectedVehicleSize].imageUrl;
-        imageElement.alt = vehicleSizeData[selectedVehicleSize].altText;
-      } else {
-        imageElement.src = "{{ default_image }}";
-        imageElement.alt = "Default service image";
-      }
-    }
-
-    // Pre-fill the vehicle size dropdown button with the default value.
-    document.getElementById('vehicleSizeDropdown').textContent = "Coupe 2 Seater";
-    updateDisplayImage();
-
-    // Event listener for vehicle size options.
-    document.querySelectorAll('.vehicle-size-option').forEach(item => {
-      item.addEventListener('click', function(e) {
-        e.preventDefault();
-        selectedVehicleSize = this.getAttribute('data-vehicle-size');
-        document.getElementById('vehicleSizeDropdown').textContent = this.textContent;
-        updateDisplayImage();
-      });
-    });
-
-    // Event listener for service options.
-    document.querySelectorAll('.service-option').forEach(item => {
-      item.addEventListener('click', function(e) {
-        e.preventDefault();
-        selectedService = {
-          id: this.getAttribute('data-service-id'),
-          key: this.getAttribute('data-service-key'),
-          label: this.getAttribute('data-service-label')
-        };
-        document.getElementById('serviceDropdown').textContent = this.textContent;
-        updateDisplayImage();
-      });
-    });
-
-    // When the Book Now button is clicked.
-    document.getElementById('bookNowBtn').addEventListener('click', function() {
-      if (!selectedVehicleSize || !selectedService) {
-        alert("Please select both a vehicle size and a service.");
-        return;
-      }
-
-      let url = "/customer/add_to_cart";
-      url += "?service_id=" + encodeURIComponent(selectedService.id);
-      url += "&vehicle_size=" + encodeURIComponent(selectedVehicleSize);
-
-      const dateTime = document.getElementById('appointmentDateTime').value;
-      if (dateTime) {
-        url += "&appointment=" + encodeURIComponent(dateTime);
-      }
-
-      // Redirect via GET
-      window.location.href = url;
-    });
-
+  // Initialize Flatpickr on the datetime input with 30-minute increments
+  flatpickr("#appointmentDateTime", {
+    enableTime: true,
+    dateFormat: "Y-m-d\\TH:i",
+    time_24hr: true,
+    minuteIncrement: 30,
+    defaultDate: roundToNearest30(new Date())
   });
 
+  let selectedVehicleSize = "coupe_2_seater";
+  let selectedServices = [];
 
+  const vehicleSizeData = {
+    "coupe_2_seater": {
+      imageUrl: "{{ url_for('static', filename='creatives/coupe.jpg') }}",
+      altText: "Image of a 2-seater coupe"
+    },
+    "hatchback_2_door": {
+      imageUrl: "{{ url_for('static', filename='creatives/hatchback2door.jpg') }}",
+      altText: "Image of a 2-door hatchback"
+    },
+    "hatchback_4_door": {
+      imageUrl: "{{ url_for('static', filename='creatives/hatchback4door.png') }}",
+      altText: "Image of a 4-door hatchback"
+    },
+    "minivan_6_seater": {
+      imageUrl: "{{ url_for('static', filename='creatives/minivan.avif') }}",
+      altText: "Image of a 6-seater minivan"
+    },
+    "sedan_2_door": {
+      imageUrl: "{{ url_for('static', filename='creatives/sedan2door.webp') }}",
+      altText: "Image of a 2-door sedan"
+    },
+    "sedan_4_door": {
+      imageUrl: "{{ url_for('static', filename='creatives/sedan.jpg') }}",
+      altText: "Image of a 4-door sedan"
+    },
+    "suv_4_seater": {
+      imageUrl: "{{ url_for('static', filename='creatives/suv4door.webp') }}",
+      altText: "Image of a 4-seater SUV"
+    },
+    "suv_6_seater": {
+      imageUrl: "{{ url_for('static', filename='creatives/suv4door.webp') }}",
+      altText: "Image of a 6-seater SUV"
+    },
+    "truck_2_seater": {
+      imageUrl: "{{ url_for('static', filename='creatives/truck2seater.jpg') }}",
+      altText: "Image of a 2-seater truck"
+    },
+    "truck_4_seater": {
+      imageUrl: "{{ url_for('static', filename='creatives/truck4seater.png') }}",
+      altText: "Image of a 4-seater truck"
+    }
+  };
 
+  function updateDisplayImage() {
+    const imageElement = document.getElementById('service-display-image');
+    if (selectedVehicleSize && vehicleSizeData[selectedVehicleSize]) {
+      imageElement.src = vehicleSizeData[selectedVehicleSize].imageUrl;
+      imageElement.alt = vehicleSizeData[selectedVehicleSize].altText;
+    } else {
+      imageElement.src = "{{ default_image }}";
+      imageElement.alt = "Default service image";
+    }
+  }
+
+  // Set default vehicle size text and update display image
+  document.getElementById('vehicleSizeDropdown').textContent = "Coupe 2 Seater";
+  updateDisplayImage();
+
+  // Vehicle size selection event
+  document.querySelectorAll('.vehicle-size-option').forEach(item => {
+    item.addEventListener('click', function(e) {
+      e.preventDefault();
+      selectedVehicleSize = this.getAttribute('data-vehicle-size');
+      document.getElementById('vehicleSizeDropdown').textContent = this.textContent;
+      updateDisplayImage();
+    });
+  });
+
+  // Multi-select for individual service options
+  document.querySelectorAll('.service-option').forEach(item => {
+    item.addEventListener('click', function(e) {
+      e.preventDefault();
+      const serviceId = this.getAttribute('data-service-id');
+      const serviceKey = this.getAttribute('data-service-key');
+      const serviceLabel = this.getAttribute('data-service-label');
+
+      // If this is the Truckbed option, ensure vehicle size is truck_2_seater or truck_4_seater
+      if (serviceKey === "truckbed") {
+        if (selectedVehicleSize !== "truck_2_seater" && selectedVehicleSize !== "truck_4_seater") {
+          alert("The Truckbed option is only available if your vehicle is a Truck (2 or 4 seater).");
+          return;
+        }
+      }
+
+      const index = selectedServices.findIndex(s => s.id === serviceId);
+      if (index === -1) {
+        selectedServices.push({ id: serviceId, key: serviceKey, label: serviceLabel });
+        this.classList.add('selected');
+      } else {
+        selectedServices.splice(index, 1);
+        this.classList.remove('selected');
+      }
+      updateServiceDropdownText();
+    });
+  });
+
+  function updateServiceDropdownText() {
+    const serviceDropdown = document.getElementById('serviceDropdown');
+    if (selectedServices.length === 0) {
+      serviceDropdown.textContent = "Select Service";
+    } else {
+      serviceDropdown.textContent = selectedServices.map(s => s.label).join(", ");
+    }
+  }
+
+  // Package selection: Toggle package options at the top of the dropdown
+  document.querySelectorAll('.package-option').forEach(item => {
+    item.addEventListener('click', function(e) {
+      e.preventDefault();
+      const pkgKey = this.getAttribute('data-package');
+      const isSelected = this.classList.contains('selected');
+
+      if (!isSelected) {
+        this.classList.add('selected');
+        if (packages[pkgKey] && packages[pkgKey].services) {
+          packages[pkgKey].services.forEach(s => {
+            // Check truckbed condition for package services too
+            if (s.key === "truckbed" && (selectedVehicleSize !== "truck_2_seater" && selectedVehicleSize !== "truck_4_seater")) {
+              // Skip adding truckbed service if not allowed
+              return;
+            }
+            if (!selectedServices.find(item => item.id === s.id)) {
+              selectedServices.push(s);
+              const serviceOption = document.querySelector(`.service-option[data-service-id="${s.id}"]`);
+              if (serviceOption) {
+                serviceOption.classList.add('selected');
+              }
+            }
+          });
+        }
+      } else {
+        this.classList.remove('selected');
+        if (packages[pkgKey] && packages[pkgKey].services) {
+          packages[pkgKey].services.forEach(s => {
+            selectedServices = selectedServices.filter(item => item.id !== s.id);
+            const serviceOption = document.querySelector(`.service-option[data-service-id="${s.id}"]`);
+            if (serviceOption) {
+              serviceOption.classList.remove('selected');
+            }
+          });
+        }
+      }
+      updateServiceDropdownText();
+    });
+  });
+
+  // Book Now button event listener
+  document.getElementById('bookNowBtn').addEventListener('click', function() {
+    if (!selectedVehicleSize || selectedServices.length === 0) {
+      alert("Please select a vehicle size and at least one service.");
+      return;
+    }
+    let url = "/customer/add_to_cart";
+    const serviceIds = selectedServices.map(s => s.id).join(",");
+    url += "?service_id=" + encodeURIComponent(serviceIds);
+    url += "&vehicle_size=" + encodeURIComponent(selectedVehicleSize);
+    const dateTime = document.getElementById('appointmentDateTime').value;
+    if (dateTime) {
+      url += "&appointment=" + encodeURIComponent(dateTime);
+    }
+    window.location.href = url;
+  });
+
+});
 </script>
-
-
 
 
 <!-- Custom Styles for Review Carousel and Footer -->
@@ -725,6 +867,19 @@
     border-color: #f0f0f0; /* Slightly lighter on hover */
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Subtle shadow */
 }
+.dropdown-item.selected {
+  background-color: #e9ecef; /* A subtle highlight */
+}
+
+.dropdown-item .check-icon {
+  display: none;
+  color: #007bff; /* Set your desired color for the check */
+}
+
+.dropdown-item.selected .check-icon {
+  display: inline-block;
+}
+
 
 </style>
 {% endblock %}
