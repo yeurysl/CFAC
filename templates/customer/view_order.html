@@ -3,32 +3,79 @@
 {% block content %}
 <div class="container my-5">
   <h2>Order Details</h2>
-  <a href="{{ url_for('customer.my_orders') }}" class="btn btn-secondary mb-3">Back to My Orders</a>
   
-  <div class="card">
+  <div class="card order-card">
     <div class="card-header">
       <strong>Order ID:</strong> {{ order._id }}
     </div>
     <div class="card-body">
+      <!-- 1. Total -->
       <p><strong>Total:</strong> {{ order.final_price | currency }}</p>
-      <p><strong>Payment Status:</strong> {{ order.payment_status | capitalize if order.payment_status else 'N/A' }}</p>
-      <p><strong>Order Status:</strong> {{ order.status | capitalize if order.status else 'N/A' }}</p>
-      <p><strong>Creation Date & Time:</strong> 
-        {% if order.creation_date %}
-        {{ order.creation_date | format_datetime_with_suffix }}
-      {% else %}
-        N/A
-      {% endif %}
+      
+      <!-- 2. Services in the Order -->
+      <p><strong>Services:</strong>
+        {% if order.services %}
+          <ul>
+            {% for service in order.services %}
+              <li>{{ service.label }}</li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          N/A
+        {% endif %}
       </p>
-      <p><strong>Service Date & Time:</strong> 
+      
+      <!-- 3. Technician with Link (if available) -->
+      <p>
+        <strong>Technician:</strong>
+        {% if order.technician and order.technician_name %}
+          <a href="{{ url_for('public_profile.public_tech_profile', user_id=order.technician) }}">
+            {{ order.technician_name }}
+          </a>
+        {% else %}
+          N/A
+        {% endif %}
+      </p>
+      
+      <!-- 4. Service Date & Time -->
+      <p>
+        <strong>Service Date & Time:</strong>
         {% if order.service_date %}
-        {{ order.service_date | format_datetime_with_suffix }}
-      {% else %}
-        N/A
-      {% endif %}
+          {{ order.service_date | format_datetime_with_suffix }}
+        {% else %}
+          N/A
+        {% endif %}
       </p>
-      <!-- Add any additional details you want to display about the order -->
+      
+      <!-- 5. Creation Date & Time -->
+      <p>
+        <strong>Creation Date & Time:</strong>
+        {% if order.creation_date %}
+          {{ order.creation_date | format_datetime_with_suffix }}
+        {% else %}
+          N/A
+        {% endif %}
+      </p>
+      
+      <!-- 6. Address -->
+      <p>
+        <strong>Address:</strong>
+        {% if order.address %}
+          {{ order.address.street_address }}
+          {% if order.address.unit_apt %}, {{ order.address.unit_apt }}{% endif %},
+          {{ order.address.city }}, {{ order.address.country }}, {{ order.address.zip_code }}
+        {% elif order.guest_address %}
+          {{ order.guest_address.street_address }}
+          {% if order.guest_address.unit_apt %}, {{ order.guest_address.unit_apt }}{% endif %},
+          {{ order.guest_address.city }}, {{ order.guest_address.country }}, {{ order.guest_address.zip_code }}
+        {% else %}
+          N/A
+        {% endif %}
+      </p>
     </div>
+
   </div>
+  <a href="{{ url_for('customer.my_orders') }}" class="btn btn-navy mb-3">Back to My Orders</a>
+
 </div>
 {% endblock %}

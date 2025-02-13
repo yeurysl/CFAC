@@ -589,3 +589,15 @@ a:hover .clickable-image {
   overflow: hidden;
   margin-bottom: 1rem;
 }
+.btn-navy {
+  background-color: #07173d;
+  border-color: #07173d;
+  color: #fff;
+}
+
+.btn-navy:hover, 
+.btn-navy:focus {
+  background-color: #07173d; /* a slightly darker navy */
+  border-color: #07173d;
+  color: #fff;
+}

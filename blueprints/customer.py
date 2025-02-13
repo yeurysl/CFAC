@@ -562,6 +562,8 @@ def reset_password(token):
 def view_order(order_id):
     from bson.objectid import ObjectId
     orders_collection = current_app.config['ORDERS_COLLECTION']
+    services_collection = current_app.config['SERVICES_COLLECTION']
+    
     try:
         order = orders_collection.find_one({'_id': ObjectId(order_id)})
     except Exception as e:
@@ -571,5 +573,18 @@ def view_order(order_id):
     if not order:
         flash("Order not found.", "danger")
         return redirect(url_for('customer.my_orders'))
+    
+    # If the order has a "selectedServices" array of service keys,
+    # look up the full service details.
+    selected_keys = order.get("selectedServices", [])
+    if selected_keys:
+        # Query services collection for matching keys.
+        services_cursor = services_collection.find({"key": {"$in": selected_keys}})
+        services = list(services_cursor)
+        # Optional: Order the results to match the order in selected_keys.
+        service_map = {service["key"]: service for service in services}
+        order["services"] = [service_map[key] for key in selected_keys if key in service_map]
+    else:
+        order["services"] = []
     
     return render_template('customer/view_order.html', order=order)
