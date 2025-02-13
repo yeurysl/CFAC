@@ -462,9 +462,6 @@ a:hover .clickable-image {
 }
 
 
-
-
-
 .order-status-bar {
   display: flex;
   border: 1px solid #ccc;
@@ -475,31 +472,32 @@ a:hover .clickable-image {
 
 .status-step {
   flex: 1;
-  display: flex;              /* Enable flex layout on each section */
-  align-items: center;        /* Center vertically */
-  justify-content: center;    /* Center horizontally */
+  display: flex;
+  align-items: center;
+  justify-content: center;
   text-align: center;
   padding: 10px;
   background-color: #f8f8f8;
-  transition: background-color 0.3s ease;
+  transition: background 0.3s ease;
   cursor: pointer;
-}
-
-.status-step.active {
-  background-color: #535e69; 
-  color: #fff;
 }
 
 .status-step:not(:last-child) {
   border-right: 1px solid #ccc;
 }
 
+/* For non-completed status, you might have a different active state if desired */
+.status-step.active {
+  background: linear-gradient(90deg, #777777, #464646);
+  color: #fff;
+}
 
-
-
-
-
-
+/* Custom gradient for the large completed status bar */
+.status-step.completed-active {
+  background: linear-gradient(20deg, #cbcbcb, #303030); /* A warm sunset gradient */
+  color: #fff;
+  font-weight: 600;
+}
 
 
 .custom-track-orders {
@@ -518,4 +516,41 @@ a:hover .clickable-image {
   color: #fff;
   background: linear-gradient(135deg, #0056b3, #003f7f);
   transform: translateY(-2px);
+}
+
+.payment-status-bar {
+  display: flex;
+  width: 250px;  /* Fixed width for a compact look */
+  border: 1px solid #e0e0e0; /* Light border */
+  border-radius: 8px;
+  overflow: hidden;
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.payment-status-step {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px;
+  background-color: #f9f9f9;
+  color: #555;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.payment-status-step.active {
+  background: linear-gradient(180deg, #2727c5, #13134d); /* Elegant blue gradient */
+  color: #fff;
+  font-weight: 600;
+}
+
+.payment-status-step:not(:last-child) {
+  border-right: 1px solid #e0e0e0;
+}
+
+.header-datetime {
+  font-size: 1.25rem;  /* Adjust size as needed */
+  font-weight: bold;
 }

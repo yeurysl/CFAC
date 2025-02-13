@@ -3,9 +3,19 @@
 
 {% block content %}
 
-<div class="container my-4">
-  <!-- Center the main image with a maximum width -->
-  <div class="row mb-4 justify-content-center">
+
+
+
+
+
+
+
+
+
+
+
+<div class="container-fluid my-4 px-0">
+  <div class="row g-0 mb-4 justify-content-center">
     <div class="col-auto text-center">
       <img 
         id="service-display-image" 
@@ -15,92 +25,106 @@
         style="max-width: 600px; width: 100%;">
     </div>
   </div>
+</div>
 
-  <!-- Row containing both dropdowns -->
+
+
+<!-- Dropdown Selectors with White Borders -->
+<div class="container-fluid ">
   <div class="row g-3 mb-3 row-cols-1 row-cols-md-2">
-
- <!-- Two dropdown selectors side by side for large screens; stack on smaller -->
- <div class="row g-3 mb-3 row-cols-1 row-cols-md-2">
-  <div class="col">
-    <div class="dropdown">
-      <button 
-        class="btn black-dropdown dropdown-toggle w-100" 
-        type="button" 
-        id="vehicleSizeDropdown" 
-        data-bs-toggle="dropdown" 
-        aria-expanded="false"
-      >
-        Select Vehicle Size
-      </button>
-      <ul class="dropdown-menu w-100" aria-labelledby="vehicleSizeDropdown">
-        {% for size in vehicle_sizes %}
-        <li>
-          <a 
-            class="dropdown-item vehicle-size-option" 
-            href="#" 
-            data-vehicle-size="{{ size.value }}"
+    <div class="col">
+      <div class="white-border">
+        <div class="dropdown">
+          <button 
+            class="btn black-dropdown dropdown-toggle w-100" 
+            type="button" 
+            id="vehicleSizeDropdown" 
+            data-bs-toggle="dropdown" 
+            aria-expanded="false"
           >
-            {{ size.display }}
-          </a>
-        </li>
-        {% endfor %}
-      </ul>
+            Select Vehicle Size
+          </button>
+          <ul class="dropdown-menu w-100" aria-labelledby="vehicleSizeDropdown">
+            {% for size in vehicle_sizes %}
+            <li>
+              <a 
+                class="dropdown-item vehicle-size-option" 
+                href="#" 
+                data-vehicle-size="{{ size.value }}"
+              >
+                {{ size.display }}
+              </a>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
     </div>
-  </div>
-  <div class="col">
-    <div class="dropdown">
-      <button 
-        class="btn black-dropdown dropdown-toggle w-100" 
-        type="button" 
-        id="serviceDropdown" 
-        data-bs-toggle="dropdown" 
-        aria-expanded="false"
-      >
-        Select Service
-      </button>
-      <ul class="dropdown-menu w-100" aria-labelledby="serviceDropdown">
-        {% for service in services if service.active %}
-        <li>
-          <a 
-            class="dropdown-item service-option" 
-            href="#" 
-            data-service-id="{{ service._id }}" 
-            data-service-key="{{ service.key }}" 
-            data-service-label="{{ service.label }}"
+    <div class="col">
+      <div class="white-border">
+        <div class="dropdown">
+          <button 
+            class="btn black-dropdown dropdown-toggle w-100" 
+            type="button" 
+            id="serviceDropdown" 
+            data-bs-toggle="dropdown" 
+            aria-expanded="false"
           >
-            {{ service.label }}
-          </a>
-        </li>
-        {% endfor %}
-      </ul>
+            Select Service
+          </button>
+          <ul class="dropdown-menu w-100" aria-labelledby="serviceDropdown">
+            {% for service in services if service.active %}
+            <li>
+              <a 
+                class="dropdown-item service-option" 
+                href="#" 
+                data-service-id="{{ service._id }}" 
+                data-service-key="{{ service.key }}" 
+                data-service-label="{{ service.label }}"
+              >
+                {{ service.label }}
+              </a>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
     </div>
   </div>
 </div>
 
-  </div> <!-- End row for dropdowns -->
-
-  <!-- Date and Time Section -->
-  <div class="row mb-4">
-    <div class="col text-center">
-      <h2 class="mb-3">Select Date &amp; Time</h2>
-      <div class="input-group justify-content-center">
-        <input 
-          type="text" 
-          id="appointmentDateTime" 
-          class="form-control w-50" 
-          aria-label="Appointment Date and Time"
-        >
+<!-- Date and Time Section with White Borders -->
+<div class="container-fluid ">
+  <div class="row g-0 mb-4">
+    <div class="col">
+      <div class="white-border">
+        <div class="text-center">
+          <h2 class="mb-3">Select Date &amp; Time</h2>
+          <div class="input-group justify-content-center">
+            <input type="text" id="appointmentDateTime" class="form-control w-50" 
+                   aria-label="Appointment Date and Time">
+          </div>
+        </div>
       </div>
     </div>
   </div>
-  
-  <!-- Centered button below the dropdowns -->
-  <div class="row">
+</div>
+
+
+
+<!-- Book Now Button -->
+<div class="container-fluid px-0">
+  <div class="row g-0">
     <div class="col text-center">
       <button id="bookNowBtn" class="btn btn-primary">Book Now</button>
     </div>
   </div>
 </div>
+
+
+
+
+
 
 <!-- Track Your Orders Button -->
 <div class="row mt-4">
