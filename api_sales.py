@@ -131,6 +131,19 @@ def create_order():
         if "creation_date" not in order_data:
             order_data["creation_date"] = datetime.utcnow()
 
+        # --- New: Calculate travel fee ---
+        try:
+            final_price = float(order_data.get("final_price", 0))
+        except (ValueError, TypeError):
+            final_price = 0.0
+
+        # If final price is under $90, apply a $25 travel fee.
+        if final_price < 90:
+            order_data["travel_fee"] = 25.0
+        else:
+            order_data["travel_fee"] = 0.0
+        # -----------------------------------
+
         # Insert the order into the database.
         result = orders_collection.insert_one(order_data)
         order_id = str(result.inserted_id)
