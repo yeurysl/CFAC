@@ -198,14 +198,24 @@ def get_order_remaining_time(order_id):
         
         if "error" in remaining_time:
             return jsonify(remaining_time), 400
-        
-        # Get the current time in UTC
-        current_time = datetime.utcnow().replace(tzinfo=pytz.UTC)
 
-        # Return both remaining time and current time
+        # Get the user's time zone from the query parameters (default to Eastern Time if not provided)
+        user_timezone = request.args.get("user_timezone", "America/New_York")  # Default to Eastern Time (New York)
+
+        # Convert the current UTC time to the user's local time zone
+        utc_time = datetime.utcnow().replace(tzinfo=pytz.UTC)
+        
+        # Check if the user timezone is valid
+        try:
+            user_time_zone = pytz.timezone(user_timezone)
+            local_time = utc_time.astimezone(user_time_zone)
+        except pytz.UnknownTimeZoneError:
+            return jsonify({"error": "Invalid time zone"}), 400
+
+        # Return both remaining time and the current local time
         response = {
             "remaining_time": remaining_time,
-            "current_time": current_time.isoformat()  # Convert current time to ISO format
+            "current_time_local": local_time.isoformat()  # Convert current local time to ISO format
         }
 
         return jsonify(response), 200
