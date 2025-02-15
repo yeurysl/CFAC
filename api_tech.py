@@ -4,6 +4,8 @@ from datetime import datetime
 from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 import jwt
 import math
+import pytz
+
 
 
 
@@ -102,10 +104,6 @@ def update_order(order_id):
         return jsonify({"error": "Technician not provided"}), 400
 
 
-
-
-
-
 def decode_jwt(token, secret_key):
     try:
         # Decode the JWT token
@@ -116,13 +114,6 @@ def decode_jwt(token, secret_key):
         return None  # Token has expired
     except InvalidTokenError:
         return None  # Invalid token
-    
-
-
-
-
-
-
 
 
 @api_tech_bp.route('/scheduled_orders', methods=['GET'])
@@ -157,3 +148,60 @@ def fetch_scheduled_orders():
         current_app.logger.error(f"Error fetching scheduled orders: {str(e)}", exc_info=True)
         return jsonify({"error": f"Error fetching scheduled orders: {str(e)}"}), 500
 
+
+
+
+
+
+
+def calculate_remaining_time(scheduled_time: datetime) -> dict:
+    current_time = datetime.utcnow().replace(tzinfo=pytz.UTC)
+    time_diff = scheduled_time - current_time
+
+    # Calculate remaining hours and minutes
+    hours_remaining = time_diff.total_seconds() // 3600
+    minutes_remaining = (time_diff.total_seconds() % 3600) // 60
+
+    # Check if time difference is negative (i.e., past the scheduled time)
+    if time_diff.total_seconds() < 0:
+        return {"error": "Order time has passed"}
+    
+    return {
+        "hours_remaining": int(hours_remaining),
+        "minutes_remaining": int(minutes_remaining)
+    }
+
+
+
+
+@api_tech_bp.route('/orders/<order_id>/remaining_time', methods=['GET'])
+def get_order_remaining_time(order_id):
+    try:
+        # Fetch the order from the database
+        orders_collection = current_app.config.get('MONGO_CLIENT').orders
+        order = orders_collection.find_one({"_id": ObjectId(order_id)})
+
+        if not order:
+            return jsonify({"error": "Order not found"}), 404
+
+        # Ensure the 'service_date' exists and is a datetime object
+        if 'service_date' not in order:
+            return jsonify({"error": "Service date not found"}), 400
+        
+        if isinstance(order['service_date'], str):
+            try:
+                order['service_date'] = datetime.fromisoformat(order['service_date'])
+            except ValueError:
+                return jsonify({"error": "Invalid service date format"}), 400
+        
+        # Calculate the remaining time
+        remaining_time = calculate_remaining_time(order['service_date'])
+        
+        if "error" in remaining_time:
+            return jsonify(remaining_time), 400
+        
+        return jsonify(remaining_time), 200
+
+    except Exception as e:
+        current_app.logger.error(f"Error calculating remaining time for order {order_id}: {str(e)}")
+        return jsonify({"error": f"Error fetching order remaining time: {str(e)}"}), 500
