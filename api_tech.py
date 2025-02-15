@@ -173,7 +173,6 @@ def calculate_remaining_time(scheduled_time: datetime) -> dict:
 
 
 
-
 @api_tech_bp.route('/orders/<order_id>/remaining_time', methods=['GET'])
 def get_order_remaining_time(order_id):
     try:
@@ -200,7 +199,16 @@ def get_order_remaining_time(order_id):
         if "error" in remaining_time:
             return jsonify(remaining_time), 400
         
-        return jsonify(remaining_time), 200
+        # Get the current time in UTC
+        current_time = datetime.utcnow().replace(tzinfo=pytz.UTC)
+
+        # Return both remaining time and current time
+        response = {
+            "remaining_time": remaining_time,
+            "current_time": current_time.isoformat()  # Convert current time to ISO format
+        }
+
+        return jsonify(response), 200
 
     except Exception as e:
         current_app.logger.error(f"Error calculating remaining time for order {order_id}: {str(e)}")
