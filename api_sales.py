@@ -11,6 +11,8 @@ import requests
 from jwt import ExpiredSignatureError, InvalidTokenError
 from postmark_client import is_valid_email  # already imported above
 import os
+from datetime import datetime
+import pytz
 
 
 api_sales_bp = Blueprint('api_sales', __name__, url_prefix='/api')
@@ -622,3 +624,69 @@ def fetch_compensated_orders():
     except Exception as e:
         current_app.logger.error(f"Error fetching compensated orders: {str(e)}", exc_info=True)
         return jsonify({"error": f"Error fetching compensated orders: {str(e)}"}), 500
+
+
+
+@api_sales_bp.route('/orders/<order_id>/remaining_time', methods=['GET'])
+def get_order_remaining_time(order_id):
+    try:
+        # Fetch the order from the database
+        orders_collection = current_app.config.get('MONGO_CLIENT').orders
+        order = orders_collection.find_one({"_id": ObjectId(order_id)})
+
+        if not order:
+            return jsonify({"error": "Order not found"}), 404
+
+        # Ensure the 'service_date' exists and convert it to a datetime object if needed
+        if 'service_date' not in order:
+            return jsonify({"error": "Service date not found"}), 400
+
+        if isinstance(order['service_date'], str):
+            try:
+                order['service_date'] = datetime.fromisoformat(order['service_date'])
+            except ValueError:
+                return jsonify({"error": "Invalid service date format"}), 400
+
+        # Print the service date for debugging
+        print("Service Date:", order['service_date'])
+
+        # If available, do the same for the creation_date
+        if 'creation_date' in order:
+            if isinstance(order['creation_date'], str):
+                try:
+                    order['creation_date'] = datetime.fromisoformat(order['creation_date'])
+                except ValueError:
+                    print(f"Invalid creation date format for order {order['_id']}")
+            print("Creation Date:", order.get('creation_date'))
+        else:
+            print(f"Creation Date not found for order {order['_id']}")
+
+        # Calculate the remaining time until the service
+        # (Assuming you have a calculate_remaining_time function available)
+        remaining_time = calculate_remaining_time(order['service_date'])
+        if "error" in remaining_time:
+            return jsonify(remaining_time), 400
+
+        # Use the current time in UTC
+        current_time_utc = datetime.utcnow().replace(tzinfo=pytz.UTC)
+
+        # Ensure the service date is in UTC
+        scheduled_time = order['service_date']
+        if scheduled_time.tzinfo is None:
+            scheduled_time = scheduled_time.replace(tzinfo=pytz.UTC)
+        else:
+            scheduled_time = scheduled_time.astimezone(pytz.UTC)
+
+        # Return the remaining time along with the current and scheduled times in UTC
+        response = {
+            "remaining_time": remaining_time,
+            "current_time_utc": current_time_utc.isoformat(),
+            "scheduled_time_utc": scheduled_time.isoformat()
+        }
+
+        return jsonify(response), 200
+
+    except Exception as e:
+        print(f"Error calculating remaining time for order {order_id}: {str(e)}")
+        current_app.logger.error(f"Error calculating remaining time for order {order_id}: {str(e)}")
+        return jsonify({"error": f"Error fetching order remaining time: {str(e)}"}), 500
