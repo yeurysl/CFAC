@@ -183,43 +183,55 @@ def get_order_remaining_time(order_id):
         if not order:
             return jsonify({"error": "Order not found"}), 404
 
-        # Ensure the 'service_date' exists and is a datetime object
+        # Ensure the 'service_date' exists and convert it to a datetime object if needed
         if 'service_date' not in order:
             return jsonify({"error": "Service date not found"}), 400
-        
+
         if isinstance(order['service_date'], str):
             try:
                 order['service_date'] = datetime.fromisoformat(order['service_date'])
             except ValueError:
                 return jsonify({"error": "Invalid service date format"}), 400
-        
-        # Calculate the remaining time
+
+        # Print the service date for debugging
+        print("Service Date:", order['service_date'])
+
+        # If available, do the same for the creation_date
+        if 'creation_date' in order:
+            if isinstance(order['creation_date'], str):
+                try:
+                    order['creation_date'] = datetime.fromisoformat(order['creation_date'])
+                except ValueError:
+                    print(f"Invalid creation date format for order {order['_id']}")
+            print("Creation Date:", order.get('creation_date'))
+        else:
+            print(f"Creation Date not found for order {order['_id']}")
+
+        # Calculate the remaining time until the service
         remaining_time = calculate_remaining_time(order['service_date'])
-        
         if "error" in remaining_time:
             return jsonify(remaining_time), 400
 
-        # Get the user's time zone from the query parameters (default to Eastern Time if not provided)
-        user_timezone = request.args.get("user_timezone", "America/New_York")  # Default to Eastern Time (New York)
+        # Use the current time in UTC
+        current_time_utc = datetime.utcnow().replace(tzinfo=pytz.UTC)
 
-        # Convert the current UTC time to the user's local time zone
-        utc_time = datetime.utcnow().replace(tzinfo=pytz.UTC)
-        
-        # Check if the user timezone is valid
-        try:
-            user_time_zone = pytz.timezone(user_timezone)
-            local_time = utc_time.astimezone(user_time_zone)
-        except pytz.UnknownTimeZoneError:
-            return jsonify({"error": "Invalid time zone"}), 400
+        # Ensure the service date is in UTC
+        scheduled_time = order['service_date']
+        if scheduled_time.tzinfo is None:
+            scheduled_time = scheduled_time.replace(tzinfo=pytz.UTC)
+        else:
+            scheduled_time = scheduled_time.astimezone(pytz.UTC)
 
-        # Return both remaining time and the current local time
+        # Return the remaining time along with the current and scheduled times in UTC
         response = {
             "remaining_time": remaining_time,
-            "current_time_local": local_time.isoformat()  # Convert current local time to ISO format
+            "current_time_utc": current_time_utc.isoformat(),
+            "scheduled_time_utc": scheduled_time.isoformat()
         }
 
         return jsonify(response), 200
 
     except Exception as e:
+        print(f"Error calculating remaining time for order {order_id}: {str(e)}")
         current_app.logger.error(f"Error calculating remaining time for order {order_id}: {str(e)}")
         return jsonify({"error": f"Error fetching order remaining time: {str(e)}"}), 500

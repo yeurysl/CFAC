@@ -6,7 +6,9 @@ import logging
 import traceback
 from flask import current_app
 from postmarker.core import PostmarkClient
+from zoneinfo import ZoneInfo
 from datetime import datetime
+from flask import current_app
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -118,9 +120,11 @@ def register_filters():
     current_app.jinja_env.filters['format_date_with_suffix'] = format_date_with_suffix
     current_app.jinja_env.filters['currency'] = currency_format
 
+
+
 def format_datetime_with_suffix(value):
     """
-    Converts a datetime (or date) into a string that includes both the date and time.
+    Converts a datetime (or date) into a string that includes both the date and time in Eastern Time.
     Example: datetime(2025, 1, 13, 14, 45) -> 'January 13th, 2025 2:45 PM'
     """
     if not value:
@@ -136,16 +140,24 @@ def format_datetime_with_suffix(value):
 
     if not isinstance(value, datetime):
         return str(value)
-
+    
+    # Convert the datetime to Eastern Time:
+    # If no timezone is present, assume UTC.
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=ZoneInfo("UTC"))
+    # Convert to Eastern Time (handles daylight saving automatically)
+    value = value.astimezone(ZoneInfo("America/New_York"))
+    
     # Determine the ordinal suffix for the day
     day_num = value.day
     if 10 <= day_num % 100 <= 20:
         suffix = 'th'
     else:
         suffix = {1: 'st', 2: 'nd', 3: 'rd'}.get(day_num % 10, 'th')
-
+    
     # Format the date part (e.g., "January 13th, 2025")
     date_part = value.strftime(f"%B {day_num}{suffix}, %Y")
     # Format the time part (e.g., "2:45 PM")
     time_part = value.strftime("%I:%M %p").lstrip("0")
+    
     return f"{date_part} {time_part}"

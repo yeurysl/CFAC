@@ -5,6 +5,7 @@ from flask_login import login_required, current_user
 from bson.objectid import ObjectId
 from datetime import datetime
 import math
+from zoneinfo import ZoneInfo
 import logging
 
 # Import your custom decorator for admin access
@@ -99,16 +100,21 @@ def admin_main():
             for date_field in [ 'service_date', 'creation_date']:
                 date_value = order.get(date_field)
                 if isinstance(date_value, str):
-                    try:
-                        if date_value.endswith('Z'):
-                           order[date_field] = datetime.fromisoformat(date_value.replace("Z", "+00:00"))
-                        else:
-                            order[date_field] = datetime.fromisoformat(date_value)
-                    except ValueError:
-                        current_app.logger.error(
-                            f"Invalid {date_field} format for order {order.get('_id')}: {date_value}"
-                        )
-                        order[date_field] = None
+                        try:
+                            # Parse the date string, ensuring that UTC times are correctly recognized.
+                            if date_value.endswith('Z'):
+                                dt = datetime.fromisoformat(date_value.replace("Z", "+00:00"))
+                            else:
+                                dt = datetime.fromisoformat(date_value)
+                            # Convert to Eastern Time (handles both EST and EDT automatically)
+                            dt_est = dt.astimezone(ZoneInfo("America/New_York"))
+                            order[date_field] = dt_est
+                        except ValueError:
+                            current_app.logger.error(
+                                f"Invalid {date_field} format for order {order.get('_id')}: {date_value}"
+                            )
+                            order[date_field] = None
+
 
             # 5.3 Get Service Details instead of product details
             service_codes = order.get('selectedServices', [])
