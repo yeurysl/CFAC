@@ -626,6 +626,24 @@ def fetch_compensated_orders():
         return jsonify({"error": f"Error fetching compensated orders: {str(e)}"}), 500
 
 
+def calculate_remaining_time(scheduled_time: datetime) -> dict:
+    current_time = datetime.utcnow().replace(tzinfo=pytz.UTC)
+    time_diff = scheduled_time - current_time
+
+    # Calculate remaining hours and minutes
+    hours_remaining = time_diff.total_seconds() // 3600
+    minutes_remaining = (time_diff.total_seconds() % 3600) // 60
+
+    # Check if time difference is negative (i.e., past the scheduled time)
+    if time_diff.total_seconds() < 0:
+        return {"error": "Order time has passed"}
+    
+    return {
+        "hours_remaining": int(hours_remaining),
+        "minutes_remaining": int(minutes_remaining)
+    }
+
+
 
 @api_sales_bp.route('/orders/<order_id>/remaining_time', methods=['GET'])
 def get_order_remaining_time(order_id):
@@ -662,7 +680,6 @@ def get_order_remaining_time(order_id):
             print(f"Creation Date not found for order {order['_id']}")
 
         # Calculate the remaining time until the service
-        # (Assuming you have a calculate_remaining_time function available)
         remaining_time = calculate_remaining_time(order['service_date'])
         if "error" in remaining_time:
             return jsonify(remaining_time), 400

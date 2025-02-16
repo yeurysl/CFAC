@@ -235,3 +235,49 @@ def get_order_remaining_time(order_id):
         print(f"Error calculating remaining time for order {order_id}: {str(e)}")
         current_app.logger.error(f"Error calculating remaining time for order {order_id}: {str(e)}")
         return jsonify({"error": f"Error fetching order remaining time: {str(e)}"}), 500
+
+
+
+
+@api_tech_bp.route('/orders/<order_id>/status', methods=['PATCH'])
+def update_order_status(order_id):
+    try:
+        # Get the new status from the request JSON payload.
+        data = request.get_json()
+        new_status = data.get("status")
+        if not new_status:
+            return jsonify({"error": "Missing status parameter"}), 400
+
+        # Update the order in the database
+        orders_collection = current_app.config.get('MONGO_CLIENT').orders
+        result = orders_collection.update_one(
+            {"_id": ObjectId(order_id)},
+            {"$set": {"status": new_status}}
+        )
+
+        if result.matched_count == 0:
+            return jsonify({"error": "Order not found"}), 404
+
+        return jsonify({"message": "Order status updated successfully", "new_status": new_status}), 200
+    except Exception as e:
+        current_app.logger.error(f"Error updating order status for {order_id}: {str(e)}")
+        return jsonify({"error": f"Error updating order status: {str(e)}"}), 500
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
