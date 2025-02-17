@@ -328,12 +328,6 @@ def notify_techs_for_upcoming_orders():
 
 
 
-
-
-
-
-
-
 from apscheduler.schedulers.background import BackgroundScheduler
 
 def start_scheduler(app):
@@ -348,3 +342,25 @@ def start_scheduler(app):
     app.logger.info("Starting notification scheduler")
     import atexit
     atexit.register(lambda: scheduler.shutdown())
+
+
+
+@api_tech_bp.route('/test_push', methods=['POST'])
+def test_push_notification():
+    try:
+        # Get the technician ID, order ID, and threshold from the request body
+        data = request.get_json()
+        tech_id = data.get("technician")
+        order_id = data.get("order_id", "test_order")
+        threshold = data.get("threshold", 12)  # default threshold
+        
+        if not tech_id:
+            return jsonify({"error": "Technician ID is required."}), 400
+        
+        # Call your push notification function
+        send_notification_to_tech(tech_id, order_id, threshold)
+        
+        return jsonify({"message": "Test push notification sent."}), 200
+    except Exception as e:
+        current_app.logger.error(f"Error in test_push_notification: {str(e)}")
+        return jsonify({"error": f"Error sending test push notification: {str(e)}"}), 500
