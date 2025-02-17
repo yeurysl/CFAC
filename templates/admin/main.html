@@ -83,6 +83,37 @@
             </div>
         </div>
     </div>
+    <button id="testPushButton">Send Test Push Notification</button>
+
+<script>
+  document.getElementById("testPushButton").addEventListener("click", function() {
+      // Prepare the payload for testing
+      const payload = {
+          technician: "tech_id_example", // Replace with the actual technician ID
+          order_id: "order_id_example",    // Replace with the actual order ID or use a test value
+          threshold: 12
+      };
+
+      // Make a POST request to your test_push endpoint
+      fetch('/api/tech/test_push', {
+          method: "POST",
+          headers: {
+              "Content-Type": "application/json"
+          },
+          body: JSON.stringify(payload)
+      })
+      .then(response => response.json())
+      .then(data => {
+          console.log("Response:", data);
+          alert("Push notification sent successfully!");
+      })
+      .catch(error => {
+          console.error("Error:", error);
+          alert("Error sending push notification.");
+      });
+  });
+</script>
+
 
     <!-- All Orders Section -->
     <h2 class="mb-4">All Orders</h2>
