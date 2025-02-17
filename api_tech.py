@@ -269,6 +269,59 @@ def update_order_status(order_id):
 
 
 
+# This function should integrate with your push notification system (e.g., APNs)
+def send_notification_to_tech(tech_id, order_id, threshold):
+    # Replace this with your actual push notification logic.
+    message = f"Order {order_id} is now within {threshold} hours of service!"
+    current_app.logger.info(f"Sending notification to technician {tech_id}: {message}")
+    # Example: push_notification_service.send(tech_device_token, message)
+    pass
+
+def notify_techs_for_upcoming_orders():
+    try:
+        # Get the orders collection (adjust if you use a different collection name)
+        orders_collection = current_app.config.get('MONGO_CLIENT').orders
+        current_time = datetime.utcnow().replace(tzinfo=pytz.UTC)
+
+        # Query orders that are scheduled in the future
+        orders_cursor = orders_collection.find({
+            "service_date": {"$gt": current_time}
+        })
+
+        thresholds = [12, 6, 2]  # in hours
+
+        for order in orders_cursor:
+            # Ensure service_date is a datetime object in UTC
+            service_date = order.get('service_date')
+            if isinstance(service_date, str):
+                service_date = datetime.fromisoformat(service_date)
+            if service_date.tzinfo is None:
+                service_date = service_date.replace(tzinfo=pytz.UTC)
+            else:
+                service_date = service_date.astimezone(pytz.UTC)
+
+            time_diff = service_date - current_time
+            hours_remaining = time_diff.total_seconds() / 3600
+
+            # Get already notified thresholds or initialize as empty list
+            notified_thresholds = order.get("notified_thresholds", [])
+
+            for threshold in thresholds:
+                # If the order is within the threshold and hasn't been notified yet
+                if hours_remaining <= threshold and threshold not in notified_thresholds:
+                    tech_id = order.get("technician")
+                    order_id = str(order.get("_id"))
+                    
+                    # Send notification to the technician's iOS app
+                    send_notification_to_tech(tech_id, order_id, threshold)
+
+                    # Mark this threshold as notified
+                    orders_collection.update_one(
+                        {"_id": order["_id"]},
+                        {"$push": {"notified_thresholds": threshold}}
+                    )
+    except Exception as e:
+        current_app.logger.error(f"Error in notify_techs_for_upcoming_orders: {str(e)}")
 
 
 
