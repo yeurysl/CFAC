@@ -269,27 +269,81 @@ def update_order_status(order_id):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#Testing Push notis
+
+
+
+
+
+
+
+from flask import current_app, jsonify, request
+from datetime import datetime
+import pytz
+import math
+
 # This function should integrate with your push notification system (e.g., APNs)
 def send_notification_to_tech(tech_id, order_id, threshold):
-    # Replace this with your actual push notification logic.
     message = f"Order {order_id} is now within {threshold} hours of service!"
-    current_app.logger.info(f"Sending notification to technician {tech_id}: {message}")
-    # Example: push_notification_service.send(tech_device_token, message)
-    pass
+    current_app.logger.info(f"Preparing to send notification to technician {tech_id}: {message}")
+    
+    # Example: Here you would call your push notification service with the technician's device token
+    # For demonstration purposes, we simulate a push response.
+    # In a real scenario, you might do something like:
+    # push_response = push_notification_service.send(tech_device_token, message)
+    
+    # Simulated push response:
+    push_response = {"status": "sent", "detail": "Push notification accepted by APNs"}
+    
+    # Log the simulated response
+    current_app.logger.info(f"Push notification response for technician {tech_id}, order {order_id}: {push_response}")
+    return push_response
 
 def notify_techs_for_upcoming_orders():
     try:
-        # Get the orders collection (adjust if you use a different collection name)
         orders_collection = current_app.config.get('MONGO_CLIENT').orders
         current_time = datetime.utcnow().replace(tzinfo=pytz.UTC)
-
+        
         # Query orders that are scheduled in the future
         orders_cursor = orders_collection.find({
             "service_date": {"$gt": current_time}
         })
-
+        
         thresholds = [12, 6, 2]  # in hours
-
+        
         for order in orders_cursor:
             # Ensure service_date is a datetime object in UTC
             service_date = order.get('service_date')
@@ -299,22 +353,26 @@ def notify_techs_for_upcoming_orders():
                 service_date = service_date.replace(tzinfo=pytz.UTC)
             else:
                 service_date = service_date.astimezone(pytz.UTC)
-
+            
             time_diff = service_date - current_time
             hours_remaining = time_diff.total_seconds() / 3600
-
-            # Get already notified thresholds or initialize as empty list
+            
             notified_thresholds = order.get("notified_thresholds", [])
-
+            
             for threshold in thresholds:
-                # If the order is within the threshold and hasn't been notified yet
                 if hours_remaining <= threshold and threshold not in notified_thresholds:
                     tech_id = order.get("technician")
                     order_id = str(order.get("_id"))
                     
-                    # Send notification to the technician's iOS app
-                    send_notification_to_tech(tech_id, order_id, threshold)
-
+                    current_app.logger.info(
+                        f"Order {order_id} is within {threshold} hours. Technician ID: {tech_id}. " +
+                        f"Already notified thresholds: {notified_thresholds}"
+                    )
+                    
+                    # Send notification to the technician's iOS app and log the response
+                    push_response = send_notification_to_tech(tech_id, order_id, threshold)
+                    current_app.logger.info(f"Notification push response: {push_response}")
+                    
                     # Mark this threshold as notified
                     orders_collection.update_one(
                         {"_id": order["_id"]},
@@ -323,44 +381,44 @@ def notify_techs_for_upcoming_orders():
     except Exception as e:
         current_app.logger.error(f"Error in notify_techs_for_upcoming_orders: {str(e)}")
 
-
-
-
-
-
 from apscheduler.schedulers.background import BackgroundScheduler
 
 def start_scheduler(app):
     scheduler = BackgroundScheduler()
     
     # The function runs every 5 minutes; adjust the interval as needed.
-    scheduler.add_job(func=lambda: app.app_context().push() or notify_techs_for_upcoming_orders(), trigger="interval", minutes=5)
+    scheduler.add_job(
+        func=lambda: app.app_context().push() or notify_techs_for_upcoming_orders(), 
+        trigger="interval", 
+        minutes=5
+    )
     
     scheduler.start()
+    app.logger.info("Starting notification scheduler")
     
     # Ensure the scheduler is shut down when the app exits.
-    app.logger.info("Starting notification scheduler")
     import atexit
     atexit.register(lambda: scheduler.shutdown())
-
-
 
 @api_tech_bp.route('/test_push', methods=['POST'])
 def test_push_notification():
     try:
-        # Get the technician ID, order ID, and threshold from the request body
         data = request.get_json()
+        current_app.logger.info(f"Received test push request with data: {data}")
+        
         tech_id = data.get("technician")
         order_id = data.get("order_id", "test_order")
         threshold = data.get("threshold", 12)  # default threshold
         
         if not tech_id:
+            current_app.logger.warning("Test push: Technician ID is missing in the request.")
             return jsonify({"error": "Technician ID is required."}), 400
         
-        # Call your push notification function
-        send_notification_to_tech(tech_id, order_id, threshold)
+        # Call your push notification function and log the response
+        push_response = send_notification_to_tech(tech_id, order_id, threshold)
+        current_app.logger.info(f"Test push notification sent. Response: {push_response}")
         
-        return jsonify({"message": "Test push notification sent."}), 200
+        return jsonify({"message": "Test push notification sent.", "push_response": push_response}), 200
     except Exception as e:
         current_app.logger.error(f"Error in test_push_notification: {str(e)}")
         return jsonify({"error": f"Error sending test push notification: {str(e)}"}), 500
