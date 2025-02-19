@@ -315,22 +315,54 @@ from datetime import datetime
 import pytz
 import math
 
-# This function should integrate with your push notification system (e.g., APNs)
+from apns2.client import APNsClient
+from apns2.payload import Payload
+from flask import current_app
+
 def send_notification_to_tech(tech_id, order_id, threshold):
     message = f"Order {order_id} is now within {threshold} hours of service!"
     current_app.logger.info(f"Preparing to send notification to technician {tech_id}: {message}")
     
-    # Example: Here you would call your push notification service with the technician's device token
-    # For demonstration purposes, we simulate a push response.
-    # In a real scenario, you might do something like:
-    # push_response = push_notification_service.send(tech_device_token, message)
+    # For testing, you can use the device token printed by your app.
+    # In a real scenario, retrieve the technician's device token from your database.
+    # For example:
+    # device_token = get_device_token_for_technician(tech_id)
+    # For now, we'll assume the device token is provided directly.
+    device_token = "099515daa605d1b4cb01caf37990538546b41f21a14715b93e8d2cd3de1b5bd7"
     
-    # Simulated push response:
-    push_response = {"status": "sent", "detail": "Push notification accepted by APNs"}
+    # Construct the payload
+    payload = Payload(alert={"title": "Test Notification", "body": message}, sound="default", badge=1)
     
-    # Log the simulated response
-    current_app.logger.info(f"Push notification response for technician {tech_id}, order {order_id}: {push_response}")
-    return push_response
+    # Create an APNs client
+    # Set use_sandbox=True if you are testing with a development build or on TestFlight using a development certificate.
+    # For production builds with a production certificate, use_sandbox=False.
+    try:
+        client = APNsClient('pushcert.pem', use_sandbox=True, use_alternative_port=False)
+        # The topic should match your app's bundle identifier.
+        response = client.send_notification(device_token, payload, topic="biz.cfautocare.cfactech")
+        current_app.logger.info(f"Push notification response for technician {tech_id}, order {order_id}: {response}")
+        return {"status": "sent", "detail": str(response)}
+    except Exception as e:
+        current_app.logger.error(f"Error sending push notification: {str(e)}")
+        return {"status": "error", "detail": str(e)}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 def notify_techs_for_upcoming_orders():
     try:
