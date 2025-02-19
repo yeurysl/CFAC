@@ -416,12 +416,17 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 def start_scheduler(app):
     scheduler = BackgroundScheduler()
+    
+    # For testing: run every 3 minutes.
     scheduler.add_job(
         func=lambda: app.app_context().push() or notify_techs_for_upcoming_orders(),
         trigger="interval",
-        minutes=5
+        minutes=3  # Change to minutes=60 (or appropriate interval) in production.
     )
+    
     scheduler.start()
     app.logger.info("Starting notification scheduler")
+    
+    # Ensure the scheduler shuts down when the app exits.
     import atexit
     atexit.register(lambda: scheduler.shutdown())
