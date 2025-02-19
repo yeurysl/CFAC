@@ -425,7 +425,7 @@ def start_scheduler(app):
     )
     
     scheduler.start()
-    app.logger.info("Starting notification scheduler")
+    app.logger.info("Starting the notification scheduler")
     
     # Ensure the scheduler shuts down when the app exits.
     import atexit
