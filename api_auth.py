@@ -23,8 +23,19 @@ def generate_jwt(user_id, secret_key, expires_in=4):
         "exp": now + timedelta(hours=expires_in)  # Expiration time
     }
     token = jwt.encode(payload, secret_key, algorithm="HS256")
-    # In PyJWT 2.x, jwt.encode() returns a str in Python 3, which is what we want.
+    # If token is bytes, decode it to a string.
+    if isinstance(token, bytes):
+        token = token.decode('utf-8')
     return token
+
+
+
+
+
+
+
+
+
 @api_bp.route('/login', methods=['POST'])
 @csrf.exempt
 def api_login():
