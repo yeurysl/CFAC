@@ -356,6 +356,7 @@ def send_notification_to_tech(tech_id, order_id, threshold, device_token):
 
 
 def notify_techs_for_upcoming_orders():
+    current_app.logger.info("notify_techs_for_upcoming_orders triggered")
     try:
         # Connect to your orders collection.
         orders_collection = current_app.config.get('MONGO_CLIENT').orders
