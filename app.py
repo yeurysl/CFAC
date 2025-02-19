@@ -2,7 +2,8 @@
 import monkey_patch
 
 from collections import MutableMapping
-
+from apscheduler.schedulers.background import BackgroundScheduler
+from api_tech import start_scheduler  
 import os
 import decimal
 import logging
@@ -92,6 +93,8 @@ def create_app():
 
 if __name__ == '__main__':
     app = create_app()
+    start_scheduler(app)  # Start the scheduler
     app.run(debug=True)
 else:
     app = create_app()
+    start_scheduler(app)  # Optionally start scheduler even in production
