@@ -375,7 +375,10 @@ def notify_techs_for_upcoming_orders():
         current_app.logger.info(f"Current UTC time set to: {current_time}")
 
         # Define your query
-        query = {"service_date": {"$gt": current_time}}
+        query = {
+            "service_date": {"$gt": current_time},
+            "status": {"$ne": "completed"}
+        }
 
         # Optionally, you can do a count first to see how many orders match the query
         # (Depending on your PyMongo version, use .count_documents() or .estimated_document_count())
