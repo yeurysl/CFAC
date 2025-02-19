@@ -4,7 +4,12 @@ from datetime import datetime
 from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 import jwt
 import math
+from apns2.client import APNsClient
+from apns2.payload import Payload
+import tempfile
 import pytz
+import base64
+import os
 
 
 
@@ -310,86 +315,62 @@ def update_order_status(order_id):
 
 
 
-from flask import current_app, jsonify, request
-from datetime import datetime
-import pytz
-import math
 
-import os
-import base64
-import tempfile
-from apns2.client import APNsClient
-from apns2.payload import Payload
-from flask import current_app
 
-def send_notification_to_tech(tech_id, order_id, threshold):
-    message = f"You scheduled order {order_id} is now within {threshold} hours of service!"
+
+
+def send_notification_to_tech(tech_id, order_id, threshold, device_token):
+    # Construct the message for the notification.
+    message = f"Order {order_id} is now within {threshold} hours of service!"
     current_app.logger.info(f"Preparing to send notification to technician {tech_id}: {message}")
 
-    # Use your device token; in production, retrieve it from your database.
-    device_token = "099515daa605d1b4cb01caf37990538546b41f21a14715b93e8d2cd3de1b5bd7"
-
-    # Get the certificate from the environment variable.
+    # Retrieve the base64-encoded certificate from the environment.
     cert_b64 = os.environ.get("APNS_CERT_B64")
     if not cert_b64:
         current_app.logger.error("APNS certificate not configured in environment variable!")
         return {"status": "error", "detail": "Certificate not set"}
 
     try:
-        # Decode the base64-encoded certificate content.
+        # Decode and write the certificate to a temporary file.
         cert_content = base64.b64decode(cert_b64)
-
-        # Write the certificate content to a temporary file.
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pem") as temp_cert:
             temp_cert.write(cert_content)
             temp_cert_path = temp_cert.name
 
         current_app.logger.info(f"Using APNS certificate at temporary file: {temp_cert_path}")
 
-        # Construct the payload.
-        payload = Payload(alert={"title": "Test Notification", "body": message}, sound="default", badge=1)
-
-        # Create an APNs client. Use use_sandbox=True if you're in development/sandbox.
-        client = APNsClient(temp_cert_path, use_sandbox=True, use_alternative_port=False)
+        # Create the APNs payload.
+        payload = Payload(alert={"title": "Order Reminder", "body": message}, sound="default", badge=1)
+        
+        # Create an APNs client. In production, set use_sandbox=False.
+        client = APNsClient(temp_cert_path, use_sandbox=False, use_alternative_port=False)
         response = client.send_notification(device_token, payload, topic="biz.cfautocare.cfactech")
         current_app.logger.info(f"Push notification response: {response}")
 
-        # Optionally, remove the temporary file if you don't need it.
+        # Clean up the temporary certificate file.
         os.remove(temp_cert_path)
-
         return {"status": "sent", "detail": str(response)}
     except Exception as e:
         current_app.logger.error(f"Error sending push notification: {str(e)}")
         return {"status": "error", "detail": str(e)}
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 def notify_techs_for_upcoming_orders():
     try:
+        # Connect to your orders collection.
         orders_collection = current_app.config.get('MONGO_CLIENT').orders
         current_time = datetime.utcnow().replace(tzinfo=pytz.UTC)
         
-        # Query orders that are scheduled in the future
+        # Query orders scheduled in the future.
         orders_cursor = orders_collection.find({
             "service_date": {"$gt": current_time}
         })
         
-        thresholds = [12, 6, 2]  # in hours
+        # Define the thresholds in hours.
+        thresholds = [12, 6, 2]
         
         for order in orders_cursor:
-            # Ensure service_date is a datetime object in UTC
+            # Convert service_date to a UTC datetime object if necessary.
             service_date = order.get('service_date')
             if isinstance(service_date, str):
                 service_date = datetime.fromisoformat(service_date)
@@ -401,6 +382,7 @@ def notify_techs_for_upcoming_orders():
             time_diff = service_date - current_time
             hours_remaining = time_diff.total_seconds() / 3600
             
+            # Retrieve thresholds already notified to avoid duplicates.
             notified_thresholds = order.get("notified_thresholds", [])
             
             for threshold in thresholds:
@@ -413,11 +395,14 @@ def notify_techs_for_upcoming_orders():
                         f"Already notified thresholds: {notified_thresholds}"
                     )
                     
-                    # Send notification to the technician's iOS app and log the response
-                    push_response = send_notification_to_tech(tech_id, order_id, threshold)
+                    # Retrieve the technician's device token from your user database.
+                    # (For demonstration purposes, this example uses a hardcoded device token.)
+                    device_token = "099515daa605d1b4cb01caf37990538546b41f21a14715b93e8d2cd3de1b5bd7"  # Replace with actual lookup.
+                    
+                    push_response = send_notification_to_tech(tech_id, order_id, threshold, device_token)
                     current_app.logger.info(f"Notification push response: {push_response}")
                     
-                    # Mark this threshold as notified
+                    # Mark this threshold as notified in the order record.
                     orders_collection.update_one(
                         {"_id": order["_id"]},
                         {"$push": {"notified_thresholds": threshold}}
@@ -425,44 +410,18 @@ def notify_techs_for_upcoming_orders():
     except Exception as e:
         current_app.logger.error(f"Error in notify_techs_for_upcoming_orders: {str(e)}")
 
+
+# Scheduler to run the notification check every 5 minutes
 from apscheduler.schedulers.background import BackgroundScheduler
 
 def start_scheduler(app):
     scheduler = BackgroundScheduler()
-    
-    # The function runs every 5 minutes; adjust the interval as needed.
     scheduler.add_job(
-        func=lambda: app.app_context().push() or notify_techs_for_upcoming_orders(), 
-        trigger="interval", 
+        func=lambda: app.app_context().push() or notify_techs_for_upcoming_orders(),
+        trigger="interval",
         minutes=5
     )
-    
     scheduler.start()
     app.logger.info("Starting notification scheduler")
-    
-    # Ensure the scheduler is shut down when the app exits.
     import atexit
     atexit.register(lambda: scheduler.shutdown())
-
-@api_tech_bp.route('/test_push', methods=['POST'])
-def test_push_notification():
-    try:
-        data = request.get_json()
-        current_app.logger.info(f"Received test push request with data: {data}")
-        
-        tech_id = data.get("technician")
-        order_id = data.get("order_id", "test_order")
-        threshold = data.get("threshold", 12)  # default threshold
-        
-        if not tech_id:
-            current_app.logger.warning("Test push: Technician ID is missing in the request.")
-            return jsonify({"error": "Technician ID is required."}), 400
-        
-        # Call your push notification function and log the response
-        push_response = send_notification_to_tech(tech_id, order_id, threshold)
-        current_app.logger.info(f"Test push notification sent. Response: {push_response}")
-        
-        return jsonify({"message": "Test push notification sent.", "push_response": push_response}), 200
-    except Exception as e:
-        current_app.logger.error(f"Error in test_push_notification: {str(e)}")
-        return jsonify({"error": f"Error sending test push notification: {str(e)}"}), 500
