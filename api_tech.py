@@ -355,6 +355,10 @@ def send_notification_to_tech(tech_id, order_id, threshold, device_token):
         return {"status": "error", "detail": str(e)}
 
 
+from flask import current_app
+from datetime import datetime
+import pytz
+
 def notify_techs_for_upcoming_orders():
     current_app.logger.info("notify_techs_for_upcoming_orders triggered")
     try:
@@ -371,7 +375,11 @@ def notify_techs_for_upcoming_orders():
         thresholds = [12, 6, 2, 1]
         
         for order in orders_cursor:
-            # Convert service_date to a UTC datetime object if necessary.
+            # 1. After it "finds the order":
+            order_id = str(order.get("_id"))
+            current_app.logger.info(f"Found order with _id: {order_id}")
+            
+            # 2. After it "converts to date time":
             service_date = order.get('service_date')
             if isinstance(service_date, str):
                 service_date = datetime.fromisoformat(service_date)
@@ -379,28 +387,45 @@ def notify_techs_for_upcoming_orders():
                 service_date = service_date.replace(tzinfo=pytz.UTC)
             else:
                 service_date = service_date.astimezone(pytz.UTC)
+            current_app.logger.info(f"Order {order_id} service_date converted to UTC: {service_date}")
             
+            # 3. After it "retrieves the threshold"
+            # (In your code, you define thresholds = [12, 6, 2, 1] outside the loop.
+            #  If you mean retrieving already notified thresholds, you can log that here.)
+            notified_thresholds = order.get("notified_thresholds", [])
+            current_app.logger.info(f"Order {order_id} already notified thresholds: {notified_thresholds}")
+            
+            # 4. After it "verifies the hours remaining"
             time_diff = service_date - current_time
             hours_remaining = time_diff.total_seconds() / 3600
+            current_app.logger.info(
+                f"Order {order_id} is scheduled for {service_date}. "
+                f"Hours remaining: {hours_remaining:.2f}"
+            )
             
-            # Retrieve thresholds already notified to avoid duplicates.
-            notified_thresholds = order.get("notified_thresholds", [])
+            # 5. After it "finds the tech and order ID"
+            tech_id = order.get("technician")
+            current_app.logger.info(
+                f"Order {order_id} is associated with technician ID: {tech_id}"
+            )
             
             for threshold in thresholds:
                 if hours_remaining <= threshold and threshold not in notified_thresholds:
-                    tech_id = order.get("technician")
-                    order_id = str(order.get("_id"))
-                    
                     current_app.logger.info(
-                        f"Order {order_id} is within {threshold} hours. Technician ID: {tech_id}. " +
-                        f"Already notified thresholds: {notified_thresholds}"
+                        f"Order {order_id} is within {threshold} hours. "
+                        f"Sending push notification to technician {tech_id}."
                     )
                     
                     # Retrieve the technician's device token from your user database.
-                    # For testing, we're using a hardcoded token.
                     device_token = "099515daa605d1b4cb01caf37990538546b41f21a14715b93e8d2cd3de1b5bd7"
                     
-                    push_response = send_notification_to_tech(tech_id, order_id, threshold, device_token)
+                    push_response = send_notification_to_tech(
+                        tech_id, 
+                        order_id, 
+                        threshold, 
+                        device_token
+                    )
+                    
                     current_app.logger.info(f"Notification push response: {push_response}")
                     
                     # Only mark this threshold as notified if the push notification was sent successfully.
@@ -410,7 +435,10 @@ def notify_techs_for_upcoming_orders():
                             {"$push": {"notified_thresholds": threshold}}
                         )
                     else:
-                        current_app.logger.error(f"Notification for threshold {threshold} failed, will retry later.")
+                        current_app.logger.error(
+                            f"Notification for threshold {threshold} failed for order {order_id}, "
+                            "will retry later."
+                        )
                         
     except Exception as e:
         current_app.logger.error(f"Error in notify_techs_for_upcoming_orders: {str(e)}")
