@@ -362,6 +362,7 @@ from flask import current_app
 from datetime import datetime
 import pytz
 
+
 def notify_techs_for_upcoming_orders():
     current_app.logger.info("notify_techs_for_upcoming_orders triggered")
     try:
@@ -451,6 +452,24 @@ def notify_techs_for_upcoming_orders():
                         
     except Exception as e:
         current_app.logger.error(f"Error in notify_techs_for_upcoming_orders: {str(e)}")
+
+def fetch_upcoming_orders():
+    # Get current UTC time
+    current_time = datetime.utcnow().replace(tzinfo=pytz.utc)
+    # Modify your query to also exclude orders with status 'completed'
+    query = {
+        "service_date": {"$gt": current_time},
+        "status": {"$ne": "completed"}
+    }
+    
+    orders_collection = current_app.config.get('MONGO_CLIENT').orders
+    orders = orders_collection.find(query)
+    orders_list = list(orders)
+    app.logger.info(f"Found {len(orders_list)} orders scheduled in the future with status not 'completed'.")
+    return orders_list
+
+
+
 
 
 # Scheduler to run the notification check every 5 minutes
