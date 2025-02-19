@@ -323,7 +323,7 @@ from apns2.payload import Payload
 from flask import current_app
 
 def send_notification_to_tech(tech_id, order_id, threshold):
-    message = f"Order {order_id} is now within {threshold} hours of service!"
+    message = f"You scheduled order {order_id} is now within {threshold} hours of service!"
     current_app.logger.info(f"Preparing to send notification to technician {tech_id}: {message}")
 
     # Use your device token; in production, retrieve it from your database.
