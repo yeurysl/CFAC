@@ -1,6 +1,7 @@
 # app.py
 import monkey_patch
 
+from collections import MutableMapping
 
 import os
 import decimal
