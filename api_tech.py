@@ -366,8 +366,8 @@ def notify_techs_for_upcoming_orders():
             "service_date": {"$gt": current_time}
         })
         
-        # Define the thresholds in hours.
-        thresholds = [12, 6, 2]
+        # Define the thresholds in hours (12, 6, 2, and 1 hour away).
+        thresholds = [12, 6, 2, 1]
         
         for order in orders_cursor:
             # Convert service_date to a UTC datetime object if necessary.
@@ -396,17 +396,21 @@ def notify_techs_for_upcoming_orders():
                     )
                     
                     # Retrieve the technician's device token from your user database.
-                    # (For demonstration purposes, this example uses a hardcoded device token.)
-                    device_token = "099515daa605d1b4cb01caf37990538546b41f21a14715b93e8d2cd3de1b5bd7"  # Replace with actual lookup.
+                    # For testing, we're using a hardcoded token.
+                    device_token = "099515daa605d1b4cb01caf37990538546b41f21a14715b93e8d2cd3de1b5bd7"
                     
                     push_response = send_notification_to_tech(tech_id, order_id, threshold, device_token)
                     current_app.logger.info(f"Notification push response: {push_response}")
                     
-                    # Mark this threshold as notified in the order record.
-                    orders_collection.update_one(
-                        {"_id": order["_id"]},
-                        {"$push": {"notified_thresholds": threshold}}
-                    )
+                    # Only mark this threshold as notified if the push notification was sent successfully.
+                    if push_response.get("status") == "sent":
+                        orders_collection.update_one(
+                            {"_id": order["_id"]},
+                            {"$push": {"notified_thresholds": threshold}}
+                        )
+                    else:
+                        current_app.logger.error(f"Notification for threshold {threshold} failed, will retry later.")
+                        
     except Exception as e:
         current_app.logger.error(f"Error in notify_techs_for_upcoming_orders: {str(e)}")
 
