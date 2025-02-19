@@ -27,6 +27,16 @@ from blueprints.admin import admin_bp
 from blueprints.core import core_bp
 
 load_dotenv()
+import collections
+from collections.abc import Iterable, Mapping
+
+# Monkey patch the collections module if necessary.
+if not hasattr(collections, 'Iterable'):
+    collections.Iterable = Iterable
+if not hasattr(collections, 'Mapping'):
+    collections.Mapping = Mapping
+
+
 
 def create_app():
     app = Flask(__name__)
