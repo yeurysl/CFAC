@@ -1,5 +1,12 @@
 # app.py
+import collections
+from collections.abc import Iterable, Mapping
 
+# Apply the monkey patch immediately.
+collections.Iterable = Iterable
+collections.Mapping = Mapping
+
+# Now continue with other imports.
 import os
 import decimal
 import logging
@@ -9,7 +16,6 @@ from dotenv import load_dotenv
 from pymongo import MongoClient
 from config import Config
 from postmark_client import postmark_client, is_valid_email
-
 
 # Import extensions
 from extensions import bcrypt, login_manager, csrf, create_unique_indexes
@@ -27,16 +33,6 @@ from blueprints.admin import admin_bp
 from blueprints.core import core_bp
 
 load_dotenv()
-import collections
-from collections.abc import Iterable, Mapping
-
-# Monkey patch the collections module if necessary.
-if not hasattr(collections, 'Iterable'):
-    collections.Iterable = Iterable
-if not hasattr(collections, 'Mapping'):
-    collections.Mapping = Mapping
-
-
 
 def create_app():
     app = Flask(__name__)
@@ -51,20 +47,16 @@ def create_app():
     app.config['SESSION_COOKIE_HTTPONLY'] = True
     app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
- 
-
     # Load configuration from Config class
     app.config.from_object(Config)
-    
-
 
     # Decimal precision
     decimal.getcontext().prec = 28
 
     # Initialize Flask extensions
-    bcrypt.init_app(app)         # Initialize bcrypt
-    login_manager.init_app(app)  # Initialize login_manager
-    csrf.init_app(app)           # Initialize csrf
+    bcrypt.init_app(app)
+    login_manager.init_app(app)
+    csrf.init_app(app)
 
     # Flask-Login settings
     login_manager.login_view = 'tech_admin_login'
@@ -79,7 +71,7 @@ def create_app():
     client = MongoClient(mongodb_uri, tls=True, tlsAllowInvalidCertificates=True)
     db = client["cfacdb"]
     app.config["MONGO_CLIENT"] = db  
-    init_db(app)  # Sets up app.config['USERS_COLLECTION'], etc.
+    init_db(app)
 
     # Register Blueprints
     app.register_blueprint(customer_bp)
@@ -88,7 +80,7 @@ def create_app():
 
     # Register APIs
     app.register_blueprint(api_bp)
-    app.register_blueprint(api_tech_bp) 
+    app.register_blueprint(api_tech_bp)
     app.register_blueprint(api_sales_bp)
     app.register_blueprint(api_account_bp)
 
@@ -96,10 +88,9 @@ def create_app():
     csrf.exempt(api_sales_bp)
     csrf.exempt(api_tech_bp)
 
-    # Now in an app context, call create_unique_indexes() + register_filters()
     with app.app_context():
         create_unique_indexes()
-        register_filters()  # So Jinja can see 'format_date_with_suffix' & 'currency'
+        register_filters()
 
     return app
 
@@ -107,5 +98,4 @@ if __name__ == '__main__':
     app = create_app()
     app.run(debug=True)
 else:
-    # Ensure a WSGI callable is available when running via Gunicorn.
     app = create_app()
