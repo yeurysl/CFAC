@@ -358,18 +358,31 @@ def send_notification_to_tech(tech_id, order_id, threshold, device_token):
 from flask import current_app
 from datetime import datetime
 import pytz
+from flask import current_app
+from datetime import datetime
+import pytz
 
 def notify_techs_for_upcoming_orders():
     current_app.logger.info("notify_techs_for_upcoming_orders triggered")
     try:
         # Connect to your orders collection.
         orders_collection = current_app.config.get('MONGO_CLIENT').orders
+        current_app.logger.info("Connected to the orders collection successfully.")
+
+        # Set the current time to UTC
         current_time = datetime.utcnow().replace(tzinfo=pytz.UTC)
-        
+        current_app.logger.info(f"Current UTC time set to: {current_time}")
+
+        # Define your query
+        query = {"service_date": {"$gt": current_time}}
+
+        # Optionally, you can do a count first to see how many orders match the query
+        # (Depending on your PyMongo version, use .count_documents() or .estimated_document_count())
+        matching_count = orders_collection.count_documents(query)
+        current_app.logger.info(f"Found {matching_count} orders scheduled in the future.")
+
         # Query orders scheduled in the future.
-        orders_cursor = orders_collection.find({
-            "service_date": {"$gt": current_time}
-        })
+        orders_cursor = orders_collection.find(query)
         
         # Define the thresholds in hours (12, 6, 2, and 1 hour away).
         thresholds = [12, 6, 2, 1]
@@ -389,9 +402,7 @@ def notify_techs_for_upcoming_orders():
                 service_date = service_date.astimezone(pytz.UTC)
             current_app.logger.info(f"Order {order_id} service_date converted to UTC: {service_date}")
             
-            # 3. After it "retrieves the threshold"
-            # (In your code, you define thresholds = [12, 6, 2, 1] outside the loop.
-            #  If you mean retrieving already notified thresholds, you can log that here.)
+            # 3. After it "retrieves the threshold" (really retrieving already-notified thresholds)
             notified_thresholds = order.get("notified_thresholds", [])
             current_app.logger.info(f"Order {order_id} already notified thresholds: {notified_thresholds}")
             
@@ -399,8 +410,7 @@ def notify_techs_for_upcoming_orders():
             time_diff = service_date - current_time
             hours_remaining = time_diff.total_seconds() / 3600
             current_app.logger.info(
-                f"Order {order_id} is scheduled for {service_date}. "
-                f"Hours remaining: {hours_remaining:.2f}"
+                f"Order {order_id} is scheduled for {service_date}. Hours remaining: {hours_remaining:.2f}"
             )
             
             # 5. After it "finds the tech and order ID"
@@ -436,8 +446,7 @@ def notify_techs_for_upcoming_orders():
                         )
                     else:
                         current_app.logger.error(
-                            f"Notification for threshold {threshold} failed for order {order_id}, "
-                            "will retry later."
+                            f"Notification for threshold {threshold} failed for order {order_id}, will retry later."
                         )
                         
     except Exception as e:
