@@ -1,13 +1,6 @@
 # app.py
-# === Begin Monkey Patch ===
-import collections
-from collections.abc import MutableSet, Iterable, Mapping
+import monkey_patch
 
-# Monkey patch the collections module if necessary.
-collections.MutableSet = MutableSet
-collections.Iterable = Iterable
-collections.Mapping = Mapping
-# === End Monkey Patch ===
 
 import os
 import decimal
