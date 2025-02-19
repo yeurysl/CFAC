@@ -418,6 +418,7 @@ def notify_techs_for_upcoming_orders():
 # Scheduler to run the notification check every 5 minutes
 from apscheduler.schedulers.background import BackgroundScheduler
 
+
 def start_scheduler(app):
     scheduler = BackgroundScheduler()
     
@@ -425,8 +426,10 @@ def start_scheduler(app):
     scheduler.add_job(
         func=lambda: app.app_context().push() or notify_techs_for_upcoming_orders(),
         trigger="interval",
-        minutes=3  # Change to minutes=60 (or appropriate interval) in production.
+        minutes=3  # Change this to minutes=60 (or another interval) in production.
     )
+    
+    app.logger.info("Scheduler call started")  # Log a simple fixed message
     
     scheduler.start()
     app.logger.info("Starting the notification scheduler")
