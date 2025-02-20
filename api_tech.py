@@ -379,7 +379,6 @@ def notify_techs_for_upcoming_orders():
         current_time = datetime.utcnow().replace(tzinfo=pytz.UTC)
         current_app.logger.info(f"Current UTC time set to: {current_time}")
 
-        # Define your query. The $gt operator means "greater than" and $ne means "not equal".
         query = {
             "status": "ordered"  
         }
@@ -485,8 +484,7 @@ def fetch_upcoming_orders():
     current_time = datetime.utcnow().replace(tzinfo=pytz.utc)
     # Modify your query to also exclude orders with status 'completed'
     query = {
-        "service_date": {"$gt": current_time},
-        "status": {"$ne": "completed"}
+            "status": "ordered"  
     }
     
     orders_collection = current_app.config.get('MONGO_CLIENT').orders
