@@ -243,13 +243,13 @@ def get_order_remaining_time(order_id):
 
 
 
-
+e
 from postmarker.core import PostmarkClient
 from flask import request, jsonify, current_app
 from bson import ObjectId
+from datetime import datetime
 
 def send_postmark_email(to_email, subject, text_body, html_body=None):
-    # Use PostmarkClient instead of PMClient
     client = PostmarkClient(server_token=current_app.config.get('POSTMARK_SERVER_TOKEN'))
     response = client.emails.send(
         From=current_app.config.get('POSTMARK_SENDER_EMAIL'),
@@ -283,30 +283,122 @@ def update_order_status(order_id):
             order = orders_collection.find_one({"_id": ObjectId(order_id)})
             if order and order.get("guest_email"):
                 guest_email = order["guest_email"]
-                subject = "Technician En Route"
+                subject = "Your Detailer Is In Route"
+
+                # Plain text version of the email
                 text_body = (
                     f"Hello {order.get('customer_name', 'Customer')},\n\n"
                     "Your technician is now on the way to complete the job. "
-                    "If you have any questions, please reply to this email."
+                    "If you have any questions, please contact your sales rep or visit our website."
                 )
-                html_body = f"""
-                <html>
-                    <body>
-                        <p>Hello {order.get('customer_name', 'Customer')},</p>
-                        <p>Your technician is now on the way to complete the job.</p>
-                        <p>If you have any questions, please reply to this email.</p>
-                    </body>
-                </html>
-                """
+
+                # HTML email template with header and footer
+                current_year = datetime.now().year
+                html_body = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Order Update Notification</title>
+    <style>
+        body {{
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            font-family: Arial, sans-serif;
+        }}
+        .container {{
+            width: 100%;
+            background-color: #f4f4f4;
+            padding: 20px 0;
+        }}
+        .email-wrapper {{
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 3px rgba(0,0,0,0.1);
+        }}
+        .header {{
+            background-color: #07173d;
+            padding: 20px;
+            text-align: center;
+            color: #ffffff;
+        }}
+        .header img {{
+            max-width: 150px;
+            height: auto;
+        }}
+        .content {{
+            padding: 20px;
+            color: #333333;
+        }}
+        .content h2 {{
+            color: #07173d;
+            margin-top: 0;
+        }}
+        .content p {{
+            line-height: 1.6;
+        }}
+        .footer {{
+            background-color: #f1f1f1;
+            padding: 15px;
+            text-align: center;
+            font-size: 12px;
+            color: #666666;
+        }}
+        a {{
+            color: #163351;
+            text-decoration: none;
+        }}
+        @media only screen and (max-width: 600px) {{
+            .email-wrapper {{
+                width: 100% !important;
+            }}
+            .header, .content, .footer {{
+                padding: 15px;
+            }}
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <table class="email-wrapper" cellpadding="0" cellspacing="0">
+            <!-- Header -->
+            <tr>
+                <td class="header">
+                    <img src="https://cfautocare.biz/static/creatives/Logo.png" alt="CFAC Logo">
+                    <h1 style="margin: 10px 0 0 0;">Order Update Notification</h1>
+                </td>
+            </tr>
+            <!-- Body Content -->
+            <tr>
+                <td class="content">
+                    <p>Hello {order.get('customer_name', 'Customer')},</p>
+                    <p>Your technician is now on the way to complete the job.</p>
+                    <p>If you have any questions, please contact your sales rep or visit our website.</p>
+                </td>
+            </tr>
+            <!-- Footer -->
+            <tr>
+                <td class="footer">
+                    &copy; {current_year} Centralfloridaautocare LLC. All rights reserved.
+                </td>
+            </tr>
+        </table>
+    </div>
+</body>
+</html>
+"""
                 send_postmark_email(guest_email, subject, text_body, html_body)
             else:
-                current_app.logger.warning(f"Order {order_id} has no customer email; skipping email notification.")
+                current_app.logger.warning(f"Order {order_id} has no guest email; skipping email notification.")
 
         return jsonify({"message": "Order status updated successfully", "new_status": new_status}), 200
     except Exception as e:
         current_app.logger.error(f"Error updating order status for {order_id}: {str(e)}")
         return jsonify({"error": f"Error updating order status: {str(e)}"}), 500
-
 
 
 
