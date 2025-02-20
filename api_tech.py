@@ -244,23 +244,22 @@ def get_order_remaining_time(order_id):
 
 
 
-import postmarker
+from postmarker.core import PostmarkClient
 from flask import request, jsonify, current_app
 from bson import ObjectId
 
 def send_postmark_email(to_email, subject, text_body, html_body=None):
-    client = postmarker.PMClient(server_token=current_app.config.get('POSTMARK_SERVER_TOKEN'))
-    # Send the email. If html_body is provided, include it; otherwise, only send the text_body.
+    # Use PostmarkClient instead of PMClient
+    client = PostmarkClient(server_token=current_app.config.get('POSTMARK_SERVER_TOKEN'))
     response = client.emails.send(
         From=current_app.config.get('POSTMARK_FROM_EMAIL'),
         To=to_email,
         Subject=subject,
         TextBody=text_body,
-        HtmlBody=html_body if html_body else ""
+        HtmlBody=html_body or ""
     )
     current_app.logger.info(f"Postmark email response: {response}")
     return response
-
 
 @api_tech_bp.route('/orders/<order_id>/status', methods=['PATCH'])
 def update_order_status(order_id):
@@ -282,31 +281,31 @@ def update_order_status(order_id):
 
         if new_status == "on_the_way":
             order = orders_collection.find_one({"_id": ObjectId(order_id)})
-            if order and order.get("guest_email"):
-                guest_email = order["guest_email"]
+            if order and order.get("customer_email"):
+                customer_email = order["customer_email"]
                 subject = "Technician En Route"
-                # Customize the plain text body
-                text_body = f"Your technician is now on the way to complete the job. " \
-                            "If you have any questions, please contact your sales rep or send us an email."
-                # Optionally, customize the HTML body
+                text_body = (
+                    f"Hello {order.get('customer_name', 'Customer')},\n\n"
+                    "Your technician is now on the way to complete the job. "
+                    "If you have any questions, please reply to this email."
+                )
                 html_body = f"""
                 <html>
                     <body>
-                    
+                        <p>Hello {order.get('customer_name', 'Customer')},</p>
                         <p>Your technician is now on the way to complete the job.</p>
-                        <p>If you have any questions, please contact your sales rep or send us an email.</p>
+                        <p>If you have any questions, please reply to this email.</p>
                     </body>
                 </html>
                 """
-                send_postmark_email(guest_email, subject, text_body, html_body)
+                send_postmark_email(customer_email, subject, text_body, html_body)
             else:
-                current_app.logger.warning(f"Order {order_id} has no guest email; skipping email notification.")
+                current_app.logger.warning(f"Order {order_id} has no customer email; skipping email notification.")
 
         return jsonify({"message": "Order status updated successfully", "new_status": new_status}), 200
     except Exception as e:
         current_app.logger.error(f"Error updating order status for {order_id}: {str(e)}")
         return jsonify({"error": f"Error updating order status: {str(e)}"}), 500
-
 
 
 
