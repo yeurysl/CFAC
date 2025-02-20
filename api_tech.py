@@ -282,8 +282,8 @@ def update_order_status(order_id):
 
         if new_status == "on_the_way":
             order = orders_collection.find_one({"_id": ObjectId(order_id)})
-            if order and order.get("customer_email"):
-                customer_email = order["customer_email"]
+            if order and order.get("guest_email"):
+                guest_email = order["guest_email"]
                 subject = "Technician En Route"
                 # Customize the plain text body
                 text_body = f"Your technician is now on the way to complete the job. " \
@@ -298,9 +298,9 @@ def update_order_status(order_id):
                     </body>
                 </html>
                 """
-                send_postmark_email(customer_email, subject, text_body, html_body)
+                send_postmark_email(guest_email, subject, text_body, html_body)
             else:
-                current_app.logger.warning(f"Order {order_id} has no customer email; skipping email notification.")
+                current_app.logger.warning(f"Order {order_id} has no guest email; skipping email notification.")
 
         return jsonify({"message": "Order status updated successfully", "new_status": new_status}), 200
     except Exception as e:
