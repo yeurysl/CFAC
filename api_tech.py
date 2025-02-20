@@ -382,7 +382,7 @@ def notify_techs_for_upcoming_orders():
         # Define your query. The $gt operator means "greater than" and $ne means "not equal".
         query = {
             "service_date": {"$gt": current_time},
-            "status": {"$ne": "completed"}
+            "status": "ordered"  
         }
         current_app.logger.info(f"Executing query: {query}")
 
