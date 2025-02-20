@@ -384,6 +384,8 @@ def update_order_status(order_id):
             <tr>
                 <td class="footer">
                     &copy; {current_year} Centralfloridaautocare LLC. All rights reserved.
+                    <br>
+                    <a href="https://cfautocare.biz" target="_blank">Visit our Website</a>
                 </td>
             </tr>
         </table>
