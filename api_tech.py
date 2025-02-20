@@ -313,7 +313,7 @@ def update_order_status(order_id):
 
 import pymongo
 
-@api_tech_bp.route("/api/register_device_token", methods=["POST"])
+@api_tech_bp.route("/register_device_token", methods=["POST"])
 def register_device_token():
     data = request.get_json()
     if not data or "device_token" not in data:
