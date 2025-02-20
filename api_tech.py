@@ -373,9 +373,13 @@ def get_device_token_for_tech(tech_id):
         return None
 
 
-def send_notification_to_tech(tech_id, order_id, threshold, device_token):
-    # Construct the message for the notification.
-    message = f"Order {order_id} is now within {threshold} hours of service!"
+def send_notification_to_tech(tech_id, order_id, threshold, device_token, custom_message=None):
+    # Use the custom message if provided, otherwise use the default message.
+    if custom_message:
+        message = custom_message
+    else:
+        message = f"Order {order_id} is now within {threshold} hours of service!"
+        
     current_app.logger.info(f"Preparing to send notification to technician {tech_id}: {message}")
 
     # Retrieve the base64-encoded certificate from the environment.
@@ -455,7 +459,7 @@ def notify_techs_for_upcoming_orders():
         thresholds = [12, 6, 2, 1]
 
         for order in orders_cursor:
-            try:
+         try:
                 # 1. Retrieve the order ID.
                 order_id = str(order.get("_id", "unknown"))
                 current_app.logger.info(f"Found order with _id: {order_id}")
@@ -494,43 +498,50 @@ def notify_techs_for_upcoming_orders():
                 current_app.logger.info(f"Order {order_id} is associated with technician ID: {tech_id}")
 
                 # Check each threshold.
-                for threshold in thresholds:
-                    if hours_remaining <= threshold and threshold not in notified_thresholds:
-                        current_app.logger.info(
-                            f"Order {order_id} is within {threshold} hours. Sending push notification to technician {tech_id}."
-                        )
-                        
+        for threshold in thresholds:
+                if hours_remaining <= threshold and threshold not in notified_thresholds:
+                    if threshold == 1:
+                        # Use a custom message when the order is 1 hour away.
+                        custom_message = "Update your order status and let the client know you're on the way!"
+                    else:
+                        custom_message = None  # Use the default message
+
+                    current_app.logger.info(
+                        f"Order {order_id} is within {threshold} hours. Sending push notification to technician {tech_id}."
+                    )
+                    
                     # Retrieve the technician's device token from your user database.
-                        current_app.logger.info(f"Fetching device token for technician {tech_id}.")
-                        device_token = get_device_token_for_tech(tech_id)
-                        current_app.logger.info(f"Device token for technician {tech_id} is: {device_token}")
-                        if not device_token:
-                            return {"status": "error", "detail": "Device token not found"}
-                                        
-                        push_response = send_notification_to_tech(
-                            tech_id, 
-                            order_id, 
-                            threshold, 
-                            device_token
-                        )
-                        current_app.logger.info(f"Notification push response for order {order_id}: {push_response}")
-                        
-                        if push_response.get("status") == "sent":
-                            try:
-                                orders_collection.update_one(
-                                    {"_id": order["_id"]},
-                                    {"$push": {"notified_thresholds": threshold}}
-                                )
-                            except Exception as update_err:
-                                current_app.logger.error(
-                                    f"Error updating order {order_id} with notified threshold {threshold}: {str(update_err)}"
-                                )
-                        else:
-                            current_app.logger.error(
-                                f"Notification for threshold {threshold} failed for order {order_id}, will retry later."
+                    current_app.logger.info(f"Fetching device token for technician {tech_id}.")
+                    device_token = get_device_token_for_tech(tech_id)
+                    current_app.logger.info(f"Device token for technician {tech_id} is: {device_token}")
+                    if not device_token:
+                        current_app.logger.error("Device token not found, cannot send notification.")
+                        continue  # Skip to next threshold or order
+                    
+                    push_response = send_notification_to_tech(
+                        tech_id, 
+                        order_id, 
+                        threshold, 
+                        device_token,
+                        custom_message=custom_message
+                    )
+                    current_app.logger.info(f"Notification push response for order {order_id}: {push_response}")
+                    
+                    if push_response.get("status") == "sent":
+                        try:
+                            orders_collection.update_one(
+                                {"_id": order["_id"]},
+                                {"$push": {"notified_thresholds": threshold}}
                             )
-            except Exception as order_err:
-                current_app.logger.error(f"Error processing order {order}: {str(order_err)}")
+                        except Exception as update_err:
+                            current_app.logger.error(
+                                f"Error updating order {order_id} with notified threshold {threshold}: {str(update_err)}"
+                            )
+                    else:
+                        current_app.logger.error(
+                            f"Notification for threshold {threshold} failed for order {order_id}, will retry later."
+                        )
+
                         
     except Exception as e:
         current_app.logger.error(f"Error in notify_techs_for_upcoming_orders: {str(e)}")
@@ -566,7 +577,7 @@ def start_scheduler(app):
     scheduler.add_job(
         func=lambda: app.app_context().push() or notify_techs_for_upcoming_orders(),
         trigger="interval",
-        minutes=3  # Change this to minutes=60 (or another interval) in production.
+        minutes=30  # Change this to minutes=60 (or another interval) in production.
     )
     
     app.logger.info("Scheduler call started")  # Log a simple fixed message
