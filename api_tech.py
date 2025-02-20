@@ -368,90 +368,114 @@ def notify_techs_for_upcoming_orders():
     try:
         # Connect to your orders collection.
         orders_collection = current_app.config.get('MONGO_CLIENT').orders
+        if not orders_collection:
+            current_app.logger.error("Orders collection not found in MONGO_CLIENT configuration!")
+            return
+
         current_app.logger.info("Connected to the orders collection successfully.")
 
-        # Set the current time to UTC
+        # Set the current time to UTC.
         current_time = datetime.utcnow().replace(tzinfo=pytz.UTC)
         current_app.logger.info(f"Current UTC time set to: {current_time}")
 
-        # Define your query
+        # Define your query. The $gt operator means "greater than."
         query = {
             "service_date": {"$gt": current_time},
             "status": {"$ne": "completed"}
         }
+        current_app.logger.info(f"Executing query: {query}")
 
-        # Optionally, you can do a count first to see how many orders match the query
-        # (Depending on your PyMongo version, use .count_documents() or .estimated_document_count())
-        matching_count = orders_collection.count_documents(query)
-        current_app.logger.info(f"Found {matching_count} orders scheduled in the future.")
+        try:
+            matching_count = orders_collection.count_documents(query)
+            current_app.logger.info(f"Found {matching_count} orders scheduled in the future with status not 'completed'.")
+        except Exception as count_error:
+            current_app.logger.error(f"Error counting documents with query {query}: {str(count_error)}")
+            return
 
-        # Query orders scheduled in the future.
-        orders_cursor = orders_collection.find(query)
-        
-        # Define the thresholds in hours (12, 6, 2, and 1 hour away).
+        try:
+            orders_cursor = orders_collection.find(query)
+        except Exception as find_error:
+            current_app.logger.error(f"Error executing find with query {query}: {str(find_error)}")
+            return
+
+        # Define the thresholds in hours.
         thresholds = [12, 6, 2, 1]
-        
+
         for order in orders_cursor:
-            # 1. After it "finds the order":
-            order_id = str(order.get("_id"))
-            current_app.logger.info(f"Found order with _id: {order_id}")
-            
-            # 2. After it "converts to date time":
-            service_date = order.get('service_date')
-            if isinstance(service_date, str):
-                service_date = datetime.fromisoformat(service_date)
-            if service_date.tzinfo is None:
-                service_date = service_date.replace(tzinfo=pytz.UTC)
-            else:
-                service_date = service_date.astimezone(pytz.UTC)
-            current_app.logger.info(f"Order {order_id} service_date converted to UTC: {service_date}")
-            
-            # 3. After it "retrieves the threshold" (really retrieving already-notified thresholds)
-            notified_thresholds = order.get("notified_thresholds", [])
-            current_app.logger.info(f"Order {order_id} already notified thresholds: {notified_thresholds}")
-            
-            # 4. After it "verifies the hours remaining"
-            time_diff = service_date - current_time
-            hours_remaining = time_diff.total_seconds() / 3600
-            current_app.logger.info(
-                f"Order {order_id} is scheduled for {service_date}. Hours remaining: {hours_remaining:.2f}"
-            )
-            
-            # 5. After it "finds the tech and order ID"
-            tech_id = order.get("technician")
-            current_app.logger.info(
-                f"Order {order_id} is associated with technician ID: {tech_id}"
-            )
-            
-            for threshold in thresholds:
-                if hours_remaining <= threshold and threshold not in notified_thresholds:
-                    current_app.logger.info(
-                        f"Order {order_id} is within {threshold} hours. "
-                        f"Sending push notification to technician {tech_id}."
-                    )
-                    
-                    # Retrieve the technician's device token from your user database.
-                    device_token = "099515daa605d1b4cb01caf37990538546b41f21a14715b93e8d2cd3de1b5bd7"
-                    
-                    push_response = send_notification_to_tech(
-                        tech_id, 
-                        order_id, 
-                        threshold, 
-                        device_token
-                    )
-                    
-                    current_app.logger.info(f"Notification push response: {push_response}")
-                    
-                    # Only mark this threshold as notified if the push notification was sent successfully.
-                    if push_response.get("status") == "sent":
-                        orders_collection.update_one(
-                            {"_id": order["_id"]},
-                            {"$push": {"notified_thresholds": threshold}}
+            try:
+                # 1. Retrieve the order ID.
+                order_id = str(order.get("_id", "unknown"))
+                current_app.logger.info(f"Found order with _id: {order_id}")
+
+                # 2. Convert the service_date to a datetime object.
+                service_date = order.get('service_date')
+                if not service_date:
+                    current_app.logger.error(f"Order {order_id} is missing the 'service_date' field.")
+                    continue
+                if isinstance(service_date, str):
+                    try:
+                        service_date = datetime.fromisoformat(service_date)
+                    except Exception as conv_err:
+                        current_app.logger.error(f"Error converting service_date for order {order_id}: {str(conv_err)}")
+                        continue
+                if service_date.tzinfo is None:
+                    service_date = service_date.replace(tzinfo=pytz.UTC)
+                else:
+                    service_date = service_date.astimezone(pytz.UTC)
+                current_app.logger.info(f"Order {order_id} service_date converted to UTC: {service_date}")
+
+                # 3. Retrieve already-notified thresholds.
+                notified_thresholds = order.get("notified_thresholds", [])
+                current_app.logger.info(f"Order {order_id} already notified thresholds: {notified_thresholds}")
+
+                # 4. Calculate hours remaining.
+                time_diff = service_date - current_time
+                hours_remaining = time_diff.total_seconds() / 3600
+                current_app.logger.info(f"Order {order_id} is scheduled for {service_date}. Hours remaining: {hours_remaining:.2f}")
+
+                # 5. Retrieve technician information.
+                tech_id = order.get("technician")
+                if not tech_id:
+                    current_app.logger.error(f"Order {order_id} is missing the 'technician' field.")
+                    continue
+                current_app.logger.info(f"Order {order_id} is associated with technician ID: {tech_id}")
+
+                # Check each threshold.
+                for threshold in thresholds:
+                    if hours_remaining <= threshold and threshold not in notified_thresholds:
+                        current_app.logger.info(
+                            f"Order {order_id} is within {threshold} hours. Sending push notification to technician {tech_id}."
                         )
-                    else:
-                        current_app.logger.error(
-                            f"Notification for threshold {threshold} failed for order {order_id}, will retry later."
+                        
+                        # Retrieve the technician's device token.
+                        # (In production, retrieve this from your user database.)
+                        device_token = "099515daa605d1b4cb01caf37990538546b41f21a14715b93e8d2cd3de1b5bd7"
+                        
+                        push_response = send_notification_to_tech(
+                            tech_id, 
+                            order_id, 
+                            threshold, 
+                            device_token
                         )
+                        current_app.logger.info(f"Notification push response for order {order_id}: {push_response}")
+                        
+                        # Only mark this threshold as notified if the push notification was successful.
+                        if push_response.get("status") == "sent":
+                            try:
+                                orders_collection.update_one(
+                                    {"_id": order["_id"]},
+                                    {"$push": {"notified_thresholds": threshold}}
+                                )
+                            except Exception as update_err:
+                                current_app.logger.error(
+                                    f"Error updating order {order_id} with notified threshold {threshold}: {str(update_err)}"
+                                )
+                        else:
+                            current_app.logger.error(
+                                f"Notification for threshold {threshold} failed for order {order_id}, will retry later."
+                            )
+            except Exception as order_err:
+                current_app.logger.error(f"Error processing order {order}: {str(order_err)}")
                         
     except Exception as e:
         current_app.logger.error(f"Error in notify_techs_for_upcoming_orders: {str(e)}")
