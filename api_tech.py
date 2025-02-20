@@ -319,6 +319,26 @@ def update_order_status(order_id):
 
 
 
+def get_device_token_for_tech(tech_id):
+    current_app.logger.info(f"Attempting to fetch device token for technician {tech_id} from the users collection.")
+    users_collection = current_app.config.get('MONGO_CLIENT').users
+    user = users_collection.find_one({"_id": tech_id})
+    if user:
+        current_app.logger.info(f"User record found for technician {tech_id}: {user}")
+        if "device_token" in user:
+            token = user["device_token"]
+            current_app.logger.info(f"Device token retrieved for technician {tech_id}: {token}")
+            return token
+        else:
+            current_app.logger.error(f"Device token not present in user record for technician {tech_id}.")
+            return None
+    else:
+        current_app.logger.error(f"No user record found for technician {tech_id}.")
+        return None
+
+
+
+
 def send_notification_to_tech(tech_id, order_id, threshold, device_token):
     # Construct the message for the notification.
     message = f"Order {order_id} is now within {threshold} hours of service!"
@@ -446,9 +466,13 @@ def notify_techs_for_upcoming_orders():
                             f"Order {order_id} is within {threshold} hours. Sending push notification to technician {tech_id}."
                         )
                         
-                        # Retrieve the technician's device token.
-                        device_token = "099515daa605d1b4cb01caf37990538546b41f21a14715b93e8d2cd3de1b5bd7"
-                        
+                    # Retrieve the technician's device token from your user database.
+                        current_app.logger.info(f"Fetching device token for technician {tech_id}.")
+                        device_token = get_device_token_for_tech(tech_id)
+                        current_app.logger.info(f"Device token for technician {tech_id} is: {device_token}")
+                        if not device_token:
+                            return {"status": "error", "detail": "Device token not found"}
+                                        
                         push_response = send_notification_to_tech(
                             tech_id, 
                             order_id, 
@@ -490,7 +514,7 @@ def fetch_upcoming_orders():
     orders_collection = current_app.config.get('MONGO_CLIENT').orders
     orders = orders_collection.find(query)
     orders_list = list(orders)
-    app.logger.info(f"Found {len(orders_list)} orders scheduled in the future with status not 'completed'.")
+    current_app.logger.info(f"Found {len(orders_list)} orders scheduled in the future with status not 'completed'.")
     return orders_list
 
 
