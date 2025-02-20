@@ -281,8 +281,8 @@ def update_order_status(order_id):
 
         if new_status == "on_the_way":
             order = orders_collection.find_one({"_id": ObjectId(order_id)})
-            if order and order.get("customer_email"):
-                customer_email = order["customer_email"]
+            if order and order.get("guest_email"):
+                guest_email = order["guest_email"]
                 subject = "Technician En Route"
                 text_body = (
                     f"Hello {order.get('customer_name', 'Customer')},\n\n"
@@ -298,7 +298,7 @@ def update_order_status(order_id):
                     </body>
                 </html>
                 """
-                send_postmark_email(customer_email, subject, text_body, html_body)
+                send_postmark_email(guest_email, subject, text_body, html_body)
             else:
                 current_app.logger.warning(f"Order {order_id} has no customer email; skipping email notification.")
 
