@@ -368,7 +368,8 @@ def notify_techs_for_upcoming_orders():
     try:
         # Connect to your orders collection.
         orders_collection = current_app.config.get('MONGO_CLIENT').orders
-        if not orders_collection:
+        # Use an explicit check against None.
+        if orders_collection is None:
             current_app.logger.error("Orders collection not found in MONGO_CLIENT configuration!")
             return
 
@@ -378,7 +379,7 @@ def notify_techs_for_upcoming_orders():
         current_time = datetime.utcnow().replace(tzinfo=pytz.UTC)
         current_app.logger.info(f"Current UTC time set to: {current_time}")
 
-        # Define your query. The $gt operator means "greater than."
+        # Define your query. The $gt operator means "greater than" and $ne means "not equal".
         query = {
             "service_date": {"$gt": current_time},
             "status": {"$ne": "completed"}
@@ -448,7 +449,6 @@ def notify_techs_for_upcoming_orders():
                         )
                         
                         # Retrieve the technician's device token.
-                        # (In production, retrieve this from your user database.)
                         device_token = "099515daa605d1b4cb01caf37990538546b41f21a14715b93e8d2cd3de1b5bd7"
                         
                         push_response = send_notification_to_tech(
@@ -459,7 +459,6 @@ def notify_techs_for_upcoming_orders():
                         )
                         current_app.logger.info(f"Notification push response for order {order_id}: {push_response}")
                         
-                        # Only mark this threshold as notified if the push notification was successful.
                         if push_response.get("status") == "sent":
                             try:
                                 orders_collection.update_one(
@@ -479,6 +478,8 @@ def notify_techs_for_upcoming_orders():
                         
     except Exception as e:
         current_app.logger.error(f"Error in notify_techs_for_upcoming_orders: {str(e)}")
+
+
 
 def fetch_upcoming_orders():
     # Get current UTC time
