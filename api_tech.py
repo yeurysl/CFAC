@@ -359,24 +359,18 @@ if __name__ == '__main__':
 
 
 
+from bson import ObjectId
 def get_device_token_for_tech(tech_id):
-    current_app.logger.info(f"Attempting to fetch device token for technician {tech_id} from the users collection.")
-    users_collection = current_app.config.get('MONGO_CLIENT').users
-    user = users_collection.find_one({"_id": tech_id})
-    if user:
-        current_app.logger.info(f"User record found for technician {tech_id}: {user}")
-        if "device_token" in user:
-            token = user["device_token"]
-            current_app.logger.info(f"Device token retrieved for technician {tech_id}: {token}")
-            return token
-        else:
-            current_app.logger.error(f"Device token not present in user record for technician {tech_id}.")
-            return None
+    current_app.logger.info(f"Attempting to fetch device token for technician {tech_id} from the device_tokens collection.")
+    device_tokens_collection = current_app.config.get('MONGO_CLIENT').device_tokens
+    user_record = device_tokens_collection.find_one({"user_id": tech_id})
+    if user_record and "device_token" in user_record:
+        token = user_record["device_token"]
+        current_app.logger.info(f"Device token retrieved for technician {tech_id}: {token}")
+        return token
     else:
-        current_app.logger.error(f"No user record found for technician {tech_id}.")
+        current_app.logger.error(f"Device token not found for technician {tech_id}.")
         return None
-
-
 
 
 def send_notification_to_tech(tech_id, order_id, threshold, device_token):
