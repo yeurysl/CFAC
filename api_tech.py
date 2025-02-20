@@ -529,7 +529,7 @@ def send_notification_to_tech(tech_id, order_id, threshold, device_token, custom
         payload = Payload(alert={"title": "Order Reminder", "body": message}, sound="default", badge=1)
         
         # Create an APNs client. In production, set use_sandbox=False.
-        client = APNsClient(temp_cert_path, use_sandbox=True, use_alternative_port=False)
+        client = APNsClient(temp_cert_path, use_sandbox=False, use_alternative_port=False)
         response = client.send_notification(device_token, payload, topic="biz.cfautocare.cfactech")
         current_app.logger.info(f"Push notification response: {response}")
 
