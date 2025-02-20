@@ -28,6 +28,8 @@ from api_tech import api_tech_bp
 from blueprints.customer import customer_bp
 from blueprints.admin import admin_bp
 from blueprints.core import core_bp
+from flask import render_template
+from error_handlers import register_error_handlers
 
 load_dotenv()
 
@@ -71,9 +73,13 @@ def create_app():
     init_db(app)
 
     # Register Blueprints
-    app.register_blueprint(customer_bp)
+    app.register_bluerrrrrrrrrrrrrprint(customer_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(core_bp)
+
+
+    # Register custom error pages
+    register_error_handlers(app)
 
     # Register APIs
     app.register_blueprint(api_bp)
@@ -81,6 +87,9 @@ def create_app():
     app.register_blueprint(api_sales_bp)
     app.register_blueprint(api_account_bp)
 
+    # Register custom error pages
+    register_error_handlers(app)
+    
     # Exempt API routes from CSRF protection
     csrf.exempt(api_sales_bp)
     csrf.exempt(api_tech_bp)
