@@ -252,7 +252,7 @@ def send_postmark_email(to_email, subject, text_body, html_body=None):
     # Use PostmarkClient instead of PMClient
     client = PostmarkClient(server_token=current_app.config.get('POSTMARK_SERVER_TOKEN'))
     response = client.emails.send(
-        From=current_app.config.get('POSTMARK_FROM_EMAIL'),
+        From=current_app.config.get('POSTMARK_SENDER_EMAIL'),
         To=to_email,
         Subject=subject,
         TextBody=text_body,
