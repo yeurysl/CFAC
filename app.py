@@ -73,7 +73,7 @@ def create_app():
     init_db(app)
 
     # Register Blueprints
-    app.register_bluerrrrrrrrrrrrrprint(customer_bp)
+    app.register_blueprint(customer_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(core_bp)
 
