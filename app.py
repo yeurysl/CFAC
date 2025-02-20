@@ -56,7 +56,7 @@ def create_app():
     csrf.init_app(app)
 
     # Flask-Login settings
-    login_manager.login_view = 'tech_admin_login'
+    login_manager.login_view = 'employee_login'
     login_manager.login_message_category = 'info'
 
     # Logging
