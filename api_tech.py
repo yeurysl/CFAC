@@ -311,8 +311,48 @@ def update_order_status(order_id):
 
 
 
+import pymongo
 
+@api_tech_bp.route("/api/register_device_token", methods=["POST"])
+def register_device_token():
+    data = request.get_json()
+    if not data or "device_token" not in data:
+        current_app.logger.error("No device token provided in the request.")
+        return jsonify({"error": "No device token provided"}), 400
 
+    device_token = data["device_token"]
+    user_id = data.get("user_id")  # This is optional
+
+    # Optional: Validate device_token format (e.g., length check)
+    if not device_token or len(device_token) < 10:  # Example check; adjust as needed.
+        current_app.logger.error("Invalid device token provided.")
+        return jsonify({"error": "Invalid device token provided"}), 400
+
+    current_app.logger.info(f"Received device token: {device_token} for user: {user_id}")
+
+    try:
+        # Retrieve the device_tokens collection.
+        db = current_app.config.get('MONGO_CLIENT')
+        if db is None:
+            current_app.logger.error("Database connection not configured!")
+            return jsonify({"error": "Database connection error"}), 500
+
+        device_tokens_collection = db.device_tokens
+
+        result = device_tokens_collection.insert_one({
+            "device_token": device_token,
+            "user_id": user_id,
+            "created_at": datetime.utcnow()
+        })
+        current_app.logger.info(f"Inserted device token record with _id: {result.inserted_id}")
+        return jsonify({"status": "success", "inserted_id": str(result.inserted_id)}), 201
+
+    except pymongo.errors.PyMongoError as e:
+        current_app.logger.error(f"Error inserting device token: {str(e)}")
+        return jsonify({"error": "Database error", "details": str(e)}), 500
+
+if __name__ == '__main__':
+    current_app.run(debug=True)
 
 
 
