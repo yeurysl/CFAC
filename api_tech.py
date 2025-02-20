@@ -378,6 +378,8 @@ def update_order_status(order_id):
                     <p>Hello {order.get('customer_name', 'Customer')},</p>
                     <p>Your technician is now on the way to complete the job.</p>
                     <p>If you have any questions, please contact your sales rep or visit our website.</p>
+                    <a href="https://cfautocare.biz" target="_blank">Click here to visit our Website</a>
+
                 </td>
             </tr>
             <!-- Footer -->
@@ -385,7 +387,7 @@ def update_order_status(order_id):
                 <td class="footer">
                     &copy; {current_year} Centralfloridaautocare LLC. All rights reserved.
                     <br>
-                    <a href="https://cfautocare.biz" target="_blank">Visit our Website</a>
+                    <a href="https://cfautocare.biz" target="_blank">Click here to visit our Website</a>
                 </td>
             </tr>
         </table>
