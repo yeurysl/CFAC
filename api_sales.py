@@ -873,7 +873,7 @@ def send_notification_to_salesman(salesman_id, order_id, device_token, custom_me
     """
     Send a push notification to a salesman's device.
     """
-    message = custom_message or f"Order {order_id} is on the way. Please check the order details."
+    message = custom_message or f"The Tech for {order_id} is on the way."
     current_app.logger.info(f"Preparing to send notification to salesman {salesman_id}: {message}")
 
     # Retrieve the certificate from the environment variable.
