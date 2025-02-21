@@ -867,43 +867,51 @@ from apns2.client import APNsClient
 from apns2.payload import Payload
 from flask import current_app
 
-import traceback
 
 def send_notification_to_salesman(salesman_id, order_id, device_token, custom_message=None):
+    """
+    Send a push notification to a salesman's device.
+    """
     message = custom_message or f"Order {order_id} is on the way. Please check the order details."
     current_app.logger.info(f"Preparing to send notification to salesman {salesman_id}: {message}")
 
+    # Retrieve the certificate from the environment variable.
     cert_b64 = os.environ.get("APNS_CERT_B64_SALESMAN")
     if not cert_b64:
         current_app.logger.error("APNS certificate for salesman not configured in environment variable!")
         return {"status": "error", "detail": "Salesman certificate not set"}
 
     try:
-        # Decode the certificate and write to a temporary file.
+        current_app.logger.info("Decoding APNs certificate from base64.")
         cert_content = base64.b64decode(cert_b64)
+        current_app.logger.info("Writing APNs certificate to a temporary file.")
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pem") as temp_cert:
             temp_cert.write(cert_content)
             temp_cert_path = temp_cert.name
+        current_app.logger.info(f"APNs certificate written to temporary file: {temp_cert_path}")
 
-        current_app.logger.info(f"Using APNs certificate for salesman at temporary file: {temp_cert_path}")
-
-        # Log before constructing the payload.
+        # Construct the APNs payload.
         current_app.logger.info("Constructing APNs payload...")
         payload = Payload(alert={"title": "Order Update", "body": message}, sound="default", badge=1)
         current_app.logger.info(f"Payload constructed: alert={payload.alert}, sound={payload.sound}, badge={payload.badge}")
 
-        # Specify the topic (bundle identifier) for the sales app.
-        topic = "biz.cfautocare.cfacios"  # Replace with your actual bundle ID if different.
+        # Specify the topic (bundle identifier) for your sales app.
+        topic = "biz.cfautocare.cfacios"  # Update this if your sales app's bundle identifier is different.
         current_app.logger.info(f"Using topic: {topic}")
 
         # Create the APNs client.
+        current_app.logger.info("Creating APNs client...")
         client = APNsClient(temp_cert_path, use_sandbox=False, use_alternative_port=False)
-        current_app.logger.info("Sending notification to device...")
+        current_app.logger.info("APNs client created successfully.")
+
+        # Send the notification.
+        current_app.logger.info("Sending push notification to device...")
         response = client.send_notification(device_token, payload, topic=topic)
-        current_app.logger.info(f"Push notification response for salesman: {response}")
-        
+        current_app.logger.info(f"Push notification response: {response}")
+
         # Clean up the temporary certificate file.
         os.remove(temp_cert_path)
+        current_app.logger.info("Temporary certificate file removed.")
         return {"status": "sent", "detail": str(response)}
     except Exception as e:
         current_app.logger.error("Error sending push notification to salesman:")
