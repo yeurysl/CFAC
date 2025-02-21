@@ -92,27 +92,19 @@ from flask import current_app
 def send_postmark_email(subject, to_email, from_email, text_body, html_body=None):
     """
     Sends an email via Postmark.
-    
-    :param subject: Subject line of the email.
-    :param to_email: Recipient's email address.
-    :param from_email: Sender's email address.
-    :param text_body: Plain-text body of the email.
-    :param html_body: (Optional) HTML body of the email.
-    :return: The response from Postmark.
     """
-    # Log that the function has been called with its parameters.
-    current_app.logger.info(f"send_postmark_email called with subject: {subject}, to: {to_email}, from: {from_email}")
-
+    # Log the email value using repr() to show any extra whitespace/characters.
+    current_app.logger.info(f"send_postmark_email called with recipient: {repr(to_email)}")
+    
     # Validate email addresses.
     if not is_valid_email(to_email):
-        current_app.logger.error(f"Invalid recipient email address: {to_email}")
+        current_app.logger.error(f"Invalid recipient email address detected: {repr(to_email)}")
         raise ValueError("Invalid recipient email address")
     if not is_valid_email(from_email):
-        current_app.logger.error(f"Invalid sender email address: {from_email}")
+        current_app.logger.error(f"Invalid sender email address detected: {repr(from_email)}")
         raise ValueError("Invalid sender email address")
     
     try:
-        # Use the Postmark client to send the email.
         response = postmark_client.emails.send(
             From=from_email,
             To=to_email,
@@ -125,7 +117,6 @@ def send_postmark_email(subject, to_email, from_email, text_body, html_body=None
     except Exception as e:
         current_app.logger.error(f"Error sending email via Postmark: {str(e)}")
         raise
-
 
 
 #FOREMAILSENDING
