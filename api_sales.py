@@ -862,6 +862,7 @@ def get_device_token_for_user(user_id):
 
 import os
 import base64
+import traceback
 import tempfile
 from apns2.client import APNsClient
 from apns2.payload import Payload
