@@ -867,48 +867,32 @@ from apns2.client import APNsClient
 from apns2.payload import Payload
 from flask import current_app
 
+import traceback
+
 def send_notification_to_salesman(salesman_id, order_id, device_token, custom_message=None):
-    """
-    Send a push notification to a salesman's device.
-    
-    :param salesman_id: The salesman's user ID.
-    :param order_id: The order ID associated with the notification.
-    :param device_token: The APNs device token for the salesman's device.
-    :param custom_message: Optional custom message for the notification.
-    :return: A dict indicating the status and any details from APNs.
-    """
-    # Use a custom message if provided; otherwise, use a default message.
     message = custom_message or f"Order {order_id} is on the way. Please check the order details."
     current_app.logger.info(f"Preparing to send notification to salesman {salesman_id}: {message}")
 
-    # Retrieve the base64-encoded certificate for the sales app from the environment.
     cert_b64 = os.environ.get("APNS_CERT_B64_SALESMAN")
     if not cert_b64:
         current_app.logger.error("APNS certificate for salesman not configured in environment variable!")
         return {"status": "error", "detail": "Salesman certificate not set"}
 
     try:
-        # Decode the certificate and write it to a temporary file.
         cert_content = base64.b64decode(cert_b64)
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pem") as temp_cert:
             temp_cert.write(cert_content)
             temp_cert_path = temp_cert.name
 
         current_app.logger.info(f"Using APNs certificate for salesman at temporary file: {temp_cert_path}")
-
-        # Create the APNs payload.
         payload = Payload(alert={"title": "Order Update", "body": message}, sound="default", badge=1)
-
-        # Create an APNs client. In production, set use_sandbox=False.
         client = APNsClient(temp_cert_path, use_sandbox=False, use_alternative_port=False)
-
-        # Use a topic appropriate for your sales app. Adjust this value as needed.
         response = client.send_notification(device_token, payload, topic="biz.cfautocare.salesmanapp")
         current_app.logger.info(f"Push notification response for salesman: {response}")
-
-        # Clean up the temporary certificate file.
         os.remove(temp_cert_path)
         return {"status": "sent", "detail": str(response)}
     except Exception as e:
-        current_app.logger.error(f"Error sending push notification to salesman: {str(e)}")
-        return {"status": "error", "detail": str(e)}
+        current_app.logger.error("Error sending push notification to salesman:")
+        current_app.logger.error(traceback.format_exc())
+        return {"status": "error", "detail": str(e) or "No error detail provided"}
+
