@@ -868,7 +868,6 @@ from apns2.payload import Payload
 from flask import current_app
 
 import traceback
-
 def send_notification_to_salesman(salesman_id, order_id, device_token, custom_message=None):
     message = custom_message or f"Order {order_id} is on the way. Please check the order details."
     current_app.logger.info(f"Preparing to send notification to salesman {salesman_id}: {message}")
@@ -886,8 +885,12 @@ def send_notification_to_salesman(salesman_id, order_id, device_token, custom_me
 
         current_app.logger.info(f"Using APNs certificate for salesman at temporary file: {temp_cert_path}")
         payload = Payload(alert={"title": "Order Update", "body": message}, sound="default", badge=1)
+        
+        # Update this topic to match your sales app's bundle identifier
+        topic = "biz.cfautocare.cfacios"  # Replace with your actual bundle ID if different
+        
         client = APNsClient(temp_cert_path, use_sandbox=False, use_alternative_port=False)
-        response = client.send_notification(device_token, payload, topic="biz.cfautocare.cfacios")
+        response = client.send_notification(device_token, payload, topic=topic)
         current_app.logger.info(f"Push notification response for salesman: {response}")
         os.remove(temp_cert_path)
         return {"status": "sent", "detail": str(response)}
@@ -895,4 +898,3 @@ def send_notification_to_salesman(salesman_id, order_id, device_token, custom_me
         current_app.logger.error("Error sending push notification to salesman:")
         current_app.logger.error(traceback.format_exc())
         return {"status": "error", "detail": str(e) or "No error detail provided"}
-
