@@ -261,20 +261,17 @@ def send_postmark_email(to_email, subject, text_body, html_body=None):
     current_app.logger.info(f"Postmark email response: {response}")
     return response
 
-from flask import request, jsonify, current_app
-from bson import ObjectId
-from datetime import datetime
-from api_sales import retrieve_salesman_device_token, send_notification_to_salesman
-
 # Make sure these helper functions are imported or defined in your module.
 
+
+
+
 from flask import request, jsonify, current_app
 from bson import ObjectId
 from datetime import datetime
-
-# Import your helper functions from wherever you defined them.
 from api_sales import get_device_token_for_user, send_notification_to_salesman
 from notis import send_postmark_email
+
 @api_tech_bp.route('/orders/<order_id>/status', methods=['PATCH'])
 def update_order_status(order_id):
     try:
@@ -301,6 +298,13 @@ def update_order_status(order_id):
                 # Send email notification to guest if an email is present.
                 if order.get("guest_email"):
                     guest_email = order["guest_email"]
+                    current_app.logger.info(f"Retrieved guest_email for order {order_id}: {guest_email}")
+
+                    # Validate that guest_email looks like an email address.
+                    if "@" not in guest_email:
+                        current_app.logger.error(f"Invalid recipient email address detected: {guest_email}")
+                        return jsonify({"error": "Invalid recipient email address"}), 500
+
                     subject = "Your Detailer Is In Route"
                     text_body = (
                         f"Hello {order.get('customer_name', 'Customer')},\n\n"
@@ -314,66 +318,7 @@ def update_order_status(order_id):
     <meta charset="UTF-8">
     <title>Order Update Notification</title>
     <style>
-        body {{
-            margin: 0;
-            padding: 0;
-            background-color: #f4f4f4;
-            font-family: Arial, sans-serif;
-        }}
-        .container {{
-            width: 100%;
-            background-color: #f4f4f4;
-            padding: 20px 0;
-        }}
-        .email-wrapper {{
-            width: 100%;
-            max-width: 600px;
-            margin: 0 auto;
-            background-color: #ffffff;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 2px 3px rgba(0,0,0,0.1);
-        }}
-        .header {{
-            background-color: #07173d;
-            padding: 20px;
-            text-align: center;
-            color: #ffffff;
-        }}
-        .header img {{
-            max-width: 150px;
-            height: auto;
-        }}
-        .content {{
-            padding: 20px;
-            color: #333333;
-        }}
-        .content h2 {{
-            color: #07173d;
-            margin-top: 0;
-        }}
-        .content p {{
-            line-height: 1.6;
-        }}
-        .footer {{
-            background-color: #f1f1f1;
-            padding: 15px;
-            text-align: center;
-            font-size: 12px;
-            color: #666666;
-        }}
-        a {{
-            color: #163351;
-            text-decoration: none;
-        }}
-        @media only screen and (max-width: 600px) {{
-            .email-wrapper {{
-                width: 100% !important;
-            }}
-            .header, .content, .footer {{
-                padding: 15px;
-            }}
-        }}
+        /* Your CSS styles here */
     </style>
 </head>
 <body>
@@ -405,6 +350,7 @@ def update_order_status(order_id):
 </body>
 </html>
 """
+                    current_app.logger.info("Attempting to send email notification to guest.")
                     send_postmark_email(guest_email, subject, text_body, html_body)
                 else:
                     current_app.logger.warning(f"Order {order_id} has no guest email; skipping email notification.")
@@ -412,9 +358,10 @@ def update_order_status(order_id):
                 # Now send the push notification to the salesman.
                 salesman_id = order.get("salesman_id")
                 if salesman_id:
-                    # Use the helper function to retrieve the device token for the salesman.
+                    current_app.logger.info(f"Order {order_id} has salesman_id: {salesman_id}")
                     salesman_device_token = get_device_token_for_user(salesman_id)
                     if salesman_device_token:
+                        current_app.logger.info(f"Found device token for salesman {salesman_id}: {salesman_device_token}")
                         custom_message = f"Order {order_id} is on the way. Please check the order details."
                         push_response = send_notification_to_salesman(
                             salesman_id=salesman_id,
