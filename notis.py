@@ -87,6 +87,8 @@ def send_tech_notification_email(order, selected_services):
 
 
 
+from flask import current_app
+
 def send_postmark_email(subject, to_email, from_email, text_body, html_body=None):
     """
     Sends an email via Postmark.
@@ -98,23 +100,31 @@ def send_postmark_email(subject, to_email, from_email, text_body, html_body=None
     :param html_body: (Optional) HTML body of the email.
     :return: The response from Postmark.
     """
+    # Log that the function has been called with its parameters.
+    current_app.logger.info(f"send_postmark_email called with subject: {subject}, to: {to_email}, from: {from_email}")
+
     # Validate email addresses.
     if not is_valid_email(to_email):
+        current_app.logger.error(f"Invalid recipient email address: {to_email}")
         raise ValueError("Invalid recipient email address")
     if not is_valid_email(from_email):
+        current_app.logger.error(f"Invalid sender email address: {from_email}")
         raise ValueError("Invalid sender email address")
     
-    # Use the Postmark client to send the email.
-    response = postmark_client.emails.send(
-        From=from_email,
-        To=to_email,
-        Subject=subject,
-        TextBody=text_body,
-        HtmlBody=html_body if html_body else text_body
-    )
-    
-    return response
-
+    try:
+        # Use the Postmark client to send the email.
+        response = postmark_client.emails.send(
+            From=from_email,
+            To=to_email,
+            Subject=subject,
+            TextBody=text_body,
+            HtmlBody=html_body if html_body else text_body
+        )
+        current_app.logger.info(f"Email sent successfully with response: {response}")
+        return response
+    except Exception as e:
+        current_app.logger.error(f"Error sending email via Postmark: {str(e)}")
+        raise
 
 
 
