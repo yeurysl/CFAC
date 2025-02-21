@@ -417,7 +417,7 @@ def update_order_status(order_id):
                     if salesman_device_token:
                         custom_message = f"Order {order_id} is on the way. Please check the order details."
                         push_response = send_notification_to_salesman(
-                            tech_id=salesman_id,  # repurposing tech_id parameter for salesman
+                            salesman_id=salesman_id,
                             order_id=order_id,
                             device_token=salesman_device_token,
                             custom_message=custom_message
