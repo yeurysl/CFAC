@@ -868,6 +868,7 @@ from apns2.payload import Payload
 from flask import current_app
 
 import traceback
+
 def send_notification_to_salesman(salesman_id, order_id, device_token, custom_message=None):
     message = custom_message or f"Order {order_id} is on the way. Please check the order details."
     current_app.logger.info(f"Preparing to send notification to salesman {salesman_id}: {message}")
@@ -878,20 +879,30 @@ def send_notification_to_salesman(salesman_id, order_id, device_token, custom_me
         return {"status": "error", "detail": "Salesman certificate not set"}
 
     try:
+        # Decode the certificate and write to a temporary file.
         cert_content = base64.b64decode(cert_b64)
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pem") as temp_cert:
             temp_cert.write(cert_content)
             temp_cert_path = temp_cert.name
 
         current_app.logger.info(f"Using APNs certificate for salesman at temporary file: {temp_cert_path}")
+
+        # Log before constructing the payload.
+        current_app.logger.info("Constructing APNs payload...")
         payload = Payload(alert={"title": "Order Update", "body": message}, sound="default", badge=1)
-        
-        # Update this topic to match your sales app's bundle identifier
-        topic = "biz.cfautocare.cfacios"  # Replace with your actual bundle ID if different
-        
+        current_app.logger.info(f"Payload constructed: alert={payload.alert}, sound={payload.sound}, badge={payload.badge}")
+
+        # Specify the topic (bundle identifier) for the sales app.
+        topic = "biz.cfautocare.cfacios"  # Replace with your actual bundle ID if different.
+        current_app.logger.info(f"Using topic: {topic}")
+
+        # Create the APNs client.
         client = APNsClient(temp_cert_path, use_sandbox=False, use_alternative_port=False)
+        current_app.logger.info("Sending notification to device...")
         response = client.send_notification(device_token, payload, topic=topic)
         current_app.logger.info(f"Push notification response for salesman: {response}")
+        
+        # Clean up the temporary certificate file.
         os.remove(temp_cert_path)
         return {"status": "sent", "detail": str(response)}
     except Exception as e:
