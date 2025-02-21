@@ -712,6 +712,71 @@ def get_order_remaining_time(order_id):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import pymongo
 from flask import request, jsonify, current_app
 from datetime import datetime
@@ -766,3 +831,84 @@ def register_device_token_sales():
     except pymongo.errors.PyMongoError as e:
         current_app.logger.error(f"Error upserting device token: {str(e)}")
         return jsonify({"error": "Database error", "details": str(e)}), 500
+@api_sales_bp.route("/sales/<salesman_id>/device_token", methods=["GET"])
+def retrieve_salesman_device_token(salesman_id):
+    """
+    Retrieve the device token for the given salesman.
+    """
+    token = get_device_token_for_user(salesman_id)
+    if token:
+        current_app.logger.info(f"Device token retrieved for salesman {salesman_id}: {token}")
+        return jsonify({"status": "success", "device_token": token}), 200
+    else:
+        current_app.logger.warning(f"No device token found for salesman {salesman_id}")
+        return jsonify({"error": "Device token not found for salesman"}), 404
+
+
+def get_device_token_for_user(user_id):
+    current_app.logger.info(f"Attempting to fetch device token for user {user_id} from the device_tokens collection.")
+    # Retrieve the device_tokens collection from your MongoDB client
+    device_tokens_collection = current_app.config.get('MONGO_CLIENT').device_tokens
+    user_record = device_tokens_collection.find_one({"user_id": user_id})
+    
+    if user_record and "device_token" in user_record:
+        token = user_record["device_token"]
+        current_app.logger.info(f"Device token retrieved for user {user_id}: {token}")
+        return token
+    else:
+        current_app.logger.warning(f"Device token not found for user {user_id}.")
+        return None
+    
+
+import os
+import base64
+import tempfile
+from apns2.client import APNsClient
+from apns2.payload import Payload
+from flask import current_app
+
+def send_notification_to_salesman(salesman_id, order_id, device_token, custom_message=None):
+    """
+    Send a push notification to a salesman's device.
+    
+    :param salesman_id: The salesman's user ID.
+    :param order_id: The order ID associated with the notification.
+    :param device_token: The APNs device token for the salesman's device.
+    :param custom_message: Optional custom message for the notification.
+    :return: A dict indicating the status and any details from APNs.
+    """
+    # Use a custom message if provided; otherwise, use a default message.
+    message = custom_message or f"Order {order_id} is on the way. Please check the order details."
+    current_app.logger.info(f"Preparing to send notification to salesman {salesman_id}: {message}")
+
+    # Retrieve the base64-encoded certificate for the sales app from the environment.
+    cert_b64 = os.environ.get("APNS_CERT_B64_SALESMAN")
+    if not cert_b64:
+        current_app.logger.error("APNS certificate for salesman not configured in environment variable!")
+        return {"status": "error", "detail": "Salesman certificate not set"}
+
+    try:
+        # Decode the certificate and write it to a temporary file.
+        cert_content = base64.b64decode(cert_b64)
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pem") as temp_cert:
+            temp_cert.write(cert_content)
+            temp_cert_path = temp_cert.name
+
+        current_app.logger.info(f"Using APNs certificate for salesman at temporary file: {temp_cert_path}")
+
+        # Create the APNs payload.
+        payload = Payload(alert={"title": "Order Update", "body": message}, sound="default", badge=1)
+
+        # Create an APNs client. In production, set use_sandbox=False.
+        client = APNsClient(temp_cert_path, use_sandbox=False, use_alternative_port=False)
+
+        # Use a topic appropriate for your sales app. Adjust this value as needed.
+        response = client.send_notification(device_token, payload, topic="biz.cfautocare.salesmanapp")
+        current_app.logger.info(f"Push notification response for salesman: {response}")
+
+        # Clean up the temporary certificate file.
+        os.remove(temp_cert_path)
+        return {"status": "sent", "detail": str(response)}
+    except Exception as e:
+        current_app.logger.error(f"Error sending push notification to salesman: {str(e)}")
+        return {"status": "error", "detail": str(e)}

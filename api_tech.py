@@ -261,6 +261,21 @@ def send_postmark_email(to_email, subject, text_body, html_body=None):
     current_app.logger.info(f"Postmark email response: {response}")
     return response
 
+from flask import request, jsonify, current_app
+from bson import ObjectId
+from datetime import datetime
+from api_sales import retrieve_salesman_device_token, send_notification_to_salesman
+
+# Make sure these helper functions are imported or defined in your module.
+# from your_notification_module import send_postmark_email, get_device_token_for_user, send_notification_to_salesman
+
+from flask import request, jsonify, current_app
+from bson import ObjectId
+from datetime import datetime
+
+# Import your helper functions from wherever you defined them.
+from api_sales import get_device_token_for_user, send_notification_to_salesman, send_postmark_email
+
 @api_tech_bp.route('/orders/<order_id>/status', methods=['PATCH'])
 def update_order_status(order_id):
     try:
@@ -271,6 +286,7 @@ def update_order_status(order_id):
 
         orders_collection = current_app.config.get('MONGO_CLIENT').orders
 
+        # Update the order status in the database.
         result = orders_collection.update_one(
             {"_id": ObjectId(order_id)},
             {"$set": {"status": new_status}}
@@ -279,22 +295,21 @@ def update_order_status(order_id):
         if result.matched_count == 0:
             return jsonify({"error": "Order not found"}), 404
 
+        # If the status is "on_the_way", handle notifications.
         if new_status == "on_the_way":
             order = orders_collection.find_one({"_id": ObjectId(order_id)})
-            if order and order.get("guest_email"):
-                guest_email = order["guest_email"]
-                subject = "Your Detailer Is In Route"
-
-                # Plain text version of the email
-                text_body = (
-                    f"Hello {order.get('customer_name', 'Customer')},\n\n"
-                    "Your technician is now on the way to complete the job. "
-                    "If you have any questions, please contact your sales rep or visit our website."
-                )
-
-                # HTML email template with header and footer
-                current_year = datetime.now().year
-                html_body = f"""<!DOCTYPE html>
+            if order:
+                # Send email notification to guest if an email is present.
+                if order.get("guest_email"):
+                    guest_email = order["guest_email"]
+                    subject = "Your Detailer Is In Route"
+                    text_body = (
+                        f"Hello {order.get('customer_name', 'Customer')},\n\n"
+                        "Your technician is now on the way to complete the job. "
+                        "If you have any questions, please contact your sales rep or visit our website."
+                    )
+                    current_year = datetime.now().year
+                    html_body = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -365,24 +380,20 @@ def update_order_status(order_id):
 <body>
     <div class="container">
         <table class="email-wrapper" cellpadding="0" cellspacing="0">
-            <!-- Header -->
             <tr>
                 <td class="header">
                     <img src="https://cfautocare.biz/static/creatives/Logo.png" alt="CFAC Logo">
                     <h1 style="margin: 10px 0 0 0;">Order Update Notification</h1>
                 </td>
             </tr>
-            <!-- Body Content -->
             <tr>
                 <td class="content">
                     <p>Hello {order.get('customer_name', 'Customer')},</p>
                     <p>Your technician is now on the way to complete the job.</p>
                     <p>If you have any questions, please contact your sales rep or visit our website.</p>
                     <a href="https://cfautocare.biz" target="_blank">Click here to visit our Website</a>
-
                 </td>
             </tr>
-            <!-- Footer -->
             <tr>
                 <td class="footer">
                     &copy; {current_year} Centralfloridaautocare LLC. All rights reserved.
@@ -395,11 +406,31 @@ def update_order_status(order_id):
 </body>
 </html>
 """
-                send_postmark_email(guest_email, subject, text_body, html_body)
-            else:
-                current_app.logger.warning(f"Order {order_id} has no guest email; skipping email notification.")
+                    send_postmark_email(guest_email, subject, text_body, html_body)
+                else:
+                    current_app.logger.warning(f"Order {order_id} has no guest email; skipping email notification.")
+
+                # Now send the push notification to the salesman.
+                salesman_id = order.get("salesman_id")
+                if salesman_id:
+                    # Use the helper function to retrieve the device token for the salesman.
+                    salesman_device_token = get_device_token_for_user(salesman_id)
+                    if salesman_device_token:
+                        custom_message = f"Order {order_id} is on the way. Please check the order details."
+                        push_response = send_notification_to_salesman(
+                            tech_id=salesman_id,  # repurposing tech_id parameter for salesman
+                            order_id=order_id,
+                            device_token=salesman_device_token,
+                            custom_message=custom_message
+                        )
+                        current_app.logger.info(f"Salesman push response: {push_response}")
+                    else:
+                        current_app.logger.warning(f"Salesman {salesman_id} has no device token; skipping push notification.")
+                else:
+                    current_app.logger.warning(f"Order {order_id} has no salesman_id; skipping push notification.")
 
         return jsonify({"message": "Order status updated successfully", "new_status": new_status}), 200
+
     except Exception as e:
         current_app.logger.error(f"Error updating order status for {order_id}: {str(e)}")
         return jsonify({"error": f"Error updating order status: {str(e)}"}), 500
