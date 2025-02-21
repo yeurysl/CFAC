@@ -897,7 +897,7 @@ def send_notification_to_salesman(salesman_id, order_id, device_token, custom_me
         current_app.logger.info(f"Payload constructed: alert={payload.alert}, sound={payload.sound}, badge={payload.badge}")
 
         # Specify the topic (bundle identifier) for your sales app.
-        topic = "biz.cfautocare.cfacios"  # Update this if your sales app's bundle identifier is different.
+        topic = "com.Centralfloridaautocare.cfacios"  # Update this if your sales app's bundle identifier is different.
         current_app.logger.info(f"Using topic: {topic}")
 
         # Create the APNs client.
