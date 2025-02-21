@@ -267,15 +267,14 @@ from datetime import datetime
 from api_sales import retrieve_salesman_device_token, send_notification_to_salesman
 
 # Make sure these helper functions are imported or defined in your module.
-# from your_notification_module import send_postmark_email, get_device_token_for_user, send_notification_to_salesman
 
 from flask import request, jsonify, current_app
 from bson import ObjectId
 from datetime import datetime
 
 # Import your helper functions from wherever you defined them.
-from api_sales import get_device_token_for_user, send_notification_to_salesman, send_postmark_email
-
+from api_sales import get_device_token_for_user, send_notification_to_salesman
+from notis import send_postmark_email
 @api_tech_bp.route('/orders/<order_id>/status', methods=['PATCH'])
 def update_order_status(order_id):
     try:
