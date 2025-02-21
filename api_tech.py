@@ -350,7 +350,7 @@ def update_order_status(order_id):
 </html>
 """
                     current_app.logger.info("Attempting to send email notification to guest.")
-                    send_postmark_email(subject, guest_email, text_body, html_body)
+                    send_postmark_email(guest_email, subject, text_body, html_body)
                 else:
                     current_app.logger.warning(f"Order {order_id} has no guest email; skipping email notification.")
 
