@@ -355,24 +355,25 @@ def update_order_status(order_id):
                     current_app.logger.warning(f"Order {order_id} has no guest email; skipping email notification.")
 
                 # Now send the push notification to the salesman.
-                salesman_id = order.get("salesman_id")
-                if salesman_id:
-                    current_app.logger.info(f"Order {order_id} has salesman_id: {salesman_id}")
-                    salesman_device_token = get_device_token_for_user(salesman_id)
-                    if salesman_device_token:
-                        current_app.logger.info(f"Found device token for salesman {salesman_id}: {salesman_device_token}")
+            # Use the "salesperson" field from the order.
+                salesperson = order.get("salesperson")
+                if salesperson:
+                    current_app.logger.info(f"Order {order_id} has salesperson: {salesperson}")
+                    salesperson_device_token = get_device_token_for_user(salesperson)
+                    if salesperson_device_token:
                         custom_message = f"Order {order_id} is on the way. Please check the order details."
                         push_response = send_notification_to_salesman(
-                            salesman_id=salesman_id,
+                            salesman_id=salesperson,  # You can keep the parameter name or change it if desired.
                             order_id=order_id,
-                            device_token=salesman_device_token,
+                            device_token=salesperson_device_token,
                             custom_message=custom_message
                         )
-                        current_app.logger.info(f"Salesman push response: {push_response}")
+                        current_app.logger.info(f"Salesperson push response: {push_response}")
                     else:
-                        current_app.logger.warning(f"Salesman {salesman_id} has no device token; skipping push notification.")
+                        current_app.logger.warning(f"Salesperson {salesperson} has no device token; skipping push notification.")
                 else:
-                    current_app.logger.warning(f"Order {order_id} has no salesman_id; skipping push notification.")
+                    current_app.logger.warning(f"Order {order_id} has no salesperson; skipping push notification.")
+
 
         return jsonify({"message": "Order status updated successfully", "new_status": new_status}), 200
 
