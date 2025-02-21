@@ -887,7 +887,7 @@ def send_notification_to_salesman(salesman_id, order_id, device_token, custom_me
         current_app.logger.info(f"Using APNs certificate for salesman at temporary file: {temp_cert_path}")
         payload = Payload(alert={"title": "Order Update", "body": message}, sound="default", badge=1)
         client = APNsClient(temp_cert_path, use_sandbox=False, use_alternative_port=False)
-        response = client.send_notification(device_token, payload, topic="biz.cfautocare.salesmanapp")
+        response = client.send_notification(device_token, payload, topic="biz.cfautocare.cfacios")
         current_app.logger.info(f"Push notification response for salesman: {response}")
         os.remove(temp_cert_path)
         return {"status": "sent", "detail": str(response)}
