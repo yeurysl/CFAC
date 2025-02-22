@@ -102,11 +102,38 @@ def update_order(order_id):
         )
         
         if result.modified_count > 0:
+            # After successful update, check if the order has a guest email
+            guest_email = order.get("guest_email")
+            if guest_email:
+                customer_name = order.get("customer_name", "Customer")
+                subject = "Your Order Has Been Scheduled"
+                text_body = (
+                    f"Hello {customer_name},\n\n"
+                    "Your order has been scheduled and our technician. "
+                    "Thank you for choosing our service!"
+                )
+                html_body = f"""
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>Order Scheduled</title>
+                </head>
+                <body>
+                    <p>Hello {customer_name},</p>
+                    <p>Your order has been scheduled.</p>
+                    <p>Thank you for choosing our cfautocare!</p>
+                </body>
+                </html>
+                """
+                send_postmark_email(guest_email, subject, text_body, html_body)
+            
             return jsonify({"message": "Order updated successfully."}), 200
         else:
             return jsonify({"error": "Order update failed."}), 500
     else:
         return jsonify({"error": "Technician not provided"}), 400
+
 
 
 def decode_jwt(token, secret_key):
