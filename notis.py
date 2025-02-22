@@ -239,6 +239,9 @@ def send_downpayment_thankyou_email(order):
         current_app.logger.error("No guest email found for downpayment notification.")
         return
     customer_name = order.get("customer_name", "Customer")
+    # Get the order ID as a string (if available)
+    order_id = str(order.get("_id", "N/A"))
+    
     subject = "Thank You for Your Down Payment"
     text_body = (
         f"Hello {customer_name},\n\n"
@@ -315,6 +318,12 @@ def send_downpayment_thankyou_email(order):
             <p style="margin: 5px 0;">Down Payment (Paid Today): <strong>${down_payment:.2f}</strong></p>
             <p style="margin: 5px 0;">Remaining Balance (Due after Completion): <strong>${remaining_balance:.2f}</strong></p>
         </div>
+    """
+    
+    # Build order information section (order id and link to My Orders)
+    order_info = f"""
+        <p style="margin-top: 20px;">Order ID: <strong>{order_id}</strong></p>
+        <p><a href="https://cfautocare.biz/customer/myorders" target="_blank" style="color: #07173d; font-weight: bold;">View My Orders</a></p>
     """
     
     html_body = f"""
@@ -395,6 +404,7 @@ def send_downpayment_thankyou_email(order):
                         <p>Hello {customer_name},</p>
                         <p>Thank you for submitting your down payment. Your order will be completed as scheduled.</p>
                         <a href="https://cfautocare.biz/customer/login" target="_blank">Click here to view your Order</a>
+                        {order_info}
                         {invoice_table}
                         {payment_breakdown}
                     </td>
@@ -419,6 +429,9 @@ def send_remaining_payment_thankyou_email(order):
         current_app.logger.error("No guest email found for remaining balance notification.")
         return
     customer_name = order.get("customer_name", "Customer")
+    # Get the order ID as a string
+    order_id = str(order.get("_id", "N/A"))
+    
     subject = "Your Payment is Complete"
     text_body = (
         f"Hello {customer_name},\n\n"
@@ -489,6 +502,12 @@ def send_remaining_payment_thankyou_email(order):
             <p style="margin: 5px 0;">Down Payment (Paid Today): <strong>${down_payment:.2f}</strong></p>
             <p style="margin: 5px 0;">Remaining Balance (Due after Completion): <strong>${remaining_balance:.2f}</strong></p>
         </div>
+    """
+    
+    # Build order information section (order id and My Orders link)
+    order_info = f"""
+        <p style="margin-top: 20px;">Order ID: <strong>{order_id}</strong></p>
+        <p><a href="https://cfautocare.biz/customer/myorders" target="_blank" style="color: #07173d; font-weight: bold;">View My Orders</a></p>
     """
     
     html_body = f"""
@@ -564,6 +583,7 @@ def send_remaining_payment_thankyou_email(order):
                     <td class="content">
                         <p>Hello {customer_name},</p>
                         <p>Thank you for paying the remaining balance. Your order is now fully confirmed.</p>
+                        {order_info}
                         {invoice_table}
                         {payment_breakdown}
                     </td>
