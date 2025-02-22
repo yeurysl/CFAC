@@ -228,6 +228,8 @@ def send_payment_links(order_id):
 
 from datetime import datetime
 from flask import current_app
+from datetime import datetime
+from flask import current_app
 
 def send_downpayment_thankyou_email(order):
     guest_email = order.get("guest_email")
@@ -241,17 +243,17 @@ def send_downpayment_thankyou_email(order):
         "Thank you for submitting your down payment. Please see your invoice details below."
     )
     
-    # Build invoice details
-    # Assume order.get("services") returns a list of service dictionaries with 'description' and 'price'
+    # Retrieve order details
     services = order.get("services", [])
-    travel_fee = order.get("travel_fee", 0)
-    final_price = order.get("final_price", 0)
+    fee = float(order.get("fee", 0))  # Combined fee from the document
+    travel_fee = float(order.get("travel_fee", 0))
+    final_price = float(order.get("final_price", 0))
     
-    # Build the rows for each service
+    # Build service rows
     service_rows = ""
     for service in services:
         description = service.get("description", "Service")
-        price = service.get("price", 0)
+        price = float(service.get("price", 0))
         service_rows += f"""
             <tr>
                 <td style="padding: 8px; border: 1px solid #dddddd;">{description}</td>
@@ -259,8 +261,16 @@ def send_downpayment_thankyou_email(order):
             </tr>
         """
     
-    # Invoice table (down payment section)
-    invoice_html = f"""
+    # Build the fee row (using the fee key from the document)
+    fee_row = f"""
+        <tr>
+            <td style="padding: 8px; border: 1px solid #dddddd;">Licensing, insurance and handling fee</td>
+            <td style="padding: 8px; border: 1px solid #dddddd; text-align: right;">${fee:.2f}</td>
+        </tr>
+    """
+    
+    # Build the invoice table for services, fee, travel fee, and total amount
+    invoice_table = f"""
         <h2 style="color:#07173d;">Invoice / Receipt</h2>
         <table style="width:100%; border-collapse: collapse;">
             <thead>
@@ -271,6 +281,7 @@ def send_downpayment_thankyou_email(order):
             </thead>
             <tbody>
                 {service_rows}
+                {fee_row}
                 <tr>
                     <td style="padding: 8px; border: 1px solid #dddddd;">Travel Fee</td>
                     <td style="padding: 8px; border: 1px solid #dddddd; text-align: right;">${travel_fee:.2f}</td>
@@ -279,14 +290,21 @@ def send_downpayment_thankyou_email(order):
                     <td style="padding: 8px; border: 1px solid #dddddd;">Total Amount</td>
                     <td style="padding: 8px; border: 1px solid #dddddd; text-align: right;">${final_price:.2f}</td>
                 </tr>
-                <tr style="font-weight: bold;">
-                    <td style="padding: 8px; border: 1px solid #dddddd;">Down Payment (40%)</td>
-                    <td style="padding: 8px; border: 1px solid #dddddd; text-align: right;">${final_price * 0.40:.2f}</td>
-                </tr>
             </tbody>
         </table>
     """
-
+    
+    # Build the separate payment breakdown section
+    down_payment = final_price * 0.40
+    remaining_balance = final_price * 0.60
+    payment_breakdown = f"""
+        <div style="margin-top: 20px; padding: 15px; background-color: #f9f9f9; border: 1px solid #dddddd;">
+            <p style="margin: 0; font-weight: bold;">Payment Breakdown</p>
+            <p style="margin: 5px 0;">Down Payment (Paid Today): <strong>${down_payment:.2f}</strong></p>
+            <p style="margin: 5px 0;">Remaining Balance (Due after Completion): <strong>${remaining_balance:.2f}</strong></p>
+        </div>
+    """
+    
     html_body = f"""
     <!DOCTYPE html>
     <html lang="en">
@@ -365,7 +383,8 @@ def send_downpayment_thankyou_email(order):
                         <p>Hello {customer_name},</p>
                         <p>Thank you for submitting your down payment. Your order will be completed as scheduled.</p>
                         <a href="https://cfautocare.biz/customer/login" target="_blank">Click here to view your Order</a>
-                        {invoice_html}
+                        {invoice_table}
+                        {payment_breakdown}
                     </td>
                 </tr>
                 <tr>
@@ -381,6 +400,7 @@ def send_downpayment_thankyou_email(order):
     sender_email = current_app.config.get("POSTMARK_SENDER_EMAIL")
     send_postmark_email(subject, guest_email, sender_email, text_body, html_body)
 
+
 def send_remaining_payment_thankyou_email(order):
     guest_email = order.get("guest_email")
     if not guest_email:
@@ -393,15 +413,15 @@ def send_remaining_payment_thankyou_email(order):
         "Thank you for paying the remaining balance. Your order is now fully confirmed."
     )
     
-    # Build invoice details (similar to above, but now include remaining balance info)
     services = order.get("services", [])
-    travel_fee = order.get("travel_fee", 0)
-    final_price = order.get("final_price", 0)
+    fee = float(order.get("fee", 0))
+    travel_fee = float(order.get("travel_fee", 0))
+    final_price = float(order.get("final_price", 0))
     
     service_rows = ""
     for service in services:
         description = service.get("description", "Service")
-        price = service.get("price", 0)
+        price = float(service.get("price", 0))
         service_rows += f"""
             <tr>
                 <td style="padding: 8px; border: 1px solid #dddddd;">{description}</td>
@@ -409,7 +429,14 @@ def send_remaining_payment_thankyou_email(order):
             </tr>
         """
     
-    invoice_html = f"""
+    fee_row = f"""
+        <tr>
+            <td style="padding: 8px; border: 1px solid #dddddd;">Licensing, insurance and handling fee</td>
+            <td style="padding: 8px; border: 1px solid #dddddd; text-align: right;">${fee:.2f}</td>
+        </tr>
+    """
+    
+    invoice_table = f"""
         <h2 style="color:#07173d;">Invoice / Receipt</h2>
         <table style="width:100%; border-collapse: collapse;">
             <thead>
@@ -420,6 +447,7 @@ def send_remaining_payment_thankyou_email(order):
             </thead>
             <tbody>
                 {service_rows}
+                {fee_row}
                 <tr>
                     <td style="padding: 8px; border: 1px solid #dddddd;">Travel Fee</td>
                     <td style="padding: 8px; border: 1px solid #dddddd; text-align: right;">${travel_fee:.2f}</td>
@@ -428,12 +456,18 @@ def send_remaining_payment_thankyou_email(order):
                     <td style="padding: 8px; border: 1px solid #dddddd;">Total Amount</td>
                     <td style="padding: 8px; border: 1px solid #dddddd; text-align: right;">${final_price:.2f}</td>
                 </tr>
-                <tr style="font-weight: bold;">
-                    <td style="padding: 8px; border: 1px solid #dddddd;">Remaining Balance (60%)</td>
-                    <td style="padding: 8px; border: 1px solid #dddddd; text-align: right;">${final_price * 0.60:.2f}</td>
-                </tr>
             </tbody>
         </table>
+    """
+    
+    down_payment = final_price * 0.40
+    remaining_balance = final_price * 0.60
+    payment_breakdown = f"""
+        <div style="margin-top: 20px; padding: 15px; background-color: #f9f9f9; border: 1px solid #dddddd;">
+            <p style="margin: 0; font-weight: bold;">Payment Breakdown</p>
+            <p style="margin: 5px 0;">Down Payment (Paid Today): <strong>${down_payment:.2f}</strong></p>
+            <p style="margin: 5px 0;">Remaining Balance (Due after Completion): <strong>${remaining_balance:.2f}</strong></p>
+        </div>
     """
     
     html_body = f"""
@@ -509,7 +543,8 @@ def send_remaining_payment_thankyou_email(order):
                     <td class="content">
                         <p>Hello {customer_name},</p>
                         <p>Thank you for paying the remaining balance. Your order is now fully confirmed.</p>
-                        {invoice_html}
+                        {invoice_table}
+                        {payment_breakdown}
                     </td>
                 </tr>
                 <tr>
