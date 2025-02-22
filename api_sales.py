@@ -481,7 +481,7 @@ def stripe_webhook():
                     {"$set": {"has_downpayment_collected": "yes", "payment_status": "downpaymentcollected"}}
                 )
                 from notis import notify_techs_new_order
-                notify_techs_new_order()
+                notify_techs_new_order(order)()
                 # Send thank-you email for the down payment
                 from notis import send_downpayment_thankyou_email
                 send_downpayment_thankyou_email(order)
