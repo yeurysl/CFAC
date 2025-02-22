@@ -378,7 +378,8 @@ def send_downpayment_thankyou_email(order):
     </body>
     </html>
     """
-    send_postmark_email(guest_email, subject, text_body, html_body)
+    sender_email = current_app.config.get("POSTMARK_SENDER_EMAIL")
+    send_postmark_email(subject, guest_email, sender_email, text_body, html_body)
 
 def send_remaining_payment_thankyou_email(order):
     guest_email = order.get("guest_email")
@@ -521,4 +522,5 @@ def send_remaining_payment_thankyou_email(order):
     </body>
     </html>
     """
-    send_postmark_email(guest_email, subject, text_body, html_body)
+    sender_email = current_app.config.get("POSTMARK_SENDER_EMAIL")
+    send_postmark_email(subject, guest_email, sender_email, text_body, html_body)
