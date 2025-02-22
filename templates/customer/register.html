@@ -7,6 +7,8 @@
 {% block content %}
 <div class="container">
     <h1 class="my-4 text-center">Register</h1>
+    <p1 class="my-4 text-center">If your signing up after booking a guest order register with the email you used to schedule. This will be the same email that your receipt was sent to.</p1>
+
     <div class="form-wrapper mx-auto">
         <form method="POST" action="{{ url_for('customer.register') }}">
             {{ form.hidden_tag() }}
