@@ -228,10 +228,6 @@ def send_payment_links(order_id):
 
 from datetime import datetime
 from flask import current_app
-from datetime import datetime
-from flask import current_app
-from datetime import datetime
-from flask import current_app
 
 def send_downpayment_thankyou_email(order):
     guest_email = order.get("guest_email")
@@ -599,3 +595,245 @@ def send_remaining_payment_thankyou_email(order):
     """
     sender_email = current_app.config.get("POSTMARK_SENDER_EMAIL")
     send_postmark_email(subject, guest_email, sender_email, text_body, html_body)
+
+
+
+def notify_techs_new_order(order):
+    """
+    Notify all tech users that a new order is available.
+    - If a tech has a registered device token, send an iOS push notification.
+    - Otherwise, send a fallback email.
+    """
+    users_collection = current_app.config.get('USERS_COLLECTION')
+    device_tokens_collection = current_app.config.get('DEVICE_TOKENS_COLLECTION')
+    
+    if not users_collection or not device_tokens_collection:
+        current_app.logger.error("Users or Device Tokens collection not configured.")
+        return
+
+    # Query for all tech users.
+    tech_cursor = users_collection.find({"user_type": "tech"})
+    for tech in tech_cursor:
+        tech_id = str(tech.get("_id"))
+        tech_email = tech.get("email")
+        token_record = device_tokens_collection.find_one({"user_id": tech_id})
+        
+        message = "A new order is available in your job list."
+        
+        if token_record and token_record.get("device_token"):
+            # If the tech has a device token, send a push notification.
+            device_token = token_record["device_token"]
+            # Call your push notification function (adjust parameters as needed).
+            push_response = send_notification_to_tech(
+                tech_id=tech_id,
+                order_id=str(order.get("_id")),
+                threshold=None,
+                device_token=device_token,
+                custom_message=message
+            )
+            current_app.logger.info(f"Push notification sent to tech {tech_id}: {push_response}")
+        else:
+            # Otherwise, send a fallback email.
+            subject = "New Order Available"
+            text_body = (
+                f"Hello {tech.get('first_name', 'Tech')},\n\n"
+                "A new order is available in your job list. Please log in to review it."
+            )
+            html_body = f"""
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <title>New Order Available</title>
+                <style>
+                    body {{
+                        font-family: Arial, sans-serif;
+                        background-color: #f4f4f4;
+                        padding: 20px;
+                    }}
+                    .container {{
+                        background-color: #ffffff;
+                        padding: 20px;
+                        border-radius: 8px;
+                        box-shadow: 0 2px 3px rgba(0,0,0,0.1);
+                    }}
+                    .header {{
+                        background-color: #07173d;
+                        color: #ffffff;
+                        text-align: center;
+                        padding: 10px 0;
+                    }}
+                    .content {{
+                        margin-top: 20px;
+                    }}
+                    .footer {{
+                        margin-top: 20px;
+                        font-size: 12px;
+                        color: #666666;
+                        text-align: center;
+                    }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>New Order Available</h1>
+                    </div>
+                    <div class="content">
+                        <p>Hello {tech.get('first_name', 'Tech')},</p>
+                        <p>A new order is available in your job list. Please log in to review the order details.</p>
+                    </div>
+                    <div class="footer">
+                        &copy; {datetime.now().year} Centralfloridaautocare LLC. All rights reserved.
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
+            sender_email = current_app.config.get("POSTMARK_SENDER_EMAIL")
+            try:
+                send_postmark_email(subject, tech_email, sender_email, text_body, html_body)
+                current_app.logger.info(f"Fallback email sent to tech {tech_id}")
+            except Exception as e:
+                current_app.logger.error(f"Failed to send fallback email to tech {tech_id}: {e}")
+
+
+def notify_techs_new_order(order):
+    """
+    Notify all tech users that a new order is available.
+    - If a tech has a registered device token, send an iOS push notification using a custom message.
+    - Otherwise, send a fallback email notifying them that a new order is available.
+    """
+    users_collection = current_app.config.get('USERS_COLLECTION')
+    device_tokens_collection = current_app.config.get('DEVICE_TOKENS_COLLECTION')
+    
+    if not users_collection or not device_tokens_collection:
+        current_app.logger.error("Users or Device Tokens collection not configured.")
+        return
+
+    # Query for all tech users.
+    tech_cursor = users_collection.find({"user_type": "tech"})
+    for tech in tech_cursor:
+        tech_id = str(tech.get("_id"))
+        tech_email = tech.get("email")
+        token_record = device_tokens_collection.find_one({"user_id": tech_id})
+        
+        # Custom message for new orders
+        custom_push_message = "A new order has been added to your job list. Please check your app for details."
+        
+        if token_record and token_record.get("device_token"):
+            # If the tech has a device token, send an iOS push notification.
+            device_token = token_record["device_token"]
+            # Call a new function to send iOS push notifications with a custom message.
+            push_response = send_ios_push_notification(
+                tech_id=tech_id,
+                order_id=str(order.get("_id")),
+                device_token=device_token,
+                message=custom_push_message
+            )
+            current_app.logger.info(f"Push notification sent to tech {tech_id}: {push_response}")
+        else:
+            # Otherwise, send a fallback email.
+            subject = "New Order Available"
+            text_body = (
+                f"Hello {tech.get('first_name', 'Tech')},\n\n"
+                "A new order is available in your job list. Please log in to review it."
+            )
+            html_body = f"""
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <title>New Order Available</title>
+                <style>
+                    body {{
+                        font-family: Arial, sans-serif;
+                        background-color: #f4f4f4;
+                        padding: 20px;
+                    }}
+                    .container {{
+                        background-color: #ffffff;
+                        padding: 20px;
+                        border-radius: 8px;
+                        box-shadow: 0 2px 3px rgba(0,0,0,0.1);
+                    }}
+                    .header {{
+                        background-color: #07173d;
+                        color: #ffffff;
+                        text-align: center;
+                        padding: 10px 0;
+                    }}
+                    .content {{
+                        margin-top: 20px;
+                    }}
+                    .footer {{
+                        margin-top: 20px;
+                        font-size: 12px;
+                        color: #666666;
+                        text-align: center;
+                    }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>New Order Available</h1>
+                    </div>
+                    <div class="content">
+                        <p>Hello {tech.get('first_name', 'Tech')},</p>
+                        <p>A new order is available in your job list. Please log in to review the order details.</p>
+                    </div>
+                    <div class="footer">
+                        &copy; {datetime.now().year} Centralfloridaautocare LLC. All rights reserved.
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
+            sender_email = current_app.config.get("POSTMARK_SENDER_EMAIL")
+            try:
+                send_postmark_email(subject, tech_email, sender_email, text_body, html_body)
+                current_app.logger.info(f"Fallback email sent to tech {tech_id}")
+            except Exception as e:
+                current_app.logger.error(f"Failed to send fallback email to tech {tech_id}: {e}")
+
+
+import os
+import base64
+import tempfile
+from apns2.client import APNsClient
+from apns2.payload import Payload
+from flask import current_app
+
+def send_ios_push_notification(tech_id, order_id, device_token, message):
+    """
+    Sends an iOS push notification via APNs with a custom message.
+    """
+    # Retrieve the base64-encoded APNs certificate from environment variables.
+    cert_b64 = os.environ.get("APNS_CERT_B64")
+    if not cert_b64:
+        current_app.logger.error("APNS certificate not configured in environment.")
+        return {"error": "APNS certificate not configured"}
+
+    try:
+        # Decode and write the certificate to a temporary file.
+        cert_content = base64.b64decode(cert_b64)
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pem") as temp_cert:
+            temp_cert.write(cert_content)
+            temp_cert_path = temp_cert.name
+
+        # Create the payload with a title and message.
+        payload = Payload(alert={"title": "New Order Available", "body": message}, sound="default", badge=1)
+        
+        # Create an APNs client. Adjust use_sandbox as necessary.
+        client = APNsClient(temp_cert_path, use_sandbox=True, use_alternative_port=False)
+        # The topic should be your app's bundle identifier.
+        response = client.send_notification(device_token, payload, topic="com.Centralfloridaautocare.cfacios")
+
+        # Clean up the temporary certificate file.
+        os.remove(temp_cert_path)
+        current_app.logger.info(f"Push notification response for tech {tech_id}: {response}")
+        return response
+    except Exception as e:
+        current_app.logger.error(f"Error sending iOS push notification: {str(e)}")
+        return {"error": str(e)}

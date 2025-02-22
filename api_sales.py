@@ -111,6 +111,11 @@ def get_services():
     
 
 
+
+
+
+
+
 @api_sales_bp.route('/guest_order', methods=['POST'])
 def create_order():
     try:
@@ -244,6 +249,8 @@ def create_order():
         return jsonify({
             "message": "Order created successfully and payment links sent to customer!"
         }), 201
+    
+    
 
     except Exception as e:
         current_app.logger.error(f"Error creating order: {e}", exc_info=True)
@@ -473,6 +480,8 @@ def stripe_webhook():
                     {"_id": ObjectId(order_id)},
                     {"$set": {"has_downpayment_collected": "yes", "payment_status": "downpaymentcollected"}}
                 )
+                from notis import notify_techs_new_order
+                notify_techs_new_order()
                 # Send thank-you email for the down payment
                 from notis import send_downpayment_thankyou_email
                 send_downpayment_thankyou_email(order)
