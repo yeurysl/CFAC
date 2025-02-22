@@ -109,20 +109,85 @@ def update_order(order_id):
                 subject = "Your Order Has Been Scheduled"
                 text_body = (
                     f"Hello {customer_name},\n\n"
-                    "Your order has been scheduled and our technician. "
+                    "Your order has been scheduled and our technician is on the way to serve you. "
                     "Thank you for choosing our service!"
                 )
+                # HTML body with header and footer styling similar to your sample email
                 html_body = f"""
                 <!DOCTYPE html>
                 <html lang="en">
                 <head>
                     <meta charset="UTF-8">
                     <title>Order Scheduled</title>
+                    <style>
+                        /* General Styles */
+                        body {{
+                            margin: 0;
+                            padding: 0;
+                            background-color: #f4f4f4;
+                            font-family: Arial, sans-serif;
+                        }}
+                        .container {{
+                            width: 100%;
+                            background-color: #f4f4f4;
+                            padding: 20px 0;
+                        }}
+                        .email-wrapper {{
+                            width: 100%;
+                            max-width: 600px;
+                            margin: 0 auto;
+                            background-color: #ffffff;
+                            border-radius: 8px;
+                            overflow: hidden;
+                            box-shadow: 0 2px 3px rgba(0,0,0,0.1);
+                        }}
+                        .header {{
+                            background-color: #07173d;
+                            padding: 20px;
+                            text-align: center;
+                            color: #ffffff;
+                        }}
+                        .content {{
+                            padding: 20px;
+                            color: #333333;
+                        }}
+                        .content h2 {{
+                            color: #07173d;
+                        }}
+                        .footer {{
+                            background-color: #f1f1f1;
+                            padding: 15px;
+                            text-align: center;
+                            font-size: 12px;
+                            color: #666666;
+                        }}
+                    </style>
                 </head>
                 <body>
-                    <p>Hello {customer_name},</p>
-                    <p>Your order has been scheduled.</p>
-                    <p>Thank you for choosing our cfautocare!</p>
+                    <div class="container">
+                        <table class="email-wrapper" cellpadding="0" cellspacing="0">
+                            <!-- Header -->
+                            <tr>
+                                <td class="header">
+                                    <h1 style="margin: 10px 0 0 0;">Order Scheduled</h1>
+                                </td>
+                            </tr>
+                            <!-- Body Content -->
+                            <tr>
+                                <td class="content">
+                                    <p>Hello {customer_name},</p>
+                                    <p>Your order has been scheduled and our technician is on the way to serve you.</p>
+                                    <p>Thank you for choosing our CFAC service!</p>
+                                </td>
+                            </tr>
+                            <!-- Footer -->
+                            <tr>
+                                <td class="footer">
+                                    &copy; {datetime.now().year} Centralfloridaautocare LLC. All rights reserved.
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
                 </body>
                 </html>
                 """
