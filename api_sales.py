@@ -470,9 +470,9 @@ def stripe_webhook():
 
             orders_collection = current_app.config['ORDERS_COLLECTION']
             order = orders_collection.find_one({"_id": ObjectId(order_id)})
-            if not order:
-                current_app.logger.error(f"Order not found: {order_id}")
-                return '', 400
+            if order is None:
+                    current_app.logger.error(f"Order not found: {order_id}")
+                    return '', 400
 
             payment_type = intent.get('metadata', {}).get('payment_type')
             if payment_type == 'downpayment':
