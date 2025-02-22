@@ -469,6 +469,10 @@ def stripe_webhook():
                 return '', 400
 
             orders_collection = current_app.config['ORDERS_COLLECTION']
+            if orders_collection is None:
+                current_app.logger.error("ORDERS_COLLECTION is not configured.")
+                return '', 500
+
             order = orders_collection.find_one({"_id": ObjectId(order_id)})
             if order is None:
                     current_app.logger.error(f"Order not found: {order_id}")
@@ -481,7 +485,7 @@ def stripe_webhook():
                     {"$set": {"has_downpayment_collected": "yes", "payment_status": "downpaymentcollected"}}
                 )
                 from notis import notify_techs_new_order
-                notify_techs_new_order(order)()
+                notify_techs_new_order(order)
                 # Send thank-you email for the down payment
                 from notis import send_downpayment_thankyou_email
                 send_downpayment_thankyou_email(order)
