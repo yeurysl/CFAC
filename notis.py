@@ -706,10 +706,10 @@ def notify_techs_new_order(order):
     """
     users_collection = current_app.config.get('USERS_COLLECTION')
     device_tokens_collection = current_app.config.get('DEVICE_TOKENS_COLLECTION')
-    
-    if not users_collection or not device_tokens_collection:
+    if users_collection is None or device_tokens_collection is None:
         current_app.logger.error("Users or Device Tokens collection not configured.")
         return
+
 
     # Query for all tech users.
     tech_cursor = users_collection.find({"user_type": "tech"})
