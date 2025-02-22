@@ -109,8 +109,8 @@ def update_order(order_id):
                 subject = "Your Order Has Been Scheduled"
                 text_body = (
                     f"Hello {customer_name},\n\n"
-                    "Your order has been scheduled and our technician is on the way to serve you. "
-                    "Thank you for choosing our service!"
+                    "Your order has been scheduled "
+                    "Thank you for choosing cfac!"
                 )
                 # HTML body with header and footer styling similar to your sample email
                 html_body = f"""
@@ -176,7 +176,8 @@ def update_order(order_id):
                             <tr>
                                 <td class="content">
                                     <p>Hello {customer_name},</p>
-                                    <p>Your order has been scheduled and our technician is on the way to serve you.</p>
+                                    <p>Your order has been scheduled and will be completed at the scheduled time.</p>
+                                    <a href="https://cfautocare.biz/customer/login" target="_blank">Click here to view your Order</a>
                                     <p>Thank you for choosing our CFAC service!</p>
                                 </td>
                             </tr>
