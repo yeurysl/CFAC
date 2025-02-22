@@ -360,7 +360,7 @@ def update_order_status(order_id):
                     current_app.logger.info(f"Order {order_id} has salesperson: {salesperson}")
                     salesperson_device_token = get_device_token_for_user(salesperson)
                     if salesperson_device_token:
-                        custom_message = f"The detailer for {order_id} is on the way."
+                        custom_message = f"The detailer for Order: {order_id} is on the way. Stay updated"
                         push_response = send_notification_to_salesman(
                             salesman_id=salesperson,  # You can keep the parameter name or change it if desired.
                             order_id=order_id,
