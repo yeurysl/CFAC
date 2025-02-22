@@ -33,7 +33,7 @@
             <!-- Phone Number -->
             <div class="form-group mb-3">
                 {{ form.phone_number(class="form-control", placeholder="Phone Number (8138609587)") }}
-                <small class="form-text text-muted"> (optional).</small>
+                <small class="form-text text-muted"> (optional)</small>
                 {% for error in form.phone_number.errors %}
                     <span class="text-danger">{{ error }}</span>
                 {% endfor %}

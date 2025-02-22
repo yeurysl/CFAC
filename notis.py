@@ -323,7 +323,6 @@ def send_downpayment_thankyou_email(order):
     # Build order information section (order id and link to My Orders)
     order_info = f"""
         <p style="margin-top: 20px;">Order ID: <strong>{order_id}</strong></p>
-        <p><a href="https://cfautocare.biz/customer/myorders" target="_blank" style="color: #07173d; font-weight: bold;">View My Orders</a></p>
     """
     
     html_body = f"""
@@ -507,7 +506,7 @@ def send_remaining_payment_thankyou_email(order):
     # Build order information section (order id and My Orders link)
     order_info = f"""
         <p style="margin-top: 20px;">Order ID: <strong>{order_id}</strong></p>
-        <p><a href="https://cfautocare.biz/customer/myorders" target="_blank" style="color: #07173d; font-weight: bold;">View My Orders</a></p>
+        <p><a href="https://cfautocare.biz/customer/login" target="_blank" style="color: #07173d; font-weight: bold;">View My Orders</a></p>
     """
     
     html_body = f"""
