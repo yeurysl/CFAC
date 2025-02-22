@@ -334,7 +334,7 @@ def update_order_status(order_id):
                     <p>Hello {order.get('customer_name', 'Customer')},</p>
                     <p>Your technician is now on the way to complete the job.</p>
                     <p>If you have any questions, please contact your sales rep or visit our website.</p>
-                    <a href="https://cfautocare./customer/login" target="_blank">Click here to view your Order</a>
+                    <a href="https://cfautocare.biz/customer/login" target="_blank">Click here to view your Order</a>
                 </td>
             </tr>
             <tr>
