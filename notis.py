@@ -230,6 +230,8 @@ from datetime import datetime
 from flask import current_app
 from datetime import datetime
 from flask import current_app
+from datetime import datetime
+from flask import current_app
 
 def send_downpayment_thankyou_email(order):
     guest_email = order.get("guest_email")
@@ -248,8 +250,9 @@ def send_downpayment_thankyou_email(order):
     fee = float(order.get("fee", 0))  # Combined fee from the document
     travel_fee = float(order.get("travel_fee", 0))
     final_price = float(order.get("final_price", 0))
+    services_total = float(order.get("services_total", 0))
     
-    # Build service rows
+    # Build service rows (list of individual services)
     service_rows = ""
     for service in services:
         description = service.get("description", "Service")
@@ -269,7 +272,15 @@ def send_downpayment_thankyou_email(order):
         </tr>
     """
     
-    # Build the invoice table for services, fee, travel fee, and total amount
+    # Build a row for services_total
+    services_total_row = f"""
+        <tr style="font-weight: bold;">
+            <td style="padding: 8px; border: 1px solid #dddddd;">Services Total</td>
+            <td style="padding: 8px; border: 1px solid #dddddd; text-align: right;">${services_total:.2f}</td>
+        </tr>
+    """
+    
+    # Build the invoice table for services, fee, services_total, travel fee, and total amount
     invoice_table = f"""
         <h2 style="color:#07173d;">Invoice / Receipt</h2>
         <table style="width:100%; border-collapse: collapse;">
@@ -282,6 +293,7 @@ def send_downpayment_thankyou_email(order):
             <tbody>
                 {service_rows}
                 {fee_row}
+                {services_total_row}
                 <tr>
                     <td style="padding: 8px; border: 1px solid #dddddd;">Travel Fee</td>
                     <td style="padding: 8px; border: 1px solid #dddddd; text-align: right;">${travel_fee:.2f}</td>
@@ -417,6 +429,7 @@ def send_remaining_payment_thankyou_email(order):
     fee = float(order.get("fee", 0))
     travel_fee = float(order.get("travel_fee", 0))
     final_price = float(order.get("final_price", 0))
+    services_total = float(order.get("services_total", 0))
     
     service_rows = ""
     for service in services:
@@ -436,6 +449,13 @@ def send_remaining_payment_thankyou_email(order):
         </tr>
     """
     
+    services_total_row = f"""
+        <tr style="font-weight: bold;">
+            <td style="padding: 8px; border: 1px solid #dddddd;">Services Total</td>
+            <td style="padding: 8px; border: 1px solid #dddddd; text-align: right;">${services_total:.2f}</td>
+        </tr>
+    """
+    
     invoice_table = f"""
         <h2 style="color:#07173d;">Invoice / Receipt</h2>
         <table style="width:100%; border-collapse: collapse;">
@@ -448,6 +468,7 @@ def send_remaining_payment_thankyou_email(order):
             <tbody>
                 {service_rows}
                 {fee_row}
+                {services_total_row}
                 <tr>
                     <td style="padding: 8px; border: 1px solid #dddddd;">Travel Fee</td>
                     <td style="padding: 8px; border: 1px solid #dddddd; text-align: right;">${travel_fee:.2f}</td>
