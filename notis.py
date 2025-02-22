@@ -146,195 +146,9 @@ def send_order_confirmation_email(user, order_details):
         logger.error(f"Failed to send order confirmation email: {e}")
 
 
-def send_admin_notification_email(salesperson_id, order, selected_services):
-    """
-    Sends a notification email to all admins when a guest order is scheduled by a salesperson.
-
-    Args:
-        salesperson_id (str): The ID of the salesperson who created the order.
-        order (dict): The order document.
-        selected_services (list): A list of product documents that were ordered.
-    """
-    try:
-        # Fetch salesperson details
-        salesperson = users_collection.find_one({'_id': ObjectId(salesperson_id)})
-        if not salesperson:
-            app.logger.error(f"Salesperson with ID {salesperson_id} not found.")
-            salesperson_name = 'Unknown Salesperson'
-        else:
-            salesperson_name = salesperson.get('name', 'Unknown Salesperson')
-
-        # Fetch all admin users
-        admins = list(users_collection.find({'user_type': 'admin'}))
-        admin_emails = [admin.get('email') for admin in admins if admin.get('email')]
-        if not admin_emails:
-            app.logger.error("No admin emails found to send notification.")
-            return  # Or handle as appropriate
-
-        subject = "Admin Notif: New Guest Order"
-
-        # Render email templates
-        html_body = render_template(
-            'emails/admin_guest_order_notification.html',
-            order=order,
-            selected_services=selected_services,
-            salesperson_name=salesperson_name,
-            current_year=datetime.utcnow().year
-        )
-        text_body = render_template(
-            'emails/admin_guest_order_notification.txt',
-            order=order,
-            selected_services=selected_services,
-            salesperson_name=salesperson_name
-        )
-
-        # Send email to each admin
-        for admin_email in admin_emails:
-            postmark_client.emails.send(
-                From=os.getenv('POSTMARK_SENDER_EMAIL'),
-                To=admin_email,
-                Subject=subject,
-                HtmlBody=html_body,
-                TextBody=text_body,
-                MessageStream="outbound"
-            )
-            app.logger.info(f"Admin notification email sent to {admin_email}")
-    except Exception as e:
-        app.logger.error(f"Failed to send admin notification email: {e}")
 
 
 
-
-def send_payment_collected_notifications(order, payment_method):
-    """
-    Sends notifications to admins, the salesperson, and the customer when a payment is collected.
-
-    Args:
-        order (dict): The order document from the database.
-        payment_method (str): The method of payment ('cash' or 'card').
-
-    Returns:
-        None
-    """
-    try:
-        # 1. Fetch Customer Information
-        if order.get('is_guest', False):
-            customer_email = order.get('guest_email')
-            customer_phone = order.get('guest_phone_number')
-            customer_name = order.get('guest_name', 'Guest')
-        else:
-            user = users_collection.find_one({'_id': ObjectId(order.get('user'))})
-            if user:
-                customer_email = user.get('email')
-                customer_phone = user.get('phone_number')
-                customer_name = user.get('name', 'Valued Customer')
-            else:
-                customer_email = None
-                customer_phone = None
-                customer_name = 'Valued Customer'
-
-        # 2. Fetch Salesperson Information
-        salesperson_id = order.get('salesperson')  # Stored as string
-        salesperson = users_collection.find_one({'_id': ObjectId(salesperson_id)}) if salesperson_id else None
-        if salesperson:
-            salesperson_email = salesperson.get('email')
-            salesperson_phone = salesperson.get('phone_number')
-            salesperson_name = salesperson.get('name', 'Salesperson')
-        else:
-            salesperson_email = None
-            salesperson_phone = None
-            salesperson_name = 'Salesperson'
-
-        # 3. Fetch All Admin Users
-        admins = list(users_collection.find({'user_type': 'admin'}))
-        admin_emails = [admin.get('email') for admin in admins if admin.get('email')]
-        admin_phones = [admin.get('phone_number') for admin in admins if admin.get('phone_number')]
-
-        # 4. Prepare Notification Messages
-        customer_subject = "Payment Confirmation - CFAC"
-        salesperson_subject = "Payment Collected - CFAC"
-        admin_subject = "Payment Collected - CFAC"
-
-        # 5. Send Notifications to Customer
-        if customer_email:
-            html_body = render_template(
-                'emails/customer_payment_confirmation.html',
-                order=order,
-                payment_method=payment_method,
-                customer_name=customer_name
-            )
-            text_body = render_template(
-                'emails/customer_payment_confirmation.txt',
-                order=order,
-                payment_method=payment_method,
-                customer_name=customer_name
-            )
-            send_generic_email(
-                recipient_email=customer_email,
-                subject=customer_subject,
-                html_body=html_body,
-                text_body=text_body
-            )
-
-        # 6. Send Notifications to Salesperson
-        if salesperson_email:
-            html_body = render_template(
-                'emails/salesperson_payment_collected.html',
-                order=order,
-                payment_method=payment_method,
-                salesperson_name=salesperson_name
-            )
-            text_body = render_template(
-                'emails/salesperson_payment_collected.txt',
-                order=order,
-                payment_method=payment_method,
-                salesperson_name=salesperson_name
-            )
-            send_generic_email(
-                recipient_email=salesperson_email,
-                subject=salesperson_subject,
-                html_body=html_body,
-                text_body=text_body
-            )
-
-        # 7. Send Notifications to Admins
-        for admin_email in admin_emails:
-            html_body = render_template(
-                'emails/admin_payment_collected.html',
-                order=order,
-                payment_method=payment_method,
-                salesperson_name=salesperson_name
-            )
-            text_body = render_template(
-                'emails/admin_payment_collected.txt',
-                order=order,
-                payment_method=payment_method,
-                salesperson_name=salesperson_name
-            )
-            send_generic_email(
-                recipient_email=admin_email,
-                subject=admin_subject,
-                html_body=html_body,
-                text_body=text_body
-            )
-
-        # 8. Send SMS Notifications (If Applicable)
-        # Assuming you want to continue using AWS SNS for SMS
-        # Ensure phone numbers are in E.164 format
-        if customer_phone:
-            customer_message = f"Dear {customer_name}, your payment for Order {order.get('_id')} has been successfully received via {payment_method.capitalize()}."
-            send_sms(customer_phone, customer_message)
-
-        if salesperson_phone:
-            salesperson_message = f"Dear {salesperson_name}, you have successfully collected a payment for Order {order.get('_id')} via {payment_method.capitalize()}."
-            send_sms(salesperson_phone, salesperson_message)
-
-        for admin_phone in admin_phones:
-            admin_message = f"A payment for Order {order.get('_id')} has been collected via {payment_method.capitalize()} by Salesperson {salesperson_name}."
-            send_sms(admin_phone, admin_message)
-
-    except Exception as e:
-        app.logger.error(f"Error sending payment collected notifications: {e}", exc_info=True)
 
 
 
@@ -409,3 +223,302 @@ def send_payment_links(order_id):
         return {"error": str(e)}, 500
 
 
+
+
+
+from datetime import datetime
+from flask import current_app
+
+def send_downpayment_thankyou_email(order):
+    guest_email = order.get("guest_email")
+    if not guest_email:
+        current_app.logger.error("No guest email found for downpayment notification.")
+        return
+    customer_name = order.get("customer_name", "Customer")
+    subject = "Thank You for Your Down Payment"
+    text_body = (
+        f"Hello {customer_name},\n\n"
+        "Thank you for submitting your down payment. Please see your invoice details below."
+    )
+    
+    # Build invoice details
+    # Assume order.get("services") returns a list of service dictionaries with 'description' and 'price'
+    services = order.get("services", [])
+    travel_fee = order.get("travel_fee", 0)
+    final_price = order.get("final_price", 0)
+    
+    # Build the rows for each service
+    service_rows = ""
+    for service in services:
+        description = service.get("description", "Service")
+        price = service.get("price", 0)
+        service_rows += f"""
+            <tr>
+                <td style="padding: 8px; border: 1px solid #dddddd;">{description}</td>
+                <td style="padding: 8px; border: 1px solid #dddddd; text-align: right;">${price:.2f}</td>
+            </tr>
+        """
+    
+    # Invoice table (down payment section)
+    invoice_html = f"""
+        <h2 style="color:#07173d;">Invoice / Receipt</h2>
+        <table style="width:100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background-color: #f8f8f8;">
+                    <th style="padding: 8px; border: 1px solid #dddddd; text-align: left;">Description</th>
+                    <th style="padding: 8px; border: 1px solid #dddddd; text-align: right;">Price</th>
+                </tr>
+            </thead>
+            <tbody>
+                {service_rows}
+                <tr>
+                    <td style="padding: 8px; border: 1px solid #dddddd;">Travel Fee</td>
+                    <td style="padding: 8px; border: 1px solid #dddddd; text-align: right;">${travel_fee:.2f}</td>
+                </tr>
+                <tr style="font-weight: bold;">
+                    <td style="padding: 8px; border: 1px solid #dddddd;">Total Amount</td>
+                    <td style="padding: 8px; border: 1px solid #dddddd; text-align: right;">${final_price:.2f}</td>
+                </tr>
+                <tr style="font-weight: bold;">
+                    <td style="padding: 8px; border: 1px solid #dddddd;">Down Payment (40%)</td>
+                    <td style="padding: 8px; border: 1px solid #dddddd; text-align: right;">${final_price * 0.40:.2f}</td>
+                </tr>
+            </tbody>
+        </table>
+    """
+
+    html_body = f"""
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Down Payment Received</title>
+        <style>
+            body {{
+                margin: 0;
+                padding: 0;
+                background-color: #f4f4f4;
+                font-family: Arial, sans-serif;
+            }}
+            .container {{
+                width: 100%;
+                background-color: #f4f4f4;
+                padding: 20px 0;
+            }}
+            .email-wrapper {{
+                width: 100%;
+                max-width: 600px;
+                margin: 0 auto;
+                background-color: #ffffff;
+                border-radius: 8px;
+                overflow: hidden;
+                box-shadow: 0 2px 3px rgba(0,0,0,0.1);
+            }}
+            .header {{
+                background-color: #07173d;
+                padding: 20px;
+                text-align: center;
+                color: #ffffff;
+            }}
+            .content {{
+                padding: 20px;
+                color: #333333;
+            }}
+            .content a {{
+                display: inline-block;
+                margin-top: 10px;
+                color: #07173d;
+                text-decoration: none;
+                font-weight: bold;
+            }}
+            .footer {{
+                background-color: #f1f1f1;
+                padding: 15px;
+                text-align: center;
+                font-size: 12px;
+                color: #666666;
+            }}
+            table {{
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 20px;
+            }}
+            th, td {{
+                padding: 8px;
+                border: 1px solid #dddddd;
+            }}
+            th {{
+                background-color: #f8f8f8;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <table class="email-wrapper" cellpadding="0" cellspacing="0">
+                <tr>
+                    <td class="header">
+                        <h1>Down Payment Received</h1>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="content">
+                        <p>Hello {customer_name},</p>
+                        <p>Thank you for submitting your down payment. Your order will be completed as scheduled.</p>
+                        <a href="https://cfautocare.biz/customer/login" target="_blank">Click here to view your Order</a>
+                        {invoice_html}
+                    </td>
+                </tr>
+                <tr>
+                    <td class="footer">
+                        &copy; {datetime.now().year} Centralfloridaautocare LLC. All rights reserved.
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </body>
+    </html>
+    """
+    send_postmark_email(guest_email, subject, text_body, html_body)
+
+def send_remaining_payment_thankyou_email(order):
+    guest_email = order.get("guest_email")
+    if not guest_email:
+        current_app.logger.error("No guest email found for remaining balance notification.")
+        return
+    customer_name = order.get("customer_name", "Customer")
+    subject = "Your Payment is Complete"
+    text_body = (
+        f"Hello {customer_name},\n\n"
+        "Thank you for paying the remaining balance. Your order is now fully confirmed."
+    )
+    
+    # Build invoice details (similar to above, but now include remaining balance info)
+    services = order.get("services", [])
+    travel_fee = order.get("travel_fee", 0)
+    final_price = order.get("final_price", 0)
+    
+    service_rows = ""
+    for service in services:
+        description = service.get("description", "Service")
+        price = service.get("price", 0)
+        service_rows += f"""
+            <tr>
+                <td style="padding: 8px; border: 1px solid #dddddd;">{description}</td>
+                <td style="padding: 8px; border: 1px solid #dddddd; text-align: right;">${price:.2f}</td>
+            </tr>
+        """
+    
+    invoice_html = f"""
+        <h2 style="color:#07173d;">Invoice / Receipt</h2>
+        <table style="width:100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background-color: #f8f8f8;">
+                    <th style="padding: 8px; border: 1px solid #dddddd; text-align: left;">Description</th>
+                    <th style="padding: 8px; border: 1px solid #dddddd; text-align: right;">Price</th>
+                </tr>
+            </thead>
+            <tbody>
+                {service_rows}
+                <tr>
+                    <td style="padding: 8px; border: 1px solid #dddddd;">Travel Fee</td>
+                    <td style="padding: 8px; border: 1px solid #dddddd; text-align: right;">${travel_fee:.2f}</td>
+                </tr>
+                <tr style="font-weight: bold;">
+                    <td style="padding: 8px; border: 1px solid #dddddd;">Total Amount</td>
+                    <td style="padding: 8px; border: 1px solid #dddddd; text-align: right;">${final_price:.2f}</td>
+                </tr>
+                <tr style="font-weight: bold;">
+                    <td style="padding: 8px; border: 1px solid #dddddd;">Remaining Balance (60%)</td>
+                    <td style="padding: 8px; border: 1px solid #dddddd; text-align: right;">${final_price * 0.60:.2f}</td>
+                </tr>
+            </tbody>
+        </table>
+    """
+    
+    html_body = f"""
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Payment Complete</title>
+        <style>
+            body {{
+                margin: 0;
+                padding: 0;
+                background-color: #f4f4f4;
+                font-family: Arial, sans-serif;
+            }}
+            .container {{
+                width: 100%;
+                background-color: #f4f4f4;
+                padding: 20px 0;
+            }}
+            .email-wrapper {{
+                width: 100%;
+                max-width: 600px;
+                margin: 0 auto;
+                background-color: #ffffff;
+                border-radius: 8px;
+                overflow: hidden;
+                box-shadow: 0 2px 3px rgba(0,0,0,0.1);
+            }}
+            .header {{
+                background-color: #07173d;
+                padding: 20px;
+                text-align: center;
+                color: #ffffff;
+            }}
+            .content {{
+                padding: 20px;
+                color: #333333;
+            }}
+            .content h2 {{
+                color: #07173d;
+            }}
+            .footer {{
+                background-color: #f1f1f1;
+                padding: 15px;
+                text-align: center;
+                font-size: 12px;
+                color: #666666;
+            }}
+            table {{
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 20px;
+            }}
+            th, td {{
+                padding: 8px;
+                border: 1px solid #dddddd;
+            }}
+            th {{
+                background-color: #f8f8f8;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <table class="email-wrapper" cellpadding="0" cellspacing="0">
+                <tr>
+                    <td class="header">
+                        <h1>Payment Complete</h1>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="content">
+                        <p>Hello {customer_name},</p>
+                        <p>Thank you for paying the remaining balance. Your order is now fully confirmed.</p>
+                        {invoice_html}
+                    </td>
+                </tr>
+                <tr>
+                    <td class="footer">
+                        &copy; {datetime.now().year} Centralfloridaautocare LLC. All rights reserved.
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </body>
+    </html>
+    """
+    send_postmark_email(guest_email, subject, text_body, html_body)

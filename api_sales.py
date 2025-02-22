@@ -457,35 +457,40 @@ def stripe_webhook():
             current_app.logger.info(f"PaymentIntent succeeded: {intent['id']}")
 
             order_id = intent.get('metadata', {}).get('order_id')
-
             if not order_id:
                 current_app.logger.error(f"Order ID not found in payment intent: {intent['id']}")
-                return '', 400  # Respond with error if order_id is not found
+                return '', 400
 
             orders_collection = current_app.config['ORDERS_COLLECTION']
             order = orders_collection.find_one({"_id": ObjectId(order_id)})
-
             if not order:
                 current_app.logger.error(f"Order not found: {order_id}")
                 return '', 400
 
-            # Update the order status based on payment type
             payment_type = intent.get('metadata', {}).get('payment_type')
             if payment_type == 'downpayment':
                 orders_collection.update_one(
                     {"_id": ObjectId(order_id)},
                     {"$set": {"has_downpayment_collected": "yes", "payment_status": "downpaymentcollected"}}
                 )
+                # Send thank-you email for the down payment
+                from notis import send_downpayment_thankyou_email
+                send_downpayment_thankyou_email(order)
             elif payment_type == 'remaining_balance':
                 orders_collection.update_one(
                     {"_id": ObjectId(order_id)},
                     {"$set": {"payment_status": "completed"}}
                 )
+                # Send thank-you email for the remaining balance
+                from notis import send_remaining_payment_thankyou_email
+                send_remaining_payment_thankyou_email(order)
             return '', 200
 
     except Exception as e:
         current_app.logger.error(f"Error processing webhook: {e}")
         return '', 400
+
+
 
 @api_sales_bp.route('/collect_downpayment', methods=['POST'])
 def collect_downpayment():
