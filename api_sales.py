@@ -452,56 +452,90 @@ def create_payment_intent():
 
 @api_sales_bp.route('/webhook', methods=['POST'])
 def stripe_webhook():
+    current_app.logger.info("Entered stripe_webhook endpoint")
+    
     payload = request.data
+    current_app.logger.info(f"Payload received: {payload[:100]}...")  # Log first 100 chars for brevity
+    
     sig_header = request.headers.get('Stripe-Signature')
+    current_app.logger.info(f"Stripe-Signature header: {sig_header}")
+    
     endpoint_secret = current_app.config.get('STRIPE_WEBHOOK_SECRET')
-
+    current_app.logger.info(f"Endpoint secret loaded from config")
+    
     try:
         event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
-
+        current_app.logger.info("Stripe event constructed successfully")
+        
+        # Check for successful payment intent event
         if event['type'] == 'payment_intent.succeeded':
+            current_app.logger.info("Event type is payment_intent.succeeded")
             intent = event['data']['object']
             current_app.logger.info(f"PaymentIntent succeeded: {intent['id']}")
-
+            
             order_id = intent.get('metadata', {}).get('order_id')
+            current_app.logger.info(f"Order ID from PaymentIntent metadata: {order_id}")
             if not order_id:
                 current_app.logger.error(f"Order ID not found in payment intent: {intent['id']}")
                 return '', 400
 
-            orders_collection = current_app.config['ORDERS_COLLECTION']
+            orders_collection = current_app.config.get('ORDERS_COLLECTION')
             if orders_collection is None:
                 current_app.logger.error("ORDERS_COLLECTION is not configured.")
                 return '', 500
-
+            current_app.logger.info("ORDERS_COLLECTION loaded successfully")
+            
             order = orders_collection.find_one({"_id": ObjectId(order_id)})
             if order is None:
-                    current_app.logger.error(f"Order not found: {order_id}")
-                    return '', 400
-
+                current_app.logger.error(f"Order not found: {order_id}")
+                return '', 400
+            current_app.logger.info(f"Order retrieved: {order_id}")
+            
             payment_type = intent.get('metadata', {}).get('payment_type')
+            current_app.logger.info(f"Payment type from metadata: {payment_type}")
             if payment_type == 'downpayment':
+                current_app.logger.info("Processing downpayment update")
                 orders_collection.update_one(
                     {"_id": ObjectId(order_id)},
                     {"$set": {"has_downpayment_collected": "yes", "payment_status": "downpaymentcollected"}}
                 )
+                current_app.logger.info("Order updated with downpayment status")
+                
                 from notis import notify_techs_new_order
+                current_app.logger.info("Calling notify_techs_new_order")
                 notify_techs_new_order(order)
-                # Send thank-you email for the down payment
+                current_app.logger.info("notify_techs_new_order completed")
+                
                 from notis import send_downpayment_thankyou_email
+                current_app.logger.info("Calling send_downpayment_thankyou_email")
                 send_downpayment_thankyou_email(order)
+                current_app.logger.info("send_downpayment_thankyou_email completed")
+                
             elif payment_type == 'remaining_balance':
+                current_app.logger.info("Processing remaining_balance update")
                 orders_collection.update_one(
                     {"_id": ObjectId(order_id)},
                     {"$set": {"payment_status": "completed"}}
                 )
-                # Send thank-you email for the remaining balance
+                current_app.logger.info("Order updated with remaining_balance status")
+                
                 from notis import send_remaining_payment_thankyou_email
+                current_app.logger.info("Calling send_remaining_payment_thankyou_email")
                 send_remaining_payment_thankyou_email(order)
+                current_app.logger.info("send_remaining_payment_thankyou_email completed")
+            else:
+                current_app.logger.warning(f"Unhandled payment type: {payment_type}")
+            
+            current_app.logger.info("Returning 200 response from webhook")
+            return '', 200
+        else:
+            current_app.logger.info(f"Ignoring event type: {event['type']}")
             return '', 200
 
     except Exception as e:
         current_app.logger.error(f"Error processing webhook: {e}")
         return '', 400
+
 
 
 
