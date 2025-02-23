@@ -233,72 +233,94 @@
 
 
 
-
-
-
-
-
-
-
-
-
-<!-- Second Career: image on right, text on left -->
-<div class="row align-items-center flex-column flex-lg-row mb-4">
-  <!-- Text (ordered first on large screens) -->
-  <div class="col-lg-6 order-lg-1">
-    <div class="p-3 border rounded">
-      <h3>Autonomy</h3>
-      <p>
-        You can work whenever you want and however you want. At cfautocare we focus on the destination, and let you focus on the passage because we know that everyone has their own way of getting things done.
-      </p>
+  <style>
+    /* Custom text container with white border */
+    .custom-text-container {
+      border: 1px solid #fff !important;
+      background-color: #fff; /* Set to match your page background */
+      padding: 1rem; /* Adjust padding as needed */
+      border-radius: 0.25rem; /* Optional: rounds the corners */
+    }
+    /* Container for the heading */
+    .custom-heading {
+      margin-bottom: 1rem; /* Space between heading and paragraph */
+      /* Additional styling can be added here */
+    }
+    /* Container for the paragraph text */
+    .custom-paragraph {
+      max-width: 400px; 
+    }
+  </style>
+  
+  <!-- Second Career: image on right, text on left -->
+  <div class="row align-items-center flex-column flex-lg-row mb-4">
+    <!-- Text (ordered first on large screens) -->
+    <div class="col-lg-6 order-lg-1">
+      <div class="p-3 custom-text-container">
+        <div class="custom-heading">
+          <h3>Autonomy</h3>
+        </div>
+        <div class="custom-paragraph">
+          <p>
+            You can work whenever you want and however you want. At cfautocare we focus on the destination, and let you focus on the passage because we know that everyone has their own way of getting things done.
+          </p>
+        </div>
+      </div>
+    </div>
+    <!-- Image (ordered second on large screens) -->
+    <div class="col-lg-6 order-lg-2">
+      <img src="{{ url_for('static', filename='creatives/2ndcareerpic.jpg') }}"
+           alt="2nd Careers Pic"
+           class="img-fluid career-img second">
     </div>
   </div>
-  <!-- Image (ordered second on large screens) -->
-  <div class="col-lg-6 order-lg-2">
-    <img src="{{ url_for('static', filename='creatives/2ndcareerpic.jpg') }}"
-         alt="2nd Careers Pic"
-         class="img-fluid career-img second">
-  </div>
-</div>
-
-<!-- Third Career: image on left, text on right (default order) -->
-<div class="row align-items-center flex-column flex-lg-row mb-4">
-  <!-- Image (default order: left) -->
-  <div class="col-lg-6">
-    <img src="{{ url_for('static', filename='creatives/3rdcareerpic.jpg') }}"
-         alt="3rd Careers Pic"
-         class="img-fluid career-img third">
-  </div>
-  <!-- Text (default order: right) -->
-  <div class="col-lg-6 mt-3 mt-lg-0">
-    <div class="p-3 border rounded">
-      <h3>Merit</h3>
-      <p>
-        If you're going to do something, do it right. And if you don't know how to do it right, keep learning and practicing until you do. We strive for excellence and as long as you have the desire, all it takes is time and effort.
-      </p>
+  
+  <!-- Third Career: image on left, text on right (default order) -->
+  <div class="row align-items-center flex-column flex-lg-row mb-4">
+    <!-- Image (default order: left) -->
+    <div class="col-lg-6">
+      <img src="{{ url_for('static', filename='creatives/3rdcareerpic.jpg') }}"
+           alt="3rd Careers Pic"
+           class="img-fluid career-img third">
+    </div>
+    <!-- Text (default order: right) -->
+    <div class="col-lg-6 mt-3 mt-lg-0">
+      <div class="p-3 custom-text-container">
+        <div class="custom-heading">
+          <h3>Merit</h3>
+        </div>
+        <div class="custom-paragraph">
+          <p>
+            If you're going to do something, do it right. And if you don't know how to do it right, keep learning and practicing until you do. We strive for excellence and as long as you have the desire, all it takes is time and effort.
+          </p>
+        </div>
+      </div>
     </div>
   </div>
-</div>
-
-<!-- Fourth Career: image on right, text on left -->
-<div class="row align-items-center flex-column flex-lg-row mb-4">
-  <!-- Text (ordered first on large screens) -->
-  <div class="col-lg-6 order-lg-1">
-    <div class="p-3 border rounded">
-      <h3>Growth</h3>
-      <p>
-        You decide where to stop and you decide where to start. We have many positions available from physical labor, to human relations, to strategy, to engineering, and etc... And we make sure to remove obstacles that hinder our team's growth to foster great products and services.
-      </p>
+  
+  <!-- Fourth Career: image on right, text on left -->
+  <div class="row align-items-center flex-column flex-lg-row mb-4">
+    <!-- Text (ordered first on large screens) -->
+    <div class="col-lg-6 order-lg-1">
+      <div class="p-3 custom-text-container">
+        <div class="custom-heading">
+          <h3>Growth</h3>
+        </div>
+        <div class="custom-paragraph">
+          <p>
+            You decide where to stop and you decide where to start. We have many positions available from physical labor, to human relations, to strategy, to engineering, and etc... And we make sure to remove obstacles that hinder our team's growth to foster great products and services.
+          </p>
+        </div>
+      </div>
+    </div>
+    <!-- Image (ordered second on large screens) -->
+    <div class="col-lg-6 order-lg-2">
+      <img src="{{ url_for('static', filename='creatives/4thcareerpic.jpg') }}"
+           alt="4th Careers Pic"
+           class="img-fluid career-img fourth">
     </div>
   </div>
-  <!-- Image (ordered second on large screens) -->
-  <div class="col-lg-6 order-lg-2">
-    <img src="{{ url_for('static', filename='creatives/4thcareerpic.jpg') }}"
-         alt="4th Careers Pic"
-         class="img-fluid career-img fourth">
-  </div>
-</div>
-
+  
   
   
 
