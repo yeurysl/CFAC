@@ -970,3 +970,97 @@ def send_notification_to_salesman(salesman_id, order_id, device_token, custom_me
         current_app.logger.error("Error sending push notification to salesman:")
         current_app.logger.error(traceback.format_exc())
         return {"status": "error", "detail": str(e) or "No error detail provided"}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#Registration
+from flask_bcrypt import Bcrypt
+import re
+
+def is_valid_email(email):
+    """Validate email format using regex."""
+    regex = r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'
+    return re.match(regex, email)
+
+def is_valid_username(username):
+    """Validate username format (only letters, numbers, and underscores)."""
+    regex = r'^\w+$'
+    return re.match(regex, username)
+
+@api_sales_bp.route('/register', methods=['POST'])
+def register_user():
+    """
+    API Endpoint to register a new user.
+    Expects a JSON payload with:
+      - email (string)
+      - username (string)
+      - password (string)
+      - full_name (string)
+      - user_type (admin, tech, sales)
+    """
+    data = request.get_json()
+
+    # Validate required fields
+    email = data.get("email", "").strip().lower()
+    username = data.get("username", "").strip()
+    password = data.get("password", "").strip()
+    full_name = data.get("full_name", "").strip()
+    user_type = data.get("user_type", "").strip().lower()
+
+    if not email or not username or not password or not full_name or not user_type:
+        return jsonify({"error": "All fields (email, username, password, full_name, user_type) are required."}), 400
+
+    # Validate email and username formats
+    if not is_valid_email(email):
+        return jsonify({"error": "Invalid email format."}), 400
+    if not is_valid_username(username):
+        return jsonify({"error": "Invalid username. Only letters, numbers, and underscores are allowed."}), 400
+
+    # Validate user type
+    if user_type not in ['admin', 'tech', 'sales']:
+        return jsonify({"error": "Invalid user type. Must be 'admin', 'tech', or 'sales'."}), 400
+
+    # Validate password complexity
+    if len(password) < 8:
+        return jsonify({"error": "Password must be at least 8 characters long."}), 400
+
+    # Access MongoDB instance
+    db = current_app.config["MONGO_CLIENT"]
+    users_collection = db.users
+
+    # Check if email or username is already registered
+    if users_collection.find_one({"email": email}):
+        return jsonify({"error": f"An account with email '{email}' already exists."}), 409
+    if users_collection.find_one({"username": username}):
+        return jsonify({"error": f"The username '{username}' is already taken."}), 409
+
+    # Hash the password
+    hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
+
+    # Create a new user document
+    user = {
+        "email": email,
+        "username": username,
+        "password": hashed_password,
+        "full_name": full_name,
+        "user_type": user_type,
+        "creation_date": datetime.utcnow()
+    }
+
+    # Insert the user into the database
+    try:
+        users_collection.insert_one(user)
+        return jsonify({"message": "User registered successfully!", "email": email}), 201
+    except Exception as e:
+        return jsonify({"error": f"An error occurred while adding the user: {str(e)}"}), 500
