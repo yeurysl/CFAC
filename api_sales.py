@@ -1,5 +1,5 @@
 #api_sales.py
-from flask import Blueprint, request, jsonify, current_app, render_template, Flask
+from flask import Blueprint, request, jsonify, current_app, render_template, Flask, send_file
 from datetime import datetime
 from flask_login import current_user  
 import jwt

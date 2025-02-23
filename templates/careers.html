@@ -102,7 +102,7 @@
     background: linear-gradient(to bottom, rgba(0,0,0,0), rgba(0,0,0,0.6));">
     </div>
     <div class="overlay-text">
-      Continued Growth
+      Careers
     </div>
   </div>
   
@@ -305,6 +305,17 @@
     </div>
   </div>
   
+<!-- Tampa Section: Single image horizontal stack -->
+<div class="row mb-4">
+  <div class="col-12 text-center">
+    <img src="{{ url_for('static', filename='creatives/tampa.jpg') }}"
+         alt="Tampa"
+         class="img-fluid">
+  </div>
+</div>
+
+
+
   <!-- Third Career: image on left, text on right (default order) -->
   <div class="row align-items-center flex-column flex-lg-row mb-4">
     <!-- Image (default order: left) -->
@@ -360,28 +371,7 @@
 
   
   
-  <!-- Login / Dashboard Links -->
-  <div style="text-align: center; margin: 20px 0;">
-    {% if 'user_type' in session %}
-      {% if session['user_type'] == 'admin' %}
-        <a href="{{ url_for('admin.admin_main') }}" style="display: inline-block; padding: 10px 20px; 
-           font-size: 14px; text-decoration: none; background-color:#07173d; color: white; border-radius: 5px; border: none;">
-          Dashboard
-        </a>
-      {% elif session['user_type'] == 'employee' %}
-        <a href="{{ url_for('tech.tech_main') }}" style="display: inline-block; padding: 10px 20px; 
-           font-size: 14px; text-decoration: none; background-color:#07173d; color: white; border-radius: 5px; border: none;">
-          Dashboard
-        </a>
-      {% endif %}
-    {% else %}
-      <a href="{{ url_for('core.employee_login') }}" style="display: inline-block; padding: 10px 20px; 
-         font-size: 16px; text-decoration: none; background-color:#000000; color: white; border-radius: 5px; border: none;">
-        Login
-      </a>
-    {% endif %}
-  </div>
-{% endblock %}
+
 
 {% block footer %}
 <!-- templates/footer.html -->

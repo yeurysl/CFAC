@@ -24,6 +24,8 @@ from api_auth import api_bp
 from api_account import api_account_bp
 from api_sales import api_sales_bp
 from api_tech import api_tech_bp
+from api_contract import contracts_bp
+
 # Import blueprints
 from blueprints.customer import customer_bp
 from blueprints.admin import admin_bp
@@ -86,6 +88,7 @@ def create_app():
     app.register_blueprint(api_tech_bp)
     app.register_blueprint(api_sales_bp)
     app.register_blueprint(api_account_bp)
+    app.register_blueprint(contracts_bp)
 
     # Register custom error pages
     register_error_handlers(app)
