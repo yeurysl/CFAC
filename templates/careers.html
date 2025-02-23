@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     
-    <nav class="navbar navbar-expand-lg custom-navbar" style="background-color: black;">
+    <nav class="navbar navbar-expand-lg custom-navbar" style="background-color: rgb(14, 14, 14);">
         <div class="container-fluid">
           <a class="navbar-brand" href="{{ url_for('core.home') }}">
             <img src="{{ url_for('static', filename='creatives/Logo.svg') }}" alt="Your Logo" width="auto" height="175">
@@ -102,7 +102,7 @@
     background: linear-gradient(to bottom, rgba(0,0,0,0), rgba(0,0,0,0.6));">
     </div>
     <div class="overlay-text">
-      Careers
+      Continued Growth
     </div>
   </div>
   
@@ -137,8 +137,8 @@
       .career-img.second,
       .career-img.third,
       .career-img.fourth {
-        width: 75px;  /* adjust as needed */
-        height: 75px; /* fixed height */
+        width: 100%;  /* adjust as needed */
+        height: 500px; /* fixed height */
       }
     }
   </style>
@@ -161,9 +161,9 @@
     </div>
     <!-- Text (default order: right) with extra top margin on mobile -->
     <div class="col-lg-6 mt-3 mt-lg-0">
-      <h3 class="mb-3">Careers</h3>
-      <p>CareersCareersCareersCareersCareersCareersCareersCareersCareersCareersCareersCareersCareersCareersCareersCareersCareersCareersCareersCareers</p>
-      <p>CareersCareersCareersCareersCareersCareersCareersCareers</p>
+      <h3 class="mb-3">An environmet grounded on marit, autonomy, and growth</h3>
+      <p>At cfautocare we're on a mission to make work easily accessible for anyone, anywhere, regardless of your experience and goals.</p>
+      <p>The way we see things, technology should make it easier to produce products instead of complicating and clogging things. So we design software where labor is easily accessible for all sectors in order to streamline development and focus on innovation.</p>
     </div>
   </div>
   
@@ -242,58 +242,63 @@
 
 
 
-
-
-  
-    <!-- Second Career: image on right, text on left -->
-    <div class="row align-items-center flex-column flex-lg-row mb-4">
-      <!-- Text (ordered first on large screens) -->
-      <div class="col-lg-6 order-lg-1">
-        <h3>Careers</h3>
-        <p>CareersCareersCareersCareersCareersCareersCareersCareersCareersCareersCareersCareersCareers</p>
-      </div>
-      <!-- Image (ordered second on large screens) -->
-      <div class="col-lg-6 order-lg-2">
-        <img src="{{ url_for('static', filename='creatives/2ndcareerpic.jpg') }}"
-             alt="2nd Careers Pic"
-             class="img-fluid career-img second">
-      </div>
+<!-- Second Career: image on right, text on left -->
+<div class="row align-items-center flex-column flex-lg-row mb-4">
+  <!-- Text (ordered first on large screens) -->
+  <div class="col-lg-6 order-lg-1">
+    <div class="p-3 border rounded">
+      <h3>Autonomy</h3>
+      <p>
+        You can work whenever you want and however you want. At cfautocare we focus on the destination, and let you focus on the passage because we know that everyone has their own way of getting things done.
+      </p>
     </div>
-  
-    <!-- Third Career: image on left, text on right (default order) -->
-    <div class="row align-items-center flex-column flex-lg-row mb-4">
-        <!-- Image (default order: left) -->
-        <div class="col-lg-6">
-        <img src="{{ url_for('static', filename='creatives/3rdcareerpic.jpg') }}"
-            alt="3rd Careers Pic"
-            class="img-fluid career-img third">
-        </div>
-        <!-- Text (default order: right) with extra left margin on large screens -->
-        <div class="col-lg-6 mt-3 mt-lg-0 ms-lg-4">
-        <h3>Careers</h3>
-        <p>CareersCareersCareersCareersCareersCareersCareersCareersCareersCareersCareersCareersCareersCareersCareers</p>
-        </div>
-    </div>
-  
-  
-    <!-- Fourth Career: image on right, text on left -->
-    <div class="row align-items-center flex-column flex-lg-row mb-4">
-      <!-- Text (ordered first on large screens) -->
-      <div class="col-lg-6 order-lg-1">
-        <h3>Careers</h3>
-        <p>CareersCareersCareersCareersCareersCareersCareersCareersCareersCareersCareersCareersCareersCareersCareersCareersCareers</p>
-      </div>
-      <!-- Image (ordered second on large screens) -->
-      <div class="col-lg-6 order-lg-2">
-        <img src="{{ url_for('static', filename='creatives/4thcareerpic.jpg') }}"
-             alt="4th Careers Pic"
-             class="img-fluid career-img fourth">
-      </div>
-    </div>
-  
   </div>
-  
-  
+  <!-- Image (ordered second on large screens) -->
+  <div class="col-lg-6 order-lg-2">
+    <img src="{{ url_for('static', filename='creatives/2ndcareerpic.jpg') }}"
+         alt="2nd Careers Pic"
+         class="img-fluid career-img second">
+  </div>
+</div>
+
+<!-- Third Career: image on left, text on right (default order) -->
+<div class="row align-items-center flex-column flex-lg-row mb-4">
+  <!-- Image (default order: left) -->
+  <div class="col-lg-6">
+    <img src="{{ url_for('static', filename='creatives/3rdcareerpic.jpg') }}"
+         alt="3rd Careers Pic"
+         class="img-fluid career-img third">
+  </div>
+  <!-- Text (default order: right) -->
+  <div class="col-lg-6 mt-3 mt-lg-0">
+    <div class="p-3 border rounded">
+      <h3>Merit</h3>
+      <p>
+        If you're going to do something, do it right. And if you don't know how to do it right, keep learning and practicing until you do. We strive for excellence and as long as you have the desire, all it takes is time and effort.
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- Fourth Career: image on right, text on left -->
+<div class="row align-items-center flex-column flex-lg-row mb-4">
+  <!-- Text (ordered first on large screens) -->
+  <div class="col-lg-6 order-lg-1">
+    <div class="p-3 border rounded">
+      <h3>Growth</h3>
+      <p>
+        You decide where to stop and you decide where to start. We have many positions available from physical labor, to human relations, to strategy, to engineering, and etc... And we make sure to remove obstacles that hinder our team's growth to foster great products and services.
+      </p>
+    </div>
+  </div>
+  <!-- Image (ordered second on large screens) -->
+  <div class="col-lg-6 order-lg-2">
+    <img src="{{ url_for('static', filename='creatives/4thcareerpic.jpg') }}"
+         alt="4th Careers Pic"
+         class="img-fluid career-img fourth">
+  </div>
+</div>
+
   
   
 
