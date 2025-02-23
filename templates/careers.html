@@ -143,7 +143,37 @@
     }
   </style>
   
-  
+  <style>
+    /* Custom text container with white border */
+    .custom-text-container {
+      border: 1px solid #fff !important;
+      background-color: #fff; /* Set to match your page background */
+      padding: 1rem; /* Adjust padding as needed */
+      border-radius: 0.25rem; /* Optional: rounds the corners */
+    }
+    /* Container for the heading */
+    .custom-heading {
+      margin-bottom: 1rem; /* Space between heading and paragraph */
+      /* Additional styling can be added here */
+    }
+    /* Container for the paragraph text */
+    .custom-paragraph {
+      max-width: 300px; /* Default for small screens */
+    }
+
+    @media (min-width: 768px) {
+      .custom-paragraph {
+        max-width: 450px; /* For medium screens */
+      }
+    }
+
+    @media (min-width: 992px) {
+      .custom-paragraph {
+        max-width: 500px; /* For large screens */
+      }
+    }
+
+  </style>
   
   
 
@@ -153,6 +183,9 @@
 
 <!-- First Career: image on left, text on right (default order) -->
 <div class="row align-items-center flex-column flex-lg-row mb-4">
+
+
+
     <!-- Image (default order: left) -->
     <div class="col-lg-6">
       <img src="{{ url_for('static', filename='creatives/1stcareerpic.jpg') }}"
@@ -161,10 +194,28 @@
     </div>
     <!-- Text (default order: right) with extra top margin on mobile -->
     <div class="col-lg-6 mt-3 mt-lg-0">
-      <h3 class="mb-3">An environmet grounded on marit, autonomy, and growth</h3>
-      <p>At cfautocare we're on a mission to make work easily accessible for anyone, anywhere, regardless of your experience and goals.</p>
-      <p>The way we see things, technology should make it easier to produce products instead of complicating and clogging things. So we design software where labor is easily accessible for all sectors in order to streamline development and focus on innovation.</p>
+      <div class="p-3 custom-text-container">
+        <div class="custom-heading">
+          <h3>Merit</h3>
+        </div>
+        <div class="custom-paragraph">
+          <p>
+            If you're going to do something, do it right. And if you don't know how to do it right, keep learning and practicing until you do. We strive for excellence and as long as you have the desire, all it takes is time and effort.
+          </p>
+        </div>
+      </div>
     </div>
+
+
+
+
+
+
+
+
+
+
+
   </div>
   
 
@@ -233,24 +284,7 @@
 
 
 
-  <style>
-    /* Custom text container with white border */
-    .custom-text-container {
-      border: 1px solid #fff !important;
-      background-color: #fff; /* Set to match your page background */
-      padding: 1rem; /* Adjust padding as needed */
-      border-radius: 0.25rem; /* Optional: rounds the corners */
-    }
-    /* Container for the heading */
-    .custom-heading {
-      margin-bottom: 1rem; /* Space between heading and paragraph */
-      /* Additional styling can be added here */
-    }
-    /* Container for the paragraph text */
-    .custom-paragraph {
-      max-width: 400px; 
-    }
-  </style>
+
   
   <!-- Second Career: image on right, text on left -->
   <div class="row align-items-center flex-column flex-lg-row mb-4">
