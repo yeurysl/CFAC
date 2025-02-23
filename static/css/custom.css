@@ -601,3 +601,51 @@ a:hover .clickable-image {
   border-color: #07173d;
   color: #fff;
 }
+
+.overlay-text {
+  position: absolute;
+  bottom: 150px;
+  left: 130px;
+  color: white;
+  font-size: 2.5rem;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 900;
+  background-color: transparent; /* or just remove this line */
+  padding: 5px 10px; /* remove or adjust if you want less spacing */
+}
+
+
+
+
+
+
+
+
+
+/* For small screens (up to 576px) */
+@media (max-width: 576px) {
+  .overlay-text {
+    bottom: 50px;
+    left: 20px;
+    font-size: 2rem;
+  }
+}
+
+/* For medium screens (577px to 991px) */
+@media (min-width: 577px) and (max-width: 991px) {
+  .overlay-text {
+    bottom: 130px;
+    left: 100px;
+    font-size: 2.3rem;
+  }
+}
+
+/* For large screens (992px and up) */
+@media (min-width: 992px) {
+  .overlay-text {
+    bottom: 100px;
+    left: 290px;
+    font-size: 2.5rem;
+  }
+}
+
