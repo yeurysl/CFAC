@@ -2,9 +2,9 @@ from flask import Blueprint, request, jsonify, current_app
 from datetime import datetime
 
 # Create a blueprint for contract-related endpoints
-contracts_bp = Blueprint('contracts', __name__, url_prefix='/api/contracts')
+contract_bp = Blueprint('contract', __name__, url_prefix='/api/contract')
 
-@contracts_bp.route('/save', methods=['POST'])
+@contract_bp.route('/save', methods=['POST'])
 def save_contract():
     """
     Endpoint to save contract data received from the iOS app.
@@ -57,12 +57,12 @@ def save_contract():
 
     # 5. Get the MongoDB instance from the app configuration
     db = current_app.config["MONGO_CLIENT"]
-    contracts_collection = db.contracts
-    print("[save_contract] Connected to MongoDB, 'contracts' collection acquired.")
+    contract_collection = db.contract
+    print("[save_contract] Connected to MongoDB, 'contract' collection acquired.")
 
     # 6. Insert the contract document
     try:
-        result = contracts_collection.insert_one(contract_data)
+        result = contract_collection.insert_one(contract_data)
         print(f"[save_contract] Inserted contract document. _id={result.inserted_id}")
     except Exception as e:
         print(f"[save_contract] Exception when inserting to MongoDB: {e}")
@@ -76,11 +76,11 @@ def save_contract():
     }), 200
 
 
-@contracts_bp.route('/find', methods=['GET'])
+@contract_bp.route('/find', methods=['GET'])
 def find_contract():
     """
     Endpoint to find a contract by email.
-    Example request: GET /api/contracts/find?email=john@example.com
+    Example request: GET /api/contract/find?email=john@example.com
     """
     # Get the email from query parameters
     email = request.args.get('email')
@@ -89,10 +89,10 @@ def find_contract():
 
     # Access the MongoDB instance from the app's configuration
     db = current_app.config["MONGO_CLIENT"]
-    contracts_collection = db.contracts
+    contract_collection = db.contract
 
-    # Query the contracts collection for the provided email
-    contract = contracts_collection.find_one({"email": email})
+    # Query the contract collection for the provided email
+    contract = contract_collection.find_one({"email": email})
     if not contract:
         return jsonify({"error": "Contract not found."}), 404
 
@@ -142,14 +142,14 @@ def generate_contract_pdf(user_name, email, registration_date, signature_data):
     return pdf_filename
 
 # Create a blueprint for contract-related endpoints.
-contracts_bp = Blueprint('contracts', __name__, url_prefix='/api/contracts')
+contract_bp = Blueprint('contract', __name__, url_prefix='/api/contract')
 
-@contracts_bp.route('/generate_pdf', methods=['GET'])
+@contract_bp.route('/generate_pdf', methods=['GET'])
 def generate_contract_pdf_endpoint():
     """
     Generates (or regenerates) the PDF for a saved contract.
     Expects a query parameter 'email'. Example:
-       GET /api/contracts/generate_pdf?email=john@example.com
+       GET /api/contract/generate_pdf?email=john@example.com
     """
     email = request.args.get('email')
     if not email:
@@ -157,8 +157,8 @@ def generate_contract_pdf_endpoint():
 
     # Retrieve the contract document from MongoDB using the shared database instance.
     db = current_app.config["MONGO_CLIENT"]
-    contracts_collection = db.contracts
-    contract = contracts_collection.find_one({"email": email})
+    contract_collection = db.contract
+    contract = contract_collection.find_one({"email": email})
     
     if not contract:
         return jsonify({"error": "Contract not found for the provided email."}), 404
@@ -172,7 +172,7 @@ def generate_contract_pdf_endpoint():
     pdf_path = generate_contract_pdf(user_name, email, registration_date, signature_data)
     
     # Optionally update the contract document with the new PDF path.
-    contracts_collection.update_one(
+    contract_collection.update_one(
         {"email": email},
         {"$set": {"pdf_path": pdf_path, "pdf_generated_at": datetime.utcnow()}}
     )
@@ -183,21 +183,21 @@ def generate_contract_pdf_endpoint():
 
     return send_file(pdf_path, as_attachment=True)
 
-@contracts_bp.route('/pdf/<email>', methods=['GET'])
+@contract_bp.route('/pdf/<email>', methods=['GET'])
 def get_contract_pdf(email):
     """
     Endpoint to fetch and download the contract PDF for the given email.
-    Example: GET /api/contracts/pdf/john@example.com
+    Example: GET /api/contract/pdf/john@example.com
     """
     if not email:
         return jsonify({"error": "Email parameter is required."}), 400
 
     # Access the MongoDB instance stored in the app's config.
     db = current_app.config["MONGO_CLIENT"]
-    contracts_collection = db.contracts
+    contract_collection = db.contract
 
     # Find the contract by email.
-    contract = contracts_collection.find_one({"email": email})
+    contract = contract_collection.find_one({"email": email})
     if not contract:
         return jsonify({"error": "Contract not found."}), 404
 
@@ -217,6 +217,6 @@ import base64
 import io
 from PIL import Image  # Make sure to install Pillow: pip install Pillow
 
-# Ensure your contracts blueprint is defined once
-contracts_bp = Blueprint('contracts', __name__, url_prefix='/api/contracts')
+# Ensure your contract blueprint is defined once
+contract_bp = Blueprint('contract', __name__, url_prefix='/api/contract')
 
