@@ -627,3 +627,105 @@ def view_pending_users():
         current_app.logger.error(f"Error in view_pending_users route: {e}", exc_info=True)
         flash('An error occurred while fetching pending users.', 'danger')
         return redirect(url_for('admin.admin_main'))
+    
+
+import os
+import base64
+import tempfile
+import traceback
+from apns2.client import APNsClient
+from apns2.payload import Payload
+from flask import current_app
+from api_sales import get_device_token_for_user
+
+
+def send_notification_to_user(user_id, custom_message=None):
+    """
+    Sends a push notification to the user's device.
+    Expects that the user's device token is stored in the device_tokens collection.
+    """
+    # Get the device token for the user. You can reuse your helper function if the structure is the same.
+    token = get_device_token_for_user(user_id)
+    if not token:
+        current_app.logger.warning(f"No device token found for user {user_id}.")
+        return {"status": "error", "detail": "No device token found for user."}
+
+    # Use a certificate for user notifications; you can reuse the same certificate if it applies.
+    cert_b64 = os.environ.get("APNS_CERT_B64_USER")  # or use APNS_CERT_B64_SALESMAN if shared
+    if not cert_b64:
+        current_app.logger.error("APNS certificate for users not configured in environment variable!")
+        return {"status": "error", "detail": "APNS certificate not set for users."}
+    
+    try:
+        current_app.logger.info("Decoding APNs certificate for user notifications.")
+        cert_content = base64.b64decode(cert_b64)
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pem") as temp_cert:
+            temp_cert.write(cert_content)
+            temp_cert_path = temp_cert.name
+        current_app.logger.info(f"APNs certificate written to temporary file: {temp_cert_path}")
+
+        # Build the payload. Customize the alert title and body as needed.
+        payload = Payload(alert={"title": "Application Approved", "body": custom_message or "Congratulations! Your application has been approved."}, sound="default", badge=1)
+        
+        # Specify the topic (your app's bundle identifier)
+        topic = os.environ.get("APNS_TOPIC_USER", "com.yourcompany.yourapp")
+        current_app.logger.info(f"Using APNs topic: {topic}")
+
+        # Create the APNs client
+        client = APNsClient(temp_cert_path, use_sandbox=False, use_alternative_port=False)
+        response = client.send_notification(token, payload, topic=topic)
+        current_app.logger.info(f"User notification response: {response}")
+
+        # Clean up the temporary certificate file
+        os.remove(temp_cert_path)
+        return {"status": "sent", "detail": str(response)}
+    except Exception as e:
+        current_app.logger.error("Error sending push notification to user:")
+        current_app.logger.error(traceback.format_exc())
+        return {"status": "error", "detail": str(e)}
+
+@admin_bp.route('/approve_user/<user_id>', methods=['POST'])
+@login_required
+@admin_required
+def approve_user(user_id):
+    """
+    Moves the user document from 'users_to_approve' -> 'users'
+    and removes them from 'users_to_approve' once approved.
+    Additionally, sends a push notification to the user once approved.
+    """
+    try:
+        db = current_app.config["MONGO_CLIENT"]
+        users_to_approve_coll = db.users_to_approve
+        users_coll = db.users
+
+        # 1) Find the doc in 'users_to_approve'
+        user_doc = users_to_approve_coll.find_one({"_id": ObjectId(user_id)})
+        if not user_doc:
+            flash("Pending user not found.", "danger")
+            return redirect(url_for('admin.view_pending_users'))
+
+        # 2) Remove the _id so Mongo can assign a new one in 'users'
+        original_id = user_doc.pop("_id")
+        
+        # Set approved to True
+        user_doc["approved"] = True
+
+        # Insert into 'users'
+        insert_result = users_coll.insert_one(user_doc)
+
+        # 3) Remove from 'users_to_approve'
+        users_to_approve_coll.delete_one({"_id": original_id})
+
+        flash(f"User '{user_doc.get('username')}' has been approved!", "success")
+        
+        # 4) Send a push notification to the approved user.
+        # Use the user's new id (if needed, you can store or pass along the original user_id).
+        notification = send_notification_to_user(str(insert_result.inserted_id), 
+                                                 custom_message="Your application has been approved! You can now log in.")
+        current_app.logger.info(f"Notification response: {notification}")
+        
+        return redirect(url_for('admin.view_pending_users'))
+    except Exception as e:
+        current_app.logger.error(f"Error approving user {user_id}: {e}", exc_info=True)
+        flash("An error occurred while approving the user.", "danger")
+        return redirect(url_for('admin.view_pending_users'))

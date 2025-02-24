@@ -1,4 +1,4 @@
-{% extends "admin/base.html" %}
+{% extends "base.html" %}
 
 {% block content %}
 <h2>Pending User Approvals</h2>
@@ -12,7 +12,6 @@
         <th>Username</th>
         <th>User Type</th>
         <th>Creation Date</th>
-        <th>Approved?</th>
       </tr>
     </thead>
     <tbody>
@@ -22,8 +21,16 @@
         <td>{{ user.email }}</td>
         <td>{{ user.username }}</td>
         <td>{{ user.user_type }}</td>
-        <td>{{ user.creation_date }}</td>
-        <td>{{ user.approved }}</td>
+        <td> {{ user.creation_date | format_date_with_suffix }}</td>
+        <td>
+          <!-- Approve Button -->
+          <form method="POST" action="{{ url_for('admin.approve_user', user_id=user._id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-success btn-sm">Approve</button>
+         </form>
+        
+
+        </td>
       </tr>
       {% endfor %}
     </tbody>
