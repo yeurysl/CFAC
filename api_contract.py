@@ -141,8 +141,6 @@ def generate_contract_pdf(user_name, email, registration_date, signature_data):
     c.save()
     return pdf_filename
 
-# Create a blueprint for contract-related endpoints.
-contract_bp = Blueprint('contract', __name__, url_prefix='/api/contract')
 
 @contract_bp.route('/generate_pdf', methods=['GET'])
 def generate_contract_pdf_endpoint():
@@ -211,11 +209,4 @@ def get_contract_pdf(email):
 
 
 
-
-import os
-import base64
-import io
-from PIL import Image  # Make sure to install Pillow: pip install Pillow
-
-# Ensure your contract blueprint is defined once
 
