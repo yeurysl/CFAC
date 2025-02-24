@@ -218,5 +218,4 @@ import io
 from PIL import Image  # Make sure to install Pillow: pip install Pillow
 
 # Ensure your contract blueprint is defined once
-contract_bp = Blueprint('contract', __name__, url_prefix='/api/contract')
 
