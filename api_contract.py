@@ -217,56 +217,36 @@ def generate_contract_pdf_endpoint():
 
     return send_file(pdf_path, as_attachment=True)
 
+from flask import send_file
+from io import BytesIO
 
 @contract_bp.route('/pdf/<email>', methods=['GET'])
 def get_contract_pdf(email):
     """
-    Endpoint to fetch and download the contract PDF for the given email.
-    Example: GET /api/contract/pdf/john@example.com
+    Returns the PDF from 'pdf_data' binary field for the given email.
     """
     current_app.logger.info("===== [get_contract_pdf] Endpoint called =====")
-
-    # 1) Check the 'email' parameter
-    if not email:
-        current_app.logger.error("[get_contract_pdf] Missing 'email' parameter -> 400")
-        return jsonify({"error": "Email parameter is required."}), 400
-    
     current_app.logger.info(f"[get_contract_pdf] Requested email: {email}")
 
-    # 2) Access the MongoDB instance stored in the app's config.
-    try:
-        db = current_app.config["MONGO_CLIENT"]
-        contract_collection = db.contract
-        current_app.logger.info("[get_contract_pdf] Connected to 'contract' collection.")
-    except Exception as e:
-        current_app.logger.error(f"[get_contract_pdf] Error accessing MongoDB: {e}")
-        return jsonify({"error": "Database connection error"}), 500
+    db = current_app.config["MONGO_CLIENT"]
+    contract_collection = db.contract
+    current_app.logger.info("[get_contract_pdf] Connected to 'contract' collection.")
 
-    # 3) Find the contract by email.
-    try:
-        contract = contract_collection.find_one({"email": email})
-        if contract:
-            current_app.logger.info(f"[get_contract_pdf] Found contract document: {contract}")
-        else:
-            current_app.logger.error(f"[get_contract_pdf] No contract found for email: {email} -> 404")
-            return jsonify({"error": "Contract not found."}), 404
-    except Exception as e:
-        current_app.logger.error(f"[get_contract_pdf] Exception while fetching contract: {e}")
-        return jsonify({"error": f"Error fetching contract: {str(e)}"}), 500
+    doc = contract_collection.find_one({"email": email})
+    if not doc:
+        current_app.logger.error("[get_contract_pdf] Contract not found -> 404")
+        return jsonify({"error": "Contract not found."}), 404
 
-    # 4) Check for the saved PDF file path in the contract document.
-    pdf_path = contract.get("pdf_path")
-    if not pdf_path:
-        current_app.logger.error("[get_contract_pdf] 'pdf_path' not found in contract document -> 404")
-        return jsonify({"error": "Contract PDF file not found."}), 404
-    
-    current_app.logger.info(f"[get_contract_pdf] pdf_path from contract: {pdf_path}")
+    pdf_data = doc.get("pdf_data")
+    if not pdf_data:
+        current_app.logger.error("[get_contract_pdf] 'pdf_data' not found in doc -> 404")
+        return jsonify({"error": "No pdf_data found for this contract."}), 404
 
-    # 5) Confirm the file actually exists on disk.
-    if not os.path.exists(pdf_path):
-        current_app.logger.error(f"[get_contract_pdf] File does not exist at path: {pdf_path} -> 404")
-        return jsonify({"error": "Contract PDF file not found."}), 404
-
-    # 6) Return the PDF file as a downloadable attachment.
-    current_app.logger.info(f"[get_contract_pdf] Returning PDF file: {pdf_path}")
-    return send_file(pdf_path, as_attachment=True)
+    # Return the PDF from memory
+    current_app.logger.info("[get_contract_pdf] Found pdf_data. Returning PDF as attachment.")
+    return send_file(
+        BytesIO(pdf_data),
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name="contract.pdf"
+    )
