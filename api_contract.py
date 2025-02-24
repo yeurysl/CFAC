@@ -16,45 +16,65 @@ def save_contract():
       - accepted_terms (boolean; must be True)
       - contract_version (string; optional)
     """
+
+    print("====== [save_contract] Endpoint called ======")
+
+    # 1. Get JSON data
     data = request.get_json()
-    
-    # Validate required fields
+    print(f"[save_contract] Raw JSON payload: {data}")
+
+    # 2. Validate required fields
     user_name = data.get("user_name")
     email = data.get("email")
     accepted_terms = data.get("accepted_terms")
-    
+    print(f"[save_contract] user_name: {user_name}")
+    print(f"[save_contract] email: {email}")
+    print(f"[save_contract] accepted_terms: {accepted_terms}")
+
     if not user_name or not email:
+        print("[save_contract] Missing user_name or email -> 400")
         return jsonify({"error": "user_name and email are required"}), 400
     
     if accepted_terms is not True:
+        print("[save_contract] accepted_terms is not True -> 400")
         return jsonify({"error": "Contract must be accepted"}), 400
 
-    # Use the current UTC time if no registration_date is provided
+    # 3. Determine registration_date
     registration_date = data.get("registration_date", datetime.utcnow().isoformat())
+    print(f"[save_contract] registration_date: {registration_date}")
 
-    # Build the contract document
+    # 4. Build the contract document
     contract_data = {
         "user_name": user_name,
         "email": email,
         "registration_date": registration_date,
-        "signature_data": data.get("signature_data", ""),  # Optional; can be a base64 string
+        "signature_data": data.get("signature_data", ""),  # Optional
         "accepted_terms": accepted_terms,
         "contract_version": data.get("contract_version", "v1.0"),
         "saved_at": datetime.utcnow()
     }
-    
-    # Get the MongoDB instance from the app configuration.
+    print(f"[save_contract] Contract data to insert: {contract_data}")
+
+    # 5. Get the MongoDB instance from the app configuration
     db = current_app.config["MONGO_CLIENT"]
-    # Access (or create) the "contracts" collection.
     contracts_collection = db.contracts
-    
-    # Insert the contract document into the collection.
-    result = contracts_collection.insert_one(contract_data)
-    
+    print("[save_contract] Connected to MongoDB, 'contracts' collection acquired.")
+
+    # 6. Insert the contract document
+    try:
+        result = contracts_collection.insert_one(contract_data)
+        print(f"[save_contract] Inserted contract document. _id={result.inserted_id}")
+    except Exception as e:
+        print(f"[save_contract] Exception when inserting to MongoDB: {e}")
+        return jsonify({"error": f"Failed to save contract: {str(e)}"}), 500
+
+    # 7. Return success response
+    print("[save_contract] Contract saved successfully. Returning 200.")
     return jsonify({
         "message": "Contract saved successfully.",
         "contract_id": str(result.inserted_id)
     }), 200
+
 
 @contracts_bp.route('/find', methods=['GET'])
 def find_contract():
@@ -200,60 +220,3 @@ from PIL import Image  # Make sure to install Pillow: pip install Pillow
 # Ensure your contracts blueprint is defined once
 contracts_bp = Blueprint('contracts', __name__, url_prefix='/api/contracts')
 
-@contracts_bp.route('/upload_signature', methods=['POST'])
-def upload_signature():
-    """
-    Endpoint to accept a signature from the iOS app.
-    Expects a JSON payload with:
-      - email (string)
-      - signature_data (string; base64 encoded image data)
-      
-    This endpoint decodes the signature data, saves it as a PNG file,
-    and updates the contract document with the signature file path.
-    """
-    data = request.get_json()
-    email = data.get("email")
-    signature_data = data.get("signature_data")
-
-    if not email or not signature_data:
-        return jsonify({"error": "Both email and signature_data are required."}), 400
-
-    try:
-        # If the signature_data contains a data URL prefix (e.g., "data:image/png;base64,"),
-        # remove it.
-        if signature_data.startswith("data:"):
-            header, signature_data = signature_data.split(",", 1)
-
-        # Decode the base64 string to bytes
-        image_bytes = base64.b64decode(signature_data)
-        image = Image.open(io.BytesIO(image_bytes))
-
-        # Create a directory for signatures if it doesn't exist
-        signature_dir = "signatures"
-        if not os.path.exists(signature_dir):
-            os.makedirs(signature_dir)
-
-        # Create a unique filename for the signature image
-        signature_filename = f"{email}_signature.png"
-        file_path = os.path.join(signature_dir, signature_filename)
-
-        # Save the image as a PNG file
-        image.save(file_path)
-    except Exception as e:
-        return jsonify({"error": "Invalid signature_data", "details": str(e)}), 400
-
-    # Update the contract document in MongoDB with the signature file path
-    db = current_app.config["MONGO_CLIENT"]
-    contracts_collection = db.contracts
-    result = contracts_collection.update_one(
-        {"email": email},
-        {"$set": {"signature_file": file_path, "signature_uploaded_at": datetime.utcnow()}}
-    )
-
-    if result.modified_count == 0:
-        return jsonify({"error": "Failed to update contract with signature."}), 500
-
-    return jsonify({
-        "message": "Signature uploaded successfully.",
-        "signature_file": file_path
-    }), 200
