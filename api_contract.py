@@ -1,77 +1,121 @@
 from flask import Blueprint, request, jsonify, current_app
 from datetime import datetime
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+from io import BytesIO
+from bson import ObjectId
+
 
 # Create a blueprint for contract-related endpoints
 contract_bp = Blueprint('contract', __name__, url_prefix='/api/contract')
 
+
+
+
+
 @contract_bp.route('/save', methods=['POST'])
 def save_contract():
     """
-    Endpoint to save contract data received from the iOS app.
-    Expects a JSON payload with keys such as:
-      - user_name (string)
-      - email (string)
-      - registration_date (ISO formatted string; optional, defaults to current time)
-      - accepted_terms (boolean; must be True)
-      - contract_version (string; optional)
+    Example endpoint to:
+      1) Generate a PDF with the user's details,
+      2) Store the PDF binary + fields in the 'contract' collection.
     """
 
-    print("====== [save_contract] Endpoint called ======")
+    current_app.logger.info("====== [save_contract] Endpoint called ======")
 
-    # 1. Get JSON data
-    data = request.get_json()
-    print(f"[save_contract] Raw JSON payload: {data}")
+    # 1) Parse JSON
+    try:
+        data = request.get_json()
+        current_app.logger.info(f"Received contract data: {data}")
+    except Exception as e:
+        current_app.logger.error(f"Error parsing JSON payload: {e}")
+        return jsonify({"error": "Invalid JSON body"}), 400
 
-    # 2. Validate required fields
+    if not data:
+        current_app.logger.error("Empty JSON request body.")
+        return jsonify({"error": "Request body cannot be empty"}), 400
+
+    # 2) Validate required fields
     user_name = data.get("user_name")
-    email = data.get("email")
-    accepted_terms = data.get("accepted_terms")
-    print(f"[save_contract] user_name: {user_name}")
-    print(f"[save_contract] email: {email}")
-    print(f"[save_contract] accepted_terms: {accepted_terms}")
+    if not user_name:
+        current_app.logger.error("Missing 'user_name' field.")
+        return jsonify({"error": "user_name is required"}), 400
 
-    if not user_name or not email:
-        print("[save_contract] Missing user_name or email -> 400")
-        return jsonify({"error": "user_name and email are required"}), 400
-    
-    if accepted_terms is not True:
-        print("[save_contract] accepted_terms is not True -> 400")
-        return jsonify({"error": "Contract must be accepted"}), 400
-
-    # 3. Determine registration_date
+    email = data.get("email", "no-email-provided")
     registration_date = data.get("registration_date", datetime.utcnow().isoformat())
-    print(f"[save_contract] registration_date: {registration_date}")
 
-    # 4. Build the contract document
-    contract_data = {
+    current_app.logger.info(f"Contract user_name: {user_name}, email: {email}, registration_date: {registration_date}")
+
+    # 3) Generate PDF in-memory with ReportLab
+    try:
+        current_app.logger.info("Generating in-memory PDF with ReportLab.")
+        pdf_buffer = BytesIO()
+        pdf = canvas.Canvas(pdf_buffer, pagesize=letter)
+        pdf.setFont("Helvetica", 12)
+
+        # Title
+        pdf.drawString(72, 750, "Independent Contractor Agreement")
+
+        # User details
+        pdf.drawString(72, 730, f"Name: {user_name}")
+        pdf.drawString(72, 710, f"Email: {email}")
+        pdf.drawString(72, 690, f"Registration Date: {registration_date}")
+
+        # Body Text
+        contract_text = """
+        1. INDEPENDENT CONTRACTOR STATUS
+        The Contractor is an independent contractor and not an employee of the Company.
+
+        2. SCOPE OF WORK
+        The Contractor agrees to provide sales and client acquisition services.
+
+        ...
+        """
+        text_lines = contract_text.split("\n")
+        y = 670
+        for line in text_lines:
+            pdf.drawString(72, y, line)
+            y -= 15
+
+        pdf.showPage()
+        pdf.save()
+        pdf_buffer.seek(0)
+
+        pdf_bytes = pdf_buffer.getvalue()
+        current_app.logger.info(f"Generated PDF of size {len(pdf_bytes)} bytes.")
+    except Exception as e:
+        current_app.logger.error(f"Error generating PDF: {e}")
+        return jsonify({"error": f"PDF generation failed: {str(e)}"}), 500
+
+    # 4) Build the Mongo document
+    contract_document = {
         "user_name": user_name,
         "email": email,
         "registration_date": registration_date,
-        "accepted_terms": accepted_terms,
-        "contract_version": data.get("contract_version", "v1.0"),
-        "saved_at": datetime.utcnow()
+        "created_at": datetime.utcnow(),
+        "pdf_data": pdf_bytes  # Binary PDF data
     }
-    print(f"[save_contract] Contract data to insert: {contract_data}")
+    current_app.logger.debug(f"Contract document to be inserted: {contract_document}")
 
-    # 5. Get the MongoDB instance from the app configuration
-    db = current_app.config["MONGO_CLIENT"]
-    contract_collection = db.contract
-    print("[save_contract] Connected to MongoDB, 'contract' collection acquired.")
-
-    # 6. Insert the contract document
+    # 5) Insert into MongoDB “contract” collection
     try:
-        result = contract_collection.insert_one(contract_data)
-        print(f"[save_contract] Inserted contract document. _id={result.inserted_id}")
+        db = current_app.config["MONGO_CLIENT"]
+        contract_collection = db.contract
+
+        current_app.logger.info("Inserting contract document into 'contract' collection.")
+        result = contract_collection.insert_one(contract_document)
+        contract_id = str(result.inserted_id)
+        current_app.logger.info(f"PDF contract inserted with _id={contract_id}")
     except Exception as e:
-        print(f"[save_contract] Exception when inserting to MongoDB: {e}")
+        current_app.logger.error(f"Exception while inserting into MongoDB: {e}")
         return jsonify({"error": f"Failed to save contract: {str(e)}"}), 500
 
-    # 7. Return success response
-    print("[save_contract] Contract saved successfully. Returning 200.")
+    # 6) Return success response
+    current_app.logger.info("Contract and PDF stored successfully. Returning 201.")
     return jsonify({
-        "message": "Contract saved successfully.",
-        "contract_id": str(result.inserted_id)
-    }), 200
+        "message": "Contract and PDF stored successfully!",
+        "contract_id": contract_id
+    }), 201
 
 
 @contract_bp.route('/find', methods=['GET'])
