@@ -1000,24 +1000,53 @@ def is_valid_username(username):
     regex = r'^\w+$'
     return re.match(regex, username)
 
+
+
+
+def upsert_device_token(user_identifier, device_token):
+    """
+    Upsert a device token for a given user identifier.
+    'user_identifier' can be the user's email or their ObjectId string.
+    """
+    db = current_app.config.get("MONGO_CLIENT")
+    if db is None:
+        current_app.logger.error("Database connection not configured!")
+        return False, "Database connection error"
+
+    device_tokens_collection = db.device_tokens
+    try:
+        result = device_tokens_collection.update_one(
+            {"user_id": user_identifier},  # user_id field will store the unique identifier (e.g., email)
+            {
+                "$set": {
+                    "device_token": device_token,
+                    "updated_at": datetime.utcnow()
+                },
+                "$setOnInsert": {
+                    "created_at": datetime.utcnow()
+                }
+            },
+            upsert=True
+        )
+        if result.upserted_id:
+            current_app.logger.info(f"Inserted device token for user {user_identifier}, _id={result.upserted_id}")
+        else:
+            current_app.logger.info(f"Updated device token for user {user_identifier}.")
+        return True, "Token upserted"
+    except Exception as e:
+        current_app.logger.error(f"Error upserting device token: {str(e)}")
+        return False, str(e)
+
+
+
+
 @api_sales_bp.route('/register', methods=['POST'])
 def register_user():
     """
     API Endpoint to register a new user.
     This version stores the user in 'users_to_approve' (instead of 'users'),
     adds address info, and sets 'approved' to False by default.
-
-    Expects a JSON payload with:
-      - email (string)
-      - username (string)
-      - password (string)
-      - full_name (string)
-      - user_type (admin, tech, sales)
-      - street_address (string, optional)
-      - unit_apt (string, optional)
-      - city (string, optional)
-      - zip_code (string, optional)
-      - country (string, optional)
+    Optionally, if a device_token is provided in the payload, it will be upserted.
     """
     data = request.get_json()
 
@@ -1047,10 +1076,9 @@ def register_user():
 
     # Access MongoDB instance
     db = current_app.config["MONGO_CLIENT"]
-    # Instead of the 'users' collection, we use 'users_to_approve'
     users_to_approve_collection = db.users_to_approve
 
-    # We might still want to ensure the user doesn't exist in the 'users' or 'users_to_approve' collections:
+    # Check if email already exists in either collection
     existing_in_users = db.users.find_one({"email": email})
     existing_in_approval = users_to_approve_collection.find_one({"email": email})
     if existing_in_users or existing_in_approval:
@@ -1059,14 +1087,14 @@ def register_user():
     # Hash the password
     hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
 
-    # Gather optional fields for address
+    # Gather optional address fields
     street_address = data.get("street_address", "").strip()
     unit_apt = data.get("unit_apt", "").strip()
     city = data.get("city", "").strip()
     zip_code = data.get("zip_code", "").strip()
     country = data.get("country", "").strip() or "United States"
 
-    # Create a new user doc for 'users_to_approve'
+    # Create the user document for users_to_approve
     user_to_approve = {
         "email": email,
         "username": username,
@@ -1074,7 +1102,7 @@ def register_user():
         "full_name": full_name,
         "user_type": user_type,
         "creation_date": datetime.utcnow(),
-        "approved": False,  # <-- Mark as not yet approved
+        "approved": False,
         "address": {
             "street_address": street_address,
             "unit_apt": unit_apt,
@@ -1084,9 +1112,18 @@ def register_user():
         }
     }
 
-    # Insert into users_to_approve
     try:
+        # Insert the user document
         users_to_approve_collection.insert_one(user_to_approve)
+        
+        # Optionally, if a device_token is included in the payload, upsert it.
+        if "device_token" in data:
+            device_token = data.get("device_token").strip()
+            if device_token and len(device_token) >= 10:
+                # You can use email as the identifier here (or any unique field)
+                success, token_msg = upsert_device_token(email, device_token)
+                current_app.logger.info(f"Device token upsert: {token_msg}")
+        
         return jsonify({"message": "User registered successfully (pending approval)!", "email": email}), 201
     except Exception as e:
         return jsonify({"error": f"An error occurred while adding the user to approval queue: {str(e)}"}), 500
