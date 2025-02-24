@@ -985,10 +985,10 @@ def send_notification_to_salesman(salesman_id, order_id, device_token, custom_me
 
 
 #Registration
-from flask_bcrypt import Bcrypt
-import re
+from flask import request, jsonify, current_app
+from datetime import datetime
 from extensions import bcrypt
-
+import re
 
 def is_valid_email(email):
     """Validate email format using regex."""
@@ -1004,12 +1004,20 @@ def is_valid_username(username):
 def register_user():
     """
     API Endpoint to register a new user.
+    This version stores the user in 'users_to_approve' (instead of 'users'),
+    adds address info, and sets 'approved' to False by default.
+
     Expects a JSON payload with:
       - email (string)
       - username (string)
       - password (string)
       - full_name (string)
       - user_type (admin, tech, sales)
+      - street_address (string, optional)
+      - unit_apt (string, optional)
+      - city (string, optional)
+      - zip_code (string, optional)
+      - country (string, optional)
     """
     data = request.get_json()
 
@@ -1023,7 +1031,7 @@ def register_user():
     if not email or not username or not password or not full_name or not user_type:
         return jsonify({"error": "All fields (email, username, password, full_name, user_type) are required."}), 400
 
-    # Validate email and username formats
+    # Validate email & username formats
     if not is_valid_email(email):
         return jsonify({"error": "Invalid email format."}), 400
     if not is_valid_username(username):
@@ -1039,30 +1047,46 @@ def register_user():
 
     # Access MongoDB instance
     db = current_app.config["MONGO_CLIENT"]
-    users_collection = db.users
+    # Instead of the 'users' collection, we use 'users_to_approve'
+    users_to_approve_collection = db.users_to_approve
 
-    # Check if email or username is already registered
-    if users_collection.find_one({"email": email}):
-        return jsonify({"error": f"An account with email '{email}' already exists."}), 409
-    if users_collection.find_one({"username": username}):
-        return jsonify({"error": f"The username '{username}' is already taken."}), 409
+    # We might still want to ensure the user doesn't exist in the 'users' or 'users_to_approve' collections:
+    existing_in_users = db.users.find_one({"email": email})
+    existing_in_approval = users_to_approve_collection.find_one({"email": email})
+    if existing_in_users or existing_in_approval:
+        return jsonify({"error": f"An account with email '{email}' already exists (or is pending approval)."}), 409
 
     # Hash the password
     hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
 
-    # Create a new user document
-    user = {
+    # Gather optional fields for address
+    street_address = data.get("street_address", "").strip()
+    unit_apt = data.get("unit_apt", "").strip()
+    city = data.get("city", "").strip()
+    zip_code = data.get("zip_code", "").strip()
+    country = data.get("country", "").strip() or "United States"
+
+    # Create a new user doc for 'users_to_approve'
+    user_to_approve = {
         "email": email,
         "username": username,
         "password": hashed_password,
         "full_name": full_name,
         "user_type": user_type,
-        "creation_date": datetime.utcnow()
+        "creation_date": datetime.utcnow(),
+        "approved": False,  # <-- Mark as not yet approved
+        "address": {
+            "street_address": street_address,
+            "unit_apt": unit_apt,
+            "city": city,
+            "zip_code": zip_code,
+            "country": country
+        }
     }
 
-    # Insert the user into the database
+    # Insert into users_to_approve
     try:
-        users_collection.insert_one(user)
-        return jsonify({"message": "User registered successfully!", "email": email}), 201
+        users_to_approve_collection.insert_one(user_to_approve)
+        return jsonify({"message": "User registered successfully (pending approval)!", "email": email}), 201
     except Exception as e:
-        return jsonify({"error": f"An error occurred while adding the user: {str(e)}"}), 500
+        return jsonify({"error": f"An error occurred while adding the user to approval queue: {str(e)}"}), 500
