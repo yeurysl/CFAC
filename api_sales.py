@@ -987,6 +987,8 @@ def send_notification_to_salesman(salesman_id, order_id, device_token, custom_me
 #Registration
 from flask_bcrypt import Bcrypt
 import re
+from extensions import bcrypt
+
 
 def is_valid_email(email):
     """Validate email format using regex."""
