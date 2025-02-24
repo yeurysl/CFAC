@@ -12,7 +12,6 @@ def save_contract():
       - user_name (string)
       - email (string)
       - registration_date (ISO formatted string; optional, defaults to current time)
-      - signature_data (string; e.g., base64 encoded image data; optional)
       - accepted_terms (boolean; must be True)
       - contract_version (string; optional)
     """
@@ -48,7 +47,6 @@ def save_contract():
         "user_name": user_name,
         "email": email,
         "registration_date": registration_date,
-        "signature_data": data.get("signature_data", ""),  # Optional
         "accepted_terms": accepted_terms,
         "contract_version": data.get("contract_version", "v1.0"),
         "saved_at": datetime.utcnow()
@@ -108,7 +106,7 @@ from datetime import datetime
 import os
 
 # Assume this helper is defined (or import it if it’s in another module)
-def generate_contract_pdf(user_name, email, registration_date, signature_data):
+def generate_contract_pdf(user_name, email, registration_date):
     """
     Generate a PDF file for the contract and save it locally.
     Returns the file path of the saved PDF.
@@ -132,11 +130,6 @@ def generate_contract_pdf(user_name, email, registration_date, signature_data):
     c.drawString(100, 710, f"Email: {email}")
     c.drawString(100, 690, f"Registration Date: {registration_date}")
     
-    # Optionally include signature data or a reference to it
-    if signature_data:
-        c.drawString(100, 670, f"Signature Data: {signature_data[:30]}...")  # Show first 30 chars
-    else:
-        c.drawString(100, 670, "No signature provided.")
     
     c.save()
     return pdf_filename
@@ -164,10 +157,9 @@ def generate_contract_pdf_endpoint():
     # Extract contract data (customize keys if needed)
     user_name = contract.get("user_name")
     registration_date = contract.get("registration_date", datetime.utcnow().isoformat())
-    signature_data = contract.get("signature_data", "")
     
     # Generate (or regenerate) the PDF contract using the helper function.
-    pdf_path = generate_contract_pdf(user_name, email, registration_date, signature_data)
+    pdf_path = generate_contract_pdf(user_name, email, registration_date)
     
     # Optionally update the contract document with the new PDF path.
     contract_collection.update_one(
