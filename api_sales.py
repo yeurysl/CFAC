@@ -1006,7 +1006,12 @@ def is_valid_username(username):
 def upsert_device_token(user_identifier, device_token):
     """
     Upsert a device token for a given user identifier.
-    'user_identifier' can be the user's email or their ObjectId string.
+    'user_identifier' should be the user's email.
+    The document will include:
+      - is_approved: "no" (default, as a string)
+      - device_token: the token provided
+      - email: the user_identifier
+      - created_at / updated_at timestamps
     """
     db = current_app.config.get("MONGO_CLIENT")
     if db is None:
@@ -1016,11 +1021,13 @@ def upsert_device_token(user_identifier, device_token):
     device_tokens_collection = db.device_tokens
     try:
         result = device_tokens_collection.update_one(
-            {"user_id": user_identifier},  # user_id field will store the unique identifier (e.g., email)
+            {"email": user_identifier},  # Use email as the unique identifier
             {
                 "$set": {
+                    "is_approved": "no",       # Default to "no" (not approved)
                     "device_token": device_token,
-                    "updated_at": datetime.utcnow()
+                    "updated_at": datetime.utcnow(),
+                    "email": user_identifier
                 },
                 "$setOnInsert": {
                     "created_at": datetime.utcnow()
@@ -1036,6 +1043,7 @@ def upsert_device_token(user_identifier, device_token):
     except Exception as e:
         current_app.logger.error(f"Error upserting device token: {str(e)}")
         return False, str(e)
+
 
 
 
