@@ -96,6 +96,7 @@ def create_app():
     # Exempt API routes from CSRF protection
     csrf.exempt(api_sales_bp)
     csrf.exempt(api_tech_bp)
+    csrf.exempt(contracts_bp)
 
     with app.app_context():
         create_unique_indexes()
