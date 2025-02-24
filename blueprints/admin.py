@@ -600,3 +600,30 @@ def create_compensation():
         current_app.logger.error(f"Error creating compensation field: {e}", exc_info=True)
         flash('An error occurred while updating compensation status.', 'danger')
         return redirect(url_for('admin.compensation_page'))
+
+
+
+@admin_bp.route('/pending_users', methods=['GET'])
+@login_required
+@admin_required
+def view_pending_users():
+    """
+    Admin route to display users in the 'users_to_approve' collection
+    who are pending approval.
+    """
+    try:
+        db = current_app.config["MONGO_CLIENT"]
+        users_to_approve_coll = db.users_to_approve
+        
+        # Fetch all pending user documents
+        pending_users = list(users_to_approve_coll.find())
+        
+        # Convert ObjectIds to strings for template usage
+        for user_doc in pending_users:
+            user_doc['_id'] = str(user_doc['_id'])
+        
+        return render_template('admin/pending_users.html', pending_users=pending_users)
+    except Exception as e:
+        current_app.logger.error(f"Error in view_pending_users route: {e}", exc_info=True)
+        flash('An error occurred while fetching pending users.', 'danger')
+        return redirect(url_for('admin.admin_main'))

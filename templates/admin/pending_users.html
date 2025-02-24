@@ -1,0 +1,35 @@
+{% extends "admin/base.html" %}
+
+{% block content %}
+<h2>Pending User Approvals</h2>
+
+{% if pending_users %}
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>Full Name</th>
+        <th>Email</th>
+        <th>Username</th>
+        <th>User Type</th>
+        <th>Creation Date</th>
+        <th>Approved?</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for user in pending_users %}
+      <tr>
+        <td>{{ user.full_name }}</td>
+        <td>{{ user.email }}</td>
+        <td>{{ user.username }}</td>
+        <td>{{ user.user_type }}</td>
+        <td>{{ user.creation_date }}</td>
+        <td>{{ user.approved }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <p>No pending users found.</p>
+{% endif %}
+
+{% endblock %}
