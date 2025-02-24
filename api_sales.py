@@ -1047,15 +1047,14 @@ def upsert_device_token(user_identifier, device_token):
 
 
 
-
-
 @api_sales_bp.route('/register', methods=['POST'])
 def register_user():
     """
     API Endpoint to register a new user.
     This version stores the user in 'users_to_approve' (instead of 'users'),
     adds address info, and sets 'approved' to False by default.
-    Optionally, if a device_token is provided in the payload, it will be upserted.
+    Optionally, if a valid device_token is provided in the payload,
+    it will be stored within the user document.
     """
     data = request.get_json()
 
@@ -1121,18 +1120,15 @@ def register_user():
         }
     }
 
+        # Optionally include the device token if provided and valid
+    device_token = data.get("device_token", "").strip()
+    current_app.logger.info(f"Received device token: '{device_token}'")
+    if device_token and len(device_token) >= 10:
+        user_to_approve["device_token"] = device_token
+
     try:
-        # Insert the user document
+        # Insert the user document into the approval collection
         users_to_approve_collection.insert_one(user_to_approve)
-        
-        # Optionally, if a device_token is included in the payload, upsert it.
-        if "device_token" in data:
-            device_token = data.get("device_token").strip()
-            if device_token and len(device_token) >= 10:
-                # You can use email as the identifier here (or any unique field)
-                success, token_msg = upsert_device_token(email, device_token)
-                current_app.logger.info(f"Device token upsert: {token_msg}")
-        
         return jsonify({"message": "User registered successfully (pending approval)!", "email": email}), 201
     except Exception as e:
         return jsonify({"error": f"An error occurred while adding the user to approval queue: {str(e)}"}), 500
