@@ -41,32 +41,41 @@ def generate_jwt(user_id, secret_key, expires_in=4):
 def api_login():
     data = request.get_json()
     if not data or 'username' not in data or 'password' not in data:
+        current_app.logger.error("Login failed: Missing username or password in payload.")
         return jsonify({"error": "Username and password required."}), 400
 
     username = data['username'].strip().lower()
     password = data['password']
+    current_app.logger.info(f"Login attempt for username: {username}")
 
     users_collection = current_app.config.get('USERS_COLLECTION')
-    user = users_collection.find_one({
-        'username': username
-    })
+    user = users_collection.find_one({"username": username})
     
-    # Check if user exists and verify the password
     if not user:
+        current_app.logger.error(f"Login failed: No user found with username {username}.")
         return jsonify({"error": "Invalid username."}), 401
 
-    if not check_password_hash(user['password'], password):
+    # Ensure that the user document has both '_id' and 'username'
+    if '_id' not in user or 'username' not in user:
+        current_app.logger.error(f"Login failed: Incomplete user record for username {username}.")
+        return jsonify({"error": "User record is incomplete."}), 500
+
+    # Verify the password
+    if not check_password_hash(user.get('password', ''), password):
+        current_app.logger.error(f"Login failed: Invalid password for username {username}.")
         return jsonify({"error": "Invalid password."}), 401
 
-    # Optional: check user type (for technician-specific actions)
-    if user['user_type'] != 'tech' and user['user_type'] != 'sales':
+    # Optional: Check that the user type is either 'tech' or 'sales'
+    if user.get('user_type') not in ['tech', 'sales']:
+        current_app.logger.error(f"Login failed: Unsupported user type {user.get('user_type')} for username {username}.")
         return jsonify({"error": "User type not supported."}), 401
 
-    secret_key = current_app.config['JWT_SECRET']
+    secret_key = current_app.config.get('JWT_SECRET')
     jwt_token = generate_jwt(user['_id'], secret_key)
+    current_app.logger.info(f"Login successful for username {username}, user ID: {user['_id']}")
 
     return jsonify({
         "message": "Login successful",
         "token": jwt_token,
-        "user_type": user['user_type']  # Add the user type in the response for handling in the app
+        "user_type": user.get('user_type')
     }), 200
