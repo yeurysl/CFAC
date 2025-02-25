@@ -651,7 +651,7 @@ def send_notification_to_user(user_id, custom_message=None):
         return {"status": "error", "detail": "No device token found for user."}
 
     # Use a certificate for user notifications; you can reuse the same certificate if it applies.
-    cert_b64 = os.environ.get("APNS_CERT_B64_USER")  # or use APNS_CERT_B64_SALESMAN if shared
+    cert_b64 = os.environ.get("APNS_CERT_B64_SALESMAN")  # or use APNS_CERT_B64_SALESMAN if shared
     if not cert_b64:
         current_app.logger.error("APNS certificate for users not configured in environment variable!")
         return {"status": "error", "detail": "APNS certificate not set for users."}
