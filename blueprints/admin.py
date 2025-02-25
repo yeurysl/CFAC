@@ -875,7 +875,7 @@ def send_notification_to_approved_user(new_user_id, custom_message, device_token
         current_app.logger.error(f"Invalid device token provided for user {new_user_id}.")
         return {"status": "error", "detail": "Invalid device token."}
     
-    cert_b64 = os.environ.get("APNS_CERT_B64_USER")
+    cert_b64 = os.environ.get("APNS_CERT_B64_SALESMAN")
     if not cert_b64:
         current_app.logger.error("APNS certificate for users not configured in environment variable!")
         return {"status": "error", "detail": "APNS certificate not set for users."}
