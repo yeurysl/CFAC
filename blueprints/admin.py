@@ -703,23 +703,27 @@ from datetime import datetime
 
 def get_device_token_for_user(user_id):
     """
-    Fetch the device token from the approved user record in the main users collection.
+    Fetch the device token from the pending user record in the 'users_to_approve' collection.
     """
     try:
-        users_collection = current_app.config.get("USERS_COLLECTION")
-        if not users_collection:
-            current_app.logger.error("USERS_COLLECTION not configured.")
+        # Access the pending approvals collection
+        pending_collection = current_app.config.get("MONGO_CLIENT").users_to_approve
+        if not pending_collection:
+            current_app.logger.error("users_to_approve collection not configured.")
             return None
-        user = users_collection.find_one({"_id": ObjectId(user_id)})
+        
+        # Find the pending user document by user_id
+        user = pending_collection.find_one({"_id": ObjectId(user_id)})
         if user and "device_token" in user and user["device_token"]:
-            current_app.logger.info(f"Device token found for user {user_id}: {user['device_token']}")
+            current_app.logger.info(f"Device token found for pending user {user_id}: {user['device_token']}")
             return user["device_token"]
         else:
-            current_app.logger.warning(f"No device token found for user {user_id} in approved record.")
+            current_app.logger.warning(f"No device token found for pending user {user_id} in the pending record.")
             return None
     except Exception as e:
-        current_app.logger.error(f"Error fetching device token for user {user_id}: {e}")
+        current_app.logger.error(f"Error fetching device token for pending user {user_id}: {e}")
         return None
+
 
 def send_notification_to_approved_user(user_id, custom_message=None):
     """
