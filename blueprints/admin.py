@@ -668,7 +668,7 @@ def send_notification_to_user(user_id, custom_message=None):
         payload = Payload(alert={"title": "Application Approved", "body": custom_message or "Congratulations! Your application has been approved."}, sound="default", badge=1)
         
         # Specify the topic (your app's bundle identifier)
-        topic = os.environ.get("APNS_TOPIC_USER", "com.yourcompany.yourapp")
+        topic = os.environ.get("APNS_TOPIC_USER", "com.Centralfloridaautocare.cfacios")
         current_app.logger.info(f"Using APNs topic: {topic}")
 
         # Create the APNs client
