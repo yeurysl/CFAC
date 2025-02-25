@@ -1046,7 +1046,6 @@ def upsert_device_token(user_identifier, device_token):
 
 
 
-
 @api_sales_bp.route('/register', methods=['POST'])
 def register_user():
     """
@@ -1057,6 +1056,7 @@ def register_user():
     it will be stored within the user document.
     """
     data = request.get_json()
+    current_app.logger.info(f"Received registration data: {data}")
 
     # Validate required fields
     email = data.get("email", "").strip().lower()
@@ -1066,34 +1066,44 @@ def register_user():
     user_type = data.get("user_type", "").strip().lower()
 
     if not email or not username or not password or not full_name or not user_type:
+        current_app.logger.error("Registration failed: Missing required fields.")
         return jsonify({"error": "All fields (email, username, password, full_name, user_type) are required."}), 400
 
     # Validate email & username formats
     if not is_valid_email(email):
+        current_app.logger.error("Registration failed: Invalid email format.")
         return jsonify({"error": "Invalid email format."}), 400
     if not is_valid_username(username):
+        current_app.logger.error("Registration failed: Invalid username format.")
         return jsonify({"error": "Invalid username. Only letters, numbers, and underscores are allowed."}), 400
 
     # Validate user type
     if user_type not in ['admin', 'tech', 'sales']:
+        current_app.logger.error("Registration failed: Invalid user type.")
         return jsonify({"error": "Invalid user type. Must be 'admin', 'tech', or 'sales'."}), 400
 
     # Validate password complexity
     if len(password) < 8:
+        current_app.logger.error("Registration failed: Password too short.")
         return jsonify({"error": "Password must be at least 8 characters long."}), 400
 
-    # Access MongoDB instance
+    # Access MongoDB instance and approval collection
     db = current_app.config["MONGO_CLIENT"]
     users_to_approve_collection = db.users_to_approve
 
-    # Check if email already exists in either collection
+    # Check if the email already exists in either collection
     existing_in_users = db.users.find_one({"email": email})
     existing_in_approval = users_to_approve_collection.find_one({"email": email})
     if existing_in_users or existing_in_approval:
+        current_app.logger.error(f"Registration failed: Email {email} already exists.")
         return jsonify({"error": f"An account with email '{email}' already exists (or is pending approval)."}), 409
 
     # Hash the password
-    hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
+    try:
+        hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
+    except Exception as e:
+        current_app.logger.error(f"Error hashing password: {e}")
+        return jsonify({"error": "Internal error while processing password."}), 500
 
     # Gather optional address fields
     street_address = data.get("street_address", "").strip()
@@ -1102,7 +1112,7 @@ def register_user():
     zip_code = data.get("zip_code", "").strip()
     country = data.get("country", "").strip() or "United States"
 
-    # Create the user document for users_to_approve
+    # Create the user document for the approval collection
     user_to_approve = {
         "email": email,
         "username": username,
@@ -1120,15 +1130,20 @@ def register_user():
         }
     }
 
-        # Optionally include the device token if provided and valid
+    # Optionally include the device token if provided and valid.
     device_token = data.get("device_token", "").strip()
     current_app.logger.info(f"Received device token: '{device_token}'")
     if device_token and len(device_token) >= 10:
         user_to_approve["device_token"] = device_token
+        current_app.logger.info("Device token is valid and added to the user record.")
+    else:
+        current_app.logger.info("No valid device token provided; skipping device token storage.")
 
     try:
-        # Insert the user document into the approval collection
-        users_to_approve_collection.insert_one(user_to_approve)
+        # Insert the user document into the users_to_approve collection.
+        result = users_to_approve_collection.insert_one(user_to_approve)
+        current_app.logger.info(f"User registered successfully with _id: {result.inserted_id}")
         return jsonify({"message": "User registered successfully (pending approval)!", "email": email}), 201
     except Exception as e:
+        current_app.logger.error(f"Error inserting user into approval collection: {e}", exc_info=True)
         return jsonify({"error": f"An error occurred while adding the user to approval queue: {str(e)}"}), 500
