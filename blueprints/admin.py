@@ -843,7 +843,14 @@ def send_notification_to_approved_user(new_user_id, custom_message, device_token
             temp_cert_path = temp_cert.name
         current_app.logger.info(f"APNs certificate written to temporary file: {temp_cert_path}")
         
-        # Build the APNs payload.
+        # Check that the temporary certificate file exists and log its size
+        if os.path.exists(temp_cert_path):
+            file_size = os.path.getsize(temp_cert_path)
+            current_app.logger.info(f"Temporary certificate file exists at {temp_cert_path} (size: {file_size} bytes)")
+        else:
+            current_app.logger.error(f"Temporary certificate file does not exist at {temp_cert_path}")
+        
+        # Build the payload and topic
         current_app.logger.info("Building APNs payload...")
         payload = Payload(
             alert={"title": "Account Approved", "body": custom_message},
@@ -852,14 +859,20 @@ def send_notification_to_approved_user(new_user_id, custom_message, device_token
         )
         current_app.logger.debug(f"Payload constructed: alert={payload.alert}, sound={payload.sound}, badge={payload.badge}")
         
-        # Specify the APNs topic (usually your app's bundle identifier).
-        topic = "com.Centralfloridaautocare.cfacios"
+        topic = "com.Centralfloridaautocare.cfacios"  # Replace with your app's bundle identifier if needed
         current_app.logger.info(f"Using APNs topic: {topic}")
         
-        # Create the APNs client.
+        # Create the APNs client with additional logging and error capture
         current_app.logger.info("Creating APNs client...")
-        client = APNsClient(temp_cert_path, use_sandbox=False, use_alternative_port=False)
-        current_app.logger.info("APNs client created successfully.")
+        try:
+            client = APNsClient(temp_cert_path, use_sandbox=False, use_alternative_port=False)
+            current_app.logger.info("APNs client created successfully.")
+        except Exception as client_error:
+            current_app.logger.error("Failed to create APNs client.")
+            current_app.logger.error(traceback.format_exc())
+            # Clean up the temporary file before re-raising the error.
+            os.remove(temp_cert_path)
+            raise client_error
         
         # Send the notification.
         current_app.logger.info("Sending push notification...")
@@ -875,3 +888,5 @@ def send_notification_to_approved_user(new_user_id, custom_message, device_token
         current_app.logger.error("Error sending push notification to approved user:")
         current_app.logger.error(traceback.format_exc())
         return {"status": "error", "detail": str(e)}
+
+
