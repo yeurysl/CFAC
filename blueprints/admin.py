@@ -683,7 +683,7 @@ def send_notification_to_user(user_id, custom_message=None):
         current_app.logger.error("Error sending push notification to user:")
         current_app.logger.error(traceback.format_exc())
         return {"status": "error", "detail": str(e)}
-from notis import send_post_mark_email
+from notis import send_postmark_email
 
 
 @admin_bp.route('/approve_user/<user_id>', methods=['POST'])
