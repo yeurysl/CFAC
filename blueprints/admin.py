@@ -725,55 +725,6 @@ def get_user_device_token(user_id):
         return None
 
 
-def send_notification_to_approved_user(user_id, custom_message=None):
-    """
-    Sends a push notification to an approved user's device using the device token stored in their record.
-    """
-    token = get_user_device_token(user_id)
-    if not token:
-        current_app.logger.warning(f"No device token found for approved user {user_id}.")
-        return {"status": "error", "detail": "No device token found for approved user."}
-
-    # Retrieve the certificate for user notifications.
-    cert_b64 = os.environ.get("APNS_CERT_B64_USER")
-    if not cert_b64:
-        current_app.logger.error("APNS certificate for users not configured in environment variable!")
-        return {"status": "error", "detail": "APNS certificate not set for users."}
-    
-    try:
-        current_app.logger.info("Decoding APNs certificate for approved user notifications.")
-        cert_content = base64.b64decode(cert_b64)
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pem") as temp_cert:
-            temp_cert.write(cert_content)
-            temp_cert_path = temp_cert.name
-        current_app.logger.info(f"APNs certificate written to temporary file: {temp_cert_path}")
-
-        # Build the APNs payload.
-        payload = Payload(
-            alert={
-                "title": "Account Approved",
-                "body": custom_message or "Congratulations! Your account has been approved."
-            },
-            sound="default",
-            badge=1
-        )
-
-        # Use the appropriate topic (your app's bundle identifier).
-        topic = "com.Centralfloridaautocare.cfacios"  # Update this if your sales app's bundle identifier is different.
-        current_app.logger.info(f"Using APNs topic: {topic}")
-
-        # Create the APNs client.
-        client = APNsClient(temp_cert_path, use_sandbox=False, use_alternative_port=False)
-        response = client.send_notification(token, payload, topic=topic)
-        current_app.logger.info(f"Push notification response for approved user {user_id}: {response}")
-
-        # Clean up the temporary certificate file.
-        os.remove(temp_cert_path)
-        return {"status": "sent", "detail": str(response)}
-    except Exception as e:
-        current_app.logger.error("Error sending push notification to approved user:")
-        current_app.logger.error(traceback.format_exc())
-        return {"status": "error", "detail": str(e)}
 
 
 
@@ -871,8 +822,10 @@ def send_notification_to_approved_user(new_user_id, custom_message, device_token
     """
     Sends an APNs push notification to an approved user using the provided device token.
     """
+    current_app.logger.info(f"send_notification_to_approved_user called for user {new_user_id} with device_token: {device_token} and custom_message: {custom_message}")
+    
     if not device_token or len(device_token) < 10:
-        current_app.logger.error(f"Invalid device token provided for user {new_user_id}.")
+        current_app.logger.error(f"Invalid device token provided for user {new_user_id}: {device_token}")
         return {"status": "error", "detail": "Invalid device token."}
     
     cert_b64 = os.environ.get("APNS_CERT_B64_SALESMAN")
@@ -883,28 +836,40 @@ def send_notification_to_approved_user(new_user_id, custom_message, device_token
     try:
         current_app.logger.info("Decoding APNs certificate for approved user notifications.")
         cert_content = base64.b64decode(cert_b64)
+        current_app.logger.debug("APNs certificate decoded successfully.")
+        
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pem") as temp_cert:
             temp_cert.write(cert_content)
             temp_cert_path = temp_cert.name
         current_app.logger.info(f"APNs certificate written to temporary file: {temp_cert_path}")
-
-        # Build the payload.
+        
+        # Build the APNs payload.
+        current_app.logger.info("Building APNs payload...")
         payload = Payload(
             alert={"title": "Account Approved", "body": custom_message},
             sound="default",
             badge=1
         )
+        current_app.logger.debug(f"Payload constructed: alert={payload.alert}, sound={payload.sound}, badge={payload.badge}")
         
         # Specify the APNs topic (usually your app's bundle identifier).
-        topic = "com.Centralfloridaautocare.cfacios"  # Update this if your sales app's bundle identifier is different.
+        topic = "com.Centralfloridaautocare.cfacios"
         current_app.logger.info(f"Using APNs topic: {topic}")
-
+        
         # Create the APNs client.
+        current_app.logger.info("Creating APNs client...")
         client = APNsClient(temp_cert_path, use_sandbox=False, use_alternative_port=False)
+        current_app.logger.info("APNs client created successfully.")
+        
+        # Send the notification.
+        current_app.logger.info("Sending push notification...")
         response = client.send_notification(device_token, payload, topic=topic)
         current_app.logger.info(f"Approved user notification response: {response}")
-
+        
+        # Clean up the temporary certificate file.
         os.remove(temp_cert_path)
+        current_app.logger.info(f"Temporary certificate file removed: {temp_cert_path}")
+        
         return {"status": "sent", "detail": str(response)}
     except Exception as e:
         current_app.logger.error("Error sending push notification to approved user:")
