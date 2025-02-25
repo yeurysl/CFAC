@@ -1046,14 +1046,16 @@ def upsert_device_token(user_identifier, device_token):
 
 
 
+
 @api_sales_bp.route('/register', methods=['POST'])
 def register_user():
     """
-    API Endpoint to register a new user.
-    This version stores the user in 'users_to_approve' (instead of 'users'),
-    adds address info, and sets 'approved' to False by default.
-    Optionally, if a valid device_token is provided in the payload,
-    it will be stored within the user document.
+    Registers a new user into the pending approval collection.
+    Expects a JSON payload with:
+      - email, username, password, full_name, user_type
+      - optional: street_address, unit_apt, city, zip_code, country, device_token
+    The user is stored in 'users_to_approve' with 'approved': False.
+    If a valid device_token is provided, it is also stored.
     """
     data = request.get_json()
     current_app.logger.info(f"Received registration data: {data}")
@@ -1069,7 +1071,6 @@ def register_user():
         current_app.logger.error("Registration failed: Missing required fields.")
         return jsonify({"error": "All fields (email, username, password, full_name, user_type) are required."}), 400
 
-    # Validate email & username formats
     if not is_valid_email(email):
         current_app.logger.error("Registration failed: Invalid email format.")
         return jsonify({"error": "Invalid email format."}), 400
@@ -1077,28 +1078,25 @@ def register_user():
         current_app.logger.error("Registration failed: Invalid username format.")
         return jsonify({"error": "Invalid username. Only letters, numbers, and underscores are allowed."}), 400
 
-    # Validate user type
     if user_type not in ['admin', 'tech', 'sales']:
         current_app.logger.error("Registration failed: Invalid user type.")
         return jsonify({"error": "Invalid user type. Must be 'admin', 'tech', or 'sales'."}), 400
 
-    # Validate password complexity
     if len(password) < 8:
         current_app.logger.error("Registration failed: Password too short.")
         return jsonify({"error": "Password must be at least 8 characters long."}), 400
 
-    # Access MongoDB instance and approval collection
+    # Access MongoDB instance and the pending collection.
     db = current_app.config["MONGO_CLIENT"]
     users_to_approve_collection = db.users_to_approve
 
-    # Check if the email already exists in either collection
+    # Check if email already exists in either approved or pending collections.
     existing_in_users = db.users.find_one({"email": email})
     existing_in_approval = users_to_approve_collection.find_one({"email": email})
     if existing_in_users or existing_in_approval:
         current_app.logger.error(f"Registration failed: Email {email} already exists.")
         return jsonify({"error": f"An account with email '{email}' already exists (or is pending approval)."}), 409
 
-    # Hash the password
     try:
         hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
     except Exception as e:
@@ -1112,7 +1110,7 @@ def register_user():
     zip_code = data.get("zip_code", "").strip()
     country = data.get("country", "").strip() or "United States"
 
-    # Create the user document for the approval collection
+    # Build the pending user document.
     user_to_approve = {
         "email": email,
         "username": username,
@@ -1140,7 +1138,6 @@ def register_user():
         current_app.logger.info("No valid device token provided; skipping device token storage.")
 
     try:
-        # Insert the user document into the users_to_approve collection.
         result = users_to_approve_collection.insert_one(user_to_approve)
         current_app.logger.info(f"User registered successfully with _id: {result.inserted_id}")
         return jsonify({"message": "User registered successfully (pending approval)!", "email": email}), 201
