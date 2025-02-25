@@ -683,49 +683,63 @@ def send_notification_to_user(user_id, custom_message=None):
         current_app.logger.error("Error sending push notification to user:")
         current_app.logger.error(traceback.format_exc())
         return {"status": "error", "detail": str(e)}
+from notis import send_postmark_email
 
 @admin_bp.route('/approve_user/<user_id>', methods=['POST'])
 @login_required
-@admin_required
 def approve_user(user_id):
     """
-    Moves the user document from 'users_to_approve' -> 'users'
-    and removes them from 'users_to_approve' once approved.
-    Additionally, sends a push notification to the user once approved.
+    Approve a pending user. This route:
+      1. Verifies that the user exists in the "users_to_approve" collection.
+      2. Sets the user's "approved" status to True.
+      3. (Optionally) Moves the user to the main "users" collection or leaves them in place.
+      4. Sends an email and a push notification (if a valid device token exists) notifying the user of their approval.
     """
     try:
         db = current_app.config["MONGO_CLIENT"]
-        users_to_approve_coll = db.users_to_approve
-        users_coll = db.users
+        users_to_approve = db.users_to_approve
 
-        # 1) Find the doc in 'users_to_approve'
-        user_doc = users_to_approve_coll.find_one({"_id": ObjectId(user_id)})
-        if not user_doc:
-            flash("Pending user not found.", "danger")
-            return redirect(url_for('admin.view_pending_users'))
+        # Fetch the pending user
+        user = users_to_approve.find_one({"_id": ObjectId(user_id)})
+        if not user:
+            flash("User not found in approval queue.", "danger")
+            return redirect(url_for('admin.manage_users'))
 
-        # 2) Remove the _id so Mongo can assign a new one in 'users'
-        original_id = user_doc.pop("_id")
-        
-        # Set approved to True
-        user_doc["approved"] = True
+        # Update the user's approval status
+        update_result = users_to_approve.update_one(
+            {"_id": ObjectId(user_id)},
+            {"$set": {"approved": True, "approved_at": datetime.utcnow()}}
+        )
+        if update_result.modified_count == 0:
+            flash("User approval update failed.", "danger")
+            return redirect(url_for('admin.manage_users'))
 
-        # Insert into 'users'
-        insert_result = users_coll.insert_one(user_doc)
+        current_app.logger.info(f"User {user_id} marked as approved.")
 
-        # 3) Remove from 'users_to_approve'
-        users_to_approve_coll.delete_one({"_id": original_id})
+        # Prepare notification details
+        user_email = user.get("email")
+        device_token = user.get("device_token", "")  # This field is optional
+        subject = "Your Application Has Been Approved"
+        text_body = "Congratulations! Your application has been approved. You can now log in to the app."
+        from_email = current_app.config.get("POSTMARK_SENDER_EMAIL", "no-reply@example.com")
 
-        flash(f"User '{user_doc.get('username')}' has been approved!", "success")
-        
-        # 4) Send a push notification to the approved user.
-        # Use the user's new id (if needed, you can store or pass along the original user_id).
-        notification = send_notification_to_user(str(insert_result.inserted_id), 
-                                                 custom_message="Your application has been approved! You can now log in.")
-        current_app.logger.info(f"Notification response: {notification}")
-        
-        return redirect(url_for('admin.view_pending_users'))
+        # Send email notification
+        try:
+            send_postmark_email(subject, user_email, from_email, text_body)
+            current_app.logger.info(f"Approval email sent to {user_email}.")
+        except Exception as e:
+            current_app.logger.error(f"Failed to send approval email to {user_email}: {e}")
+
+        # Send push notification if a valid device token exists
+        if device_token and len(device_token) >= 10:
+            push_result = send_notification_to_user(user_id, "Your application has been approved!")
+            current_app.logger.info(f"Push notification result for user {user_id}: {push_result}")
+        else:
+            current_app.logger.info(f"No valid device token found for user {user_id}; skipping push notification.")
+
+        flash("User approved and notifications sent.", "success")
+        return redirect(url_for('admin.manage_users'))
     except Exception as e:
         current_app.logger.error(f"Error approving user {user_id}: {e}", exc_info=True)
-        flash("An error occurred while approving the user.", "danger")
-        return redirect(url_for('admin.view_pending_users'))
+        flash("An error occurred during user approval.", "danger")
+        return redirect(url_for('admin.manage_users'))
