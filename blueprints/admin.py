@@ -701,7 +701,7 @@ from apns2.payload import Payload
 from flask import current_app
 from datetime import datetime
 
-def get_device_token_for_user(user_id):
+def get_user_device_token(user_id):
     """
     Fetch the device token from the pending user record in the 'users_to_approve' collection.
     """
@@ -729,7 +729,7 @@ def send_notification_to_approved_user(user_id, custom_message=None):
     """
     Sends a push notification to an approved user's device using the device token stored in their record.
     """
-    token = get_device_token_for_user(user_id)
+    token = get_user_device_token(user_id)
     if not token:
         current_app.logger.warning(f"No device token found for approved user {user_id}.")
         return {"status": "error", "detail": "No device token found for approved user."}
