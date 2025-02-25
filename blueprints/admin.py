@@ -692,16 +692,17 @@ def approve_user(user_id):
     """
     Approve a pending user. This route:
       1. Retrieves the user from the 'users_to_approve' collection.
-      2. Inserts the user's data (with approval timestamp) into the main 'users' collection.
+      2. Inserts the user's data (with an approval timestamp) into the main 'users' collection.
       3. Deletes the user from the 'users_to_approve' collection.
-      4. Sends an approval email and an APNs push notification (if a valid device token is present).
+      4. Sends an approval email and an APNs push notification (if a valid device token is present)
+         using the new user id.
     """
     try:
         db = current_app.config["MONGO_CLIENT"]
         pending_collection = db.users_to_approve
         main_users_collection = db.users
 
-        # Fetch the pending user document
+        # Fetch the pending user document.
         pending_user = pending_collection.find_one({"_id": ObjectId(user_id)})
         if not pending_user:
             flash("User not found in pending approvals.", "danger")
@@ -709,20 +710,23 @@ def approve_user(user_id):
 
         current_app.logger.info(f"Approving user: {pending_user}")
 
-        # Prepare the user document for insertion into the main users collection.
-        # Remove the pending _id and set an approval timestamp.
+        # Remove the pending _id and add an approval timestamp.
         pending_user.pop("_id", None)
         pending_user["approved_at"] = datetime.utcnow()
 
-        # Insert the approved user into the main collection.
+        # Insert the approved user into the main users collection.
         insert_result = main_users_collection.insert_one(pending_user)
         if not insert_result.inserted_id:
             flash("Failed to insert user into main collection.", "danger")
             return redirect(url_for("admin.manage_users"))
 
+        # Use the newly inserted user id for further notifications.
+        new_user_id = str(insert_result.inserted_id)
+        current_app.logger.info(f"User approved with new user id: {new_user_id}")
+
         # Delete the user document from the pending approvals.
         pending_collection.delete_one({"_id": ObjectId(user_id)})
-        current_app.logger.info(f"User {user_id} approved and moved to main users collection.")
+        current_app.logger.info(f"User {user_id} removed from pending approvals.")
 
         # Retrieve notification details.
         user_email = pending_user.get("email")
@@ -740,10 +744,10 @@ def approve_user(user_id):
 
         # Send an APNs push notification if a valid device token exists.
         if device_token and len(device_token) >= 10:
-            push_response = send_notification_to_user(user_id, "Your account has been approved!")
-            current_app.logger.info(f"Push notification sent to user {user_id}: {push_response}")
+            push_response = send_notification_to_user(new_user_id, "Your account has been approved!")
+            current_app.logger.info(f"Push notification sent to user {new_user_id}: {push_response}")
         else:
-            current_app.logger.info(f"No valid device token for user {user_id}; skipping push notification.")
+            current_app.logger.info(f"No valid device token for user {new_user_id}; skipping push notification.")
 
         flash("User approved and notifications sent.", "success")
         return redirect(url_for("admin.manage_users"))
