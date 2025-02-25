@@ -781,8 +781,6 @@ def send_notification_to_approved_user(user_id, custom_message=None):
 
 
 
-
-
 @admin_bp.route('/approve_user/<user_id>', methods=['POST'])
 @login_required
 def approve_user(user_id):
@@ -791,7 +789,8 @@ def approve_user(user_id):
       1. Retrieves the user from the 'users_to_approve' collection.
       2. Inserts the user's data (with an approval timestamp) into the main 'users' collection.
       3. Deletes the user from the 'users_to_approve' collection.
-      4. Sends an approval email and an APNs push notification (if a valid device token is present)
+      4. Stores the device token in the separate device_tokens collection (if provided).
+      5. Sends an approval email and an APNs push notification (if a valid device token is present)
          using the new user id.
     """
     try:
@@ -805,7 +804,7 @@ def approve_user(user_id):
             flash("User not found in pending approvals.", "danger")
             return redirect(url_for("admin.manage_users"))
 
-        current_app.logger.info(f"Approving user: {pending_user}")
+        current_app.logger.info(f"Approving pending user: {pending_user}")
 
         # Remove the pending _id and add an approval timestamp.
         pending_user.pop("_id", None)
@@ -838,10 +837,24 @@ def approve_user(user_id):
         except Exception as e:
             current_app.logger.error(f"Error sending approval email to {user_email}: {e}")
 
-        # Send an APNs push notification using the approved user's device token from the main users collection.
+        # Retrieve the device token from the pending record.
         device_token = pending_user.get("device_token", "")
         if device_token and len(device_token) >= 10:
-            push_response = send_notification_to_approved_user(new_user_id, "Your account has been approved!")
+            # Store the device token in the device_tokens collection (without a user id).
+            device_tokens_collection = db.device_tokens
+            # Insert the token if it is not already present.
+            existing = device_tokens_collection.find_one({"device_token": device_token})
+            if not existing:
+                dt_result = device_tokens_collection.insert_one({
+                    "device_token": device_token,
+                    "created_at": datetime.utcnow()
+                })
+                current_app.logger.info(f"Device token stored separately with _id: {dt_result.inserted_id}")
+            else:
+                current_app.logger.info("Device token already exists in device_tokens collection; skipping insertion.")
+
+            # Now, send a push notification using the provided device token and the new user id.
+            push_response = send_notification_to_approved_user(new_user_id, "Your account has been approved!", device_token)
             current_app.logger.info(f"Push notification sent to user {new_user_id}: {push_response}")
         else:
             current_app.logger.info(f"No valid device token for user {new_user_id}; skipping push notification.")
@@ -854,3 +867,46 @@ def approve_user(user_id):
         return redirect(url_for("admin.manage_users"))
 
 
+def send_notification_to_approved_user(new_user_id, custom_message, device_token):
+    """
+    Sends an APNs push notification to an approved user using the provided device token.
+    """
+    if not device_token or len(device_token) < 10:
+        current_app.logger.error(f"Invalid device token provided for user {new_user_id}.")
+        return {"status": "error", "detail": "Invalid device token."}
+    
+    cert_b64 = os.environ.get("APNS_CERT_B64_USER")
+    if not cert_b64:
+        current_app.logger.error("APNS certificate for users not configured in environment variable!")
+        return {"status": "error", "detail": "APNS certificate not set for users."}
+    
+    try:
+        current_app.logger.info("Decoding APNs certificate for approved user notifications.")
+        cert_content = base64.b64decode(cert_b64)
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pem") as temp_cert:
+            temp_cert.write(cert_content)
+            temp_cert_path = temp_cert.name
+        current_app.logger.info(f"APNs certificate written to temporary file: {temp_cert_path}")
+
+        # Build the payload.
+        payload = Payload(
+            alert={"title": "Account Approved", "body": custom_message},
+            sound="default",
+            badge=1
+        )
+        
+        # Specify the APNs topic (usually your app's bundle identifier).
+        topic = os.environ.get("APNS_TOPIC_USER", "com.Centralfloridaautocare.cfacios")
+        current_app.logger.info(f"Using APNs topic: {topic}")
+
+        # Create the APNs client.
+        client = APNsClient(temp_cert_path, use_sandbox=False, use_alternative_port=False)
+        response = client.send_notification(device_token, payload, topic=topic)
+        current_app.logger.info(f"Approved user notification response: {response}")
+
+        os.remove(temp_cert_path)
+        return {"status": "sent", "detail": str(response)}
+    except Exception as e:
+        current_app.logger.error("Error sending push notification to approved user:")
+        current_app.logger.error(traceback.format_exc())
+        return {"status": "error", "detail": str(e)}
