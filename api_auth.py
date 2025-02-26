@@ -49,7 +49,7 @@ def api_login():
     current_app.logger.info(f"Login attempt for username: {username}")
 
     users_collection = current_app.config.get('USERS_COLLECTION')
-    user = users_collection.find_one({"username": username})
+    user = users_collection.find_one({"username": {"$regex": f"^{username}$", "$options": "i"}})
     
     if not user:
         current_app.logger.error(f"Login failed: No user found with username {username}.")
