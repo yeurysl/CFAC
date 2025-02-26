@@ -107,10 +107,9 @@ def collect_payment(order_id):
                 )
 
                 if payment_intent.status == 'succeeded':
-                    # Update the order as paid
                     update_fields = {
                         'payment_method': 'card',
-                        'payment_status': 'Paid',
+                        'payment_status': 'downpaymentcollected',
                         'stripe_payment_intent_id': payment_intent.id
                     }
                     orders_collection.update_one(
@@ -119,11 +118,37 @@ def collect_payment(order_id):
                     )
 
                     # Import and send payment notifications
-                    from utils import send_payment_collected_notifications
+                    from notis import send_postmark_email, send_notification_to_tech, get_device_token_for_tech
+
                     send_payment_collected_notifications(order, payment_method)
 
+                    # NEW: Notify the technician
+                    technician_id = order.get("technician")
+                    if technician_id:
+                        # Fetch Technician Email
+                        tech_email = current_app.config['USERS_COLLECTION'].find_one({"_id": ObjectId(technician_id)}).get("email")
+                        if tech_email:
+                            subject = "Down Payment Collected for Your Order"
+                            text_body = f"A downpayment has been collected for order {order_id}. You may proceed with the service."
+                            html_body = f"""
+                            <html>
+                                <body>
+                                    <p>Dear Technician,</p>
+                                    <p>A downpayment has been collected for Order ID: <strong>{order_id}</strong>.</p>
+                                    <p>Please review the order and proceed accordingly.</p>
+                                </body>
+                            </html>
+                            """
+                            send_postmark_email(tech_email, subject, text_body, html_body)
+
+                        # Fetch and Send APN Notification
+                        device_token = get_device_token_for_tech(technician_id)
+                        if device_token:
+                            message = f"Downpayment received for order {order_id}. Get ready!"
+                            send_notification_to_tech(technician_id, order_id, threshold=None, device_token=device_token, custom_message=message)
+
                     flash('Payment successful!', 'success')
-                    return redirect(url_for('sales.sales_main'))  # Adjust redirect as needed
+                    return redirect(url_for('sales.sales_main'))
 
                 elif payment_intent.status == 'requires_action':
                     orders_collection.update_one(
