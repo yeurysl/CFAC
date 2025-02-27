@@ -128,14 +128,14 @@ def collect_payment(order_id):
                         # Fetch Technician Email
                         tech_email = current_app.config['USERS_COLLECTION'].find_one({"_id": ObjectId(technician_id)}).get("email")
                         if tech_email:
-                            subject = "Down Payment Collected for Your Order"
-                            text_body = f"A downpayment has been collected for order {order_id}. You may proceed with the service."
+                            subject = "Order now available"
+                            text_body = f"Check out this order in your dashboard."
                             html_body = f"""
                             <html>
                                 <body>
                                     <p>Dear Technician,</p>
-                                    <p>A downpayment has been collected for Order ID: <strong>{order_id}</strong>.</p>
-                                    <p>Please review the order and proceed accordingly.</p>
+                                    <p>This order is now available Order ID: <strong>{order_id}</strong>.</p>
+                                    <p>Check out this order in your dashboard.</p>
                                 </body>
                             </html>
                             """
