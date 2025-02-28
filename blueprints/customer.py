@@ -110,61 +110,83 @@ def cart():
     )
 
 
+
+
+from bson import ObjectId
+
 @customer_bp.route('/add_to_cart', methods=['GET'])
 @customer_required
 def add_to_cart_get():
     """
-    Adds a service to the user's cart via GET parameters,
+    Adds multiple services to the user's cart via GET parameters,
     then redirects to the cart page.
     """
     try:
-        # Extract query parameters
-        service_id = request.args.get('service_id')
+        # Extract parameters and log them
+        service_ids = request.args.get('service_id')  # Can be a comma-separated list
         vehicle_size = request.args.get('vehicle_size')
         appointment = request.args.get('appointment')
 
-        if not service_id:
+        current_app.logger.info(f"Received request to add to cart: service_id={service_ids}, vehicle_size={vehicle_size}, appointment={appointment}")
+
+        if not service_ids:
             flash("No service_id provided.", "warning")
+            current_app.logger.warning("No service_id provided in the request.")
             return redirect(url_for('customer.customer_home'))
 
-        # Fetch the service from DB if needed
+        # Split service_ids and attempt to convert them to ObjectIds
+        try:
+            service_id_list = service_ids.split(",")
+            object_id_list = [ObjectId(service_id.strip()) for service_id in service_id_list]
+            current_app.logger.info(f"Converted service IDs to ObjectIds: {object_id_list}")
+        except Exception as e:
+            current_app.logger.error(f"Invalid ObjectId format: {service_ids} - Error: {e}")
+            flash("Invalid service ID format.", "danger")
+            return redirect(url_for('customer.customer_home'))
+
+        # Fetch services from the database
         services_collection = current_app.config['SERVICES_COLLECTION']
-        service = services_collection.find_one({'_id': ObjectId(service_id)})
-        if not service:
-            flash("Service not found.", "danger")
+        services = list(services_collection.find({"_id": {"$in": object_id_list}}))
+        current_app.logger.info(f"Fetched services from DB: {services}")
+
+        if not services:
+            flash("Selected services not found.", "danger")
+            current_app.logger.error(f"No services found in DB for IDs: {object_id_list}")
             return redirect(url_for('customer.customer_home'))
 
-        # Add item(s) to the session cart
-        # Session cart could be a list of service_ids or a list of dicts
+        # Ensure session cart exists
         if 'cart' not in session:
             session['cart'] = []
 
-        # Example: store more than just service_id in the cart
-        cart_item = {
-            "service_id": service_id,
-            "service_name": service.get('label', 'Unnamed Service'),
-            "vehicle_size": vehicle_size,
-            "appointment": appointment
-        }
+        # Add each service to the cart if not already present
+        for service in services:
+            cart_item = {
+                "service_id": str(service["_id"]),
+                "service_name": service.get("label", "Unnamed Service"),
+                "vehicle_size": vehicle_size,
+                "appointment": appointment
+            }
 
-        # Add the item if it's not already in the cart
-        # or you could just append duplicates if desired
-        already_in_cart = any(
-            item["service_id"] == service_id and item["vehicle_size"] == vehicle_size 
-            for item in session['cart']
-        )
-        if not already_in_cart:
-            session['cart'].append(cart_item)
-            flash(f"Added {service.get('label', 'Service')} to your cart.", 'success')
-        else:
-            flash("Item is already in your cart.", 'info')
+            already_in_cart = any(
+                item["service_id"] == str(service["_id"]) and item["vehicle_size"] == vehicle_size
+                for item in session['cart']
+            )
+
+            if not already_in_cart:
+                session['cart'].append(cart_item)
+                flash(f"Added {service.get('label', 'Service')} to your cart.", 'success')
+                current_app.logger.info(f"Added {service.get('label', 'Service')} to cart.")
+            else:
+                flash(f"{service.get('label', 'Service')} is already in your cart.", 'info')
+                current_app.logger.info(f"{service.get('label', 'Service')} is already in the cart.")
 
         return redirect(url_for('customer.cart'))
-    
+
     except Exception as e:
-        current_app.logger.error(f"Error adding service to cart: {e}")
-        flash('An error occurred while adding the service to your cart.', 'danger')
+        current_app.logger.error(f"Unexpected error adding service to cart: {e}", exc_info=True)
+        flash('An error occurred while adding services to your cart.', 'danger')
         return redirect(url_for('customer.customer_home'))
+
 
 
 

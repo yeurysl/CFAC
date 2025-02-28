@@ -30,7 +30,7 @@
 
 
 <!-- Dropdown Selectors with White Borders -->
-<div class="container-fluid ">
+<div class="container-fluid px-0">
   <div class="row g-3 mb-3 row-cols-1 row-cols-md-2">
     <div class="col">
       <div class="white-border">
@@ -68,30 +68,112 @@
             type="button" 
             id="serviceDropdown" 
             data-bs-toggle="dropdown" 
+            data-bs-auto-close="false" 
             aria-expanded="false"
           >
             Select Service
           </button>
+          
+
+
           <ul class="dropdown-menu w-100" aria-labelledby="serviceDropdown">
-            {% for service in services if service.active %}
+            <!-- Packages Header -->
+            <li class="dropdown-header">Packages</li>
+            
+            <!-- Full Interior with Sub-Packages -->
             <li>
-              <a 
-                class="dropdown-item service-option" 
-                href="#" 
-                data-service-id="{{ service._id }}" 
-                data-service-key="{{ service.key }}" 
-                data-service-label="{{ service.label }}"
-              >
-                {{ service.label }}
+              <a class="dropdown-item package-option" href="#" data-package="fullInterior">
+                Full Interior
               </a>
             </li>
-            {% endfor %}
+            <li class="dropdown-item sub-package" data-parent-package="fullInterior">
+              <a class="dropdown-item sub-package-option" href="#" data-subpackage="carpets">
+                Carpets
+              </a>
+            </li>
+            <li class="dropdown-item sub-package" data-parent-package="fullInterior">
+              <a class="dropdown-item sub-package-option" href="#" data-subpackage="plasticFloors">
+                Plastic Floors
+              </a>
+            </li>
+            
+            <!-- Other Package Selectors -->
+            <li>
+              <a class="dropdown-item package-option" href="#" data-package="fullExterior">
+                Full Exterior
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item package-option" href="#" data-package="fullDetail">
+                Full Detail
+              </a>
+            </li>
+            
+            <li><hr class="dropdown-divider"></li>
+            
+                    <!-- Individual Services Header -->
+          <li class="dropdown-header">Interior Services</li>
+          {% for service in services if service.active and service.category == 'Interior' %}
+          <li>
+            <a 
+              class="dropdown-item service-option" 
+              href="#" 
+              data-service-id="{{ service._id }}" 
+              data-service-key="{{ service.key }}" 
+              data-service-label="{{ service.label }}"
+            >
+              <span class="check-icon me-2"><i class="bi bi-check-circle-fill"></i></span>
+              {{ service.label }}
+            </a>
+          </li>
+          {% endfor %}
+
+          <li class="dropdown-header">Exterior Services</li>
+          {% for service in services if service.active and service.category == 'Exterior' %}
+          <li>
+            <a 
+              class="dropdown-item service-option" 
+              href="#" 
+              data-service-id="{{ service._id }}" 
+              data-service-key="{{ service.key }}" 
+              data-service-label="{{ service.label }}"
+            >
+              <span class="check-icon me-2"><i class="bi bi-check-circle-fill"></i></span>
+              {{ service.label }}
+            </a>
+          </li>
+          {% endfor %}
+
+          <li class="dropdown-header">Additional Services</li>
+          {% for service in services if service.active and service.category == 'Additional' %}
+          <li>
+            <a 
+              class="dropdown-item service-option" 
+              href="#" 
+              data-service-id="{{ service._id }}" 
+              data-service-key="{{ service.key }}" 
+              data-service-label="{{ service.label }}"
+            >
+              <span class="check-icon me-2"><i class="bi bi-check-circle-fill"></i></span>
+              {{ service.label }}
+            </a>
+          </li>
+          {% endfor %}
+
           </ul>
+          
+          
+
+          
+          
         </div>
       </div>
     </div>
   </div>
 </div>
+
+
+
 
 <!-- Date and Time Section with White Borders -->
 <div class="container-fluid ">
@@ -149,33 +231,91 @@
 
 <!-- Main JavaScript for this page -->
 <script>
+
+
+  // Define your package selections (existing)
+  const packages = {
+    fullInterior: {
+      label: "Full Interior",
+      services: [
+        { id: "6780627528fc752af68c43e4", key: "interior_plastics_dry_detail", label: "Interior Plastics Dry Detail" },
+        { id: "6780627528fc752af68c43e5", key: "interior_plastics_wet_detail", label: "Interior Plastics Wet Detail/Protectants" },
+        { id: "6780627528fc752af68c43e6", key: "seats_dry_detail", label: "Seats Dry Detail(Vacuum)" },
+        { id: "6780627528fc752af68c43e7", key: "seats_wet_detail", label: "Seats Wet Detail (Leather)" },
+        { id: "6780627528fc752af68c43e8", key: "seats_shampoo", label: "Seats Shampoo (Fabric)" },
+        { id: "6780627528fc752af68c43f3", key: "light_pet_hair_removal", label: "Light Pet Hair Removal" }
+      ]
+    },
+    fullExterior: {
+      label: "Full Exterior",
+      services: [
+        { id: "6780627528fc752af68c43ee", key: "exterior_handwash", label: "Exterior Handwash and Windows" },
+        { id: "6780627528fc752af68c43ef", key: "bug_tar_removal", label: "Bug and Tar Removal" },
+        { id: "6780627528fc752af68c43f0", key: "tire_rim_detail", label: "Tire and Rim Detail/Shine" },
+        { id: "6780627528fc752af68c43f1", key: "claybar_wax", label: "Claybar/Wax" },
+      ]
+    },
+    fullDetail: {
+      label: "Full Detail",
+      services: [
+        // Combine services from fullInterior and fullExterior
+        ...[
+          { id: "6780627528fc752af68c43e4", key: "interior_plastics_dry_detail", label: "Interior Plastics Dry Detail" },
+          { id: "6780627528fc752af68c43e5", key: "interior_plastics_wet_detail", label: "Interior Plastics Wet Detail/Protectants" },
+          { id: "6780627528fc752af68c43e6", key: "seats_dry_detail", label: "Seats Dry Detail(Vacuum)" },
+          { id: "6780627528fc752af68c43e7", key: "seats_wet_detail", label: "Seats Wet Detail (Leather)" },
+          { id: "6780627528fc752af68c43e8", key: "seats_shampoo", label: "Seats Shampoo (Fabric)" },
+          { id: "6780627528fc752af68c43f3", key: "light_pet_hair_removal", label: "Light Pet Hair Removal" }
+        ],
+        ...[
+          { id: "6780627528fc752af68c43ee", key: "exterior_handwash", label: "Exterior Handwash and Windows" },
+          { id: "6780627528fc752af68c43ef", key: "bug_tar_removal", label: "Bug and Tar Removal" },
+          { id: "6780627528fc752af68c43f0", key: "tire_rim_detail", label: "Tire and Rim Detail/Shine" },
+          { id: "6780627528fc752af68c43f1", key: "claybar_wax", label: "Claybar/Wax" },
+          { id: "6780627528fc752af68c43f7", key: "truckbed", label: "Truckbed" }
+        ]
+      ]
+    }
+  };
+  
+  // Define sub-package selections for Full Interior:
+  const subPackages = {
+    carpets: {
+      label: "Carpets",
+      services: [
+        { id: "6780627528fc752af68c43eb", key: "carpet_dry_detail", label: "Carpet Dry Detail (Vacuum)" },
+        { id: "6780627528fc752af68c43ec", key: "carpet_wet_detail", label: "Carpet Wet Detail (Shampoo)" }
+      ]
+    },
+    plasticFloors: {
+      label: "Plastic Floors",
+      services: [
+        { id: "6780627528fc752af68c43e9", key: "floors_dry_detail", label: "Floors Dry Detail" },
+        { id: "6780627528fc752af68c43ea", key: "floors_wet_detail", label: "Floors Wet Detail" }
+      ]
+    }
+  };
+  
   // Helper function: Round a Date object to the nearest 30 minutes.
   function roundToNearest30(date) {
     const ms = 1800000; // 30 minutes in milliseconds
     return new Date(Math.round(date.getTime() / ms) * ms);
   }
-
+  
   document.addEventListener('DOMContentLoaded', function() {
-    // -----------------------
-    // Initialize Flatpickr
-    // -----------------------
+  
+    // Initialize Flatpickr on the datetime input with 30-minute increments.
     flatpickr("#appointmentDateTime", {
       enableTime: true,
-      dateFormat: "Y-m-d\\TH:i",  // ISO-like format without seconds
+      dateFormat: "Y-m-d\\TH:i",
       time_24hr: true,
       minuteIncrement: 30,
       defaultDate: roundToNearest30(new Date())
     });
-
-    // -----------------------
-    // Default Selections
-    // -----------------------
-    let selectedVehicleSize = "coupe_2_seater";  // Must match your dictionary key
-    let selectedService = null;
-
-    // -----------------------
-    // Mapping Vehicle Size -> Image Data
-    // -----------------------
+  
+    let selectedVehicleSize = "coupe_2_seater";
+    let selectedServices = [];
+  
     const vehicleSizeData = {
       "coupe_2_seater": {
         imageUrl: "{{ url_for('static', filename='creatives/coupe.jpg') }}",
@@ -194,7 +334,7 @@
         altText: "Image of a 6-seater minivan"
       },
       "sedan_2_door": {
-        imageUrl: "{{ url_for('static', filename='creatives/sedan2door.webp') }}",
+        imageUrl: "{{ url_for('static', filename='creatives/sedan2door.jpg') }}",
         altText: "Image of a 2-door sedan"
       },
       "sedan_4_door": {
@@ -202,11 +342,11 @@
         altText: "Image of a 4-door sedan"
       },
       "suv_4_seater": {
-        imageUrl: "{{ url_for('static', filename='creatives/suv4door.webp') }}",
+        imageUrl: "{{ url_for('static', filename='creatives/suv4door.png') }}",
         altText: "Image of a 4-seater SUV"
       },
       "suv_6_seater": {
-        imageUrl: "{{ url_for('static', filename='creatives/suv4door.webp') }}",
+        imageUrl: "{{ url_for('static', filename='creatives/suv4door.png') }}",
         altText: "Image of a 6-seater SUV"
       },
       "truck_2_seater": {
@@ -218,10 +358,7 @@
         altText: "Image of a 4-seater truck"
       }
     };
-
-    // -----------------------
-    // Helper: Update Display Image
-    // -----------------------
+  
     function updateDisplayImage() {
       const imageElement = document.getElementById('service-display-image');
       if (selectedVehicleSize && vehicleSizeData[selectedVehicleSize]) {
@@ -232,68 +369,413 @@
         imageElement.alt = "Default service image";
       }
     }
-
-    // -----------------------
-    // Initialize Vehicle Size Dropdown Button
-    // -----------------------
+  
+    // Set default vehicle size text and update display image.
     document.getElementById('vehicleSizeDropdown').textContent = "Coupe 2 Seater";
     updateDisplayImage();
-
-    // -----------------------
-    // Vehicle Size: Click Events
-    // -----------------------
+  
+    // Vehicle size selection event.
     document.querySelectorAll('.vehicle-size-option').forEach(item => {
       item.addEventListener('click', function(e) {
         e.preventDefault();
         selectedVehicleSize = this.getAttribute('data-vehicle-size');
-        // Update the button text to match the clicked item
         document.getElementById('vehicleSizeDropdown').textContent = this.textContent;
         updateDisplayImage();
       });
     });
-
-    // -----------------------
-    // Service: Click Events
-    // -----------------------
+  
+    // Multi-select for individual service options.
     document.querySelectorAll('.service-option').forEach(item => {
       item.addEventListener('click', function(e) {
         e.preventDefault();
-        selectedService = {
-          id: this.getAttribute('data-service-id'),
-          key: this.getAttribute('data-service-key'),
-          label: this.getAttribute('data-service-label')
-        };
-        // Update the button text to match the clicked service
-        document.getElementById('serviceDropdown').textContent = this.textContent;
-        updateDisplayImage();
+        const serviceId = this.getAttribute('data-service-id');
+        const serviceKey = this.getAttribute('data-service-key');
+        const serviceLabel = this.getAttribute('data-service-label');
+  
+        // If this is the Truckbed option, ensure vehicle size is truck-related.
+        if (serviceKey === "truckbed") {
+          if (selectedVehicleSize !== "truck_2_seater" && selectedVehicleSize !== "truck_4_seater") {
+            alert("The Truckbed option is only available if your vehicle is a Truck (2 or 4 seater).");
+            return;
+          }
+        }
+  
+        const index = selectedServices.findIndex(s => s.id === serviceId);
+        if (index === -1) {
+          selectedServices.push({ id: serviceId, key: serviceKey, label: serviceLabel });
+          this.classList.add('selected');
+        } else {
+          selectedServices.splice(index, 1);
+          this.classList.remove('selected');
+        }
+        updateServiceDropdownText();
       });
     });
-
-    // -----------------------
-    // Book Now: Click Event
-    // -----------------------
+  
+    function updateServiceDropdownText() {
+      // We no longer display the selected services in the button;
+      // simply reset it to a constant label.
+      const serviceDropdown = document.getElementById('serviceDropdown');
+      serviceDropdown.textContent = "Select Service";
+    }
+  
+    // Package selection: Toggle package options.
+    document.querySelectorAll('.package-option').forEach(item => {
+      item.addEventListener('click', function(e) {
+        e.preventDefault();
+        const pkgKey = this.getAttribute('data-package');
+        const isSelected = this.classList.contains('selected');
+  
+        if (!isSelected) {
+          this.classList.add('selected');
+          if (packages[pkgKey] && packages[pkgKey].services) {
+            packages[pkgKey].services.forEach(s => {
+              // Check truckbed condition for package services.
+              if (s.key === "truckbed" && (selectedVehicleSize !== "truck_2_seater" && selectedVehicleSize !== "truck_4_seater")) {
+                return;
+              }
+              if (!selectedServices.find(item => item.id === s.id)) {
+                selectedServices.push(s);
+                const serviceOption = document.querySelector(`.service-option[data-service-id="${s.id}"]`);
+                if (serviceOption) {
+                  serviceOption.classList.add('selected');
+                }
+              }
+            });
+          }
+        } else {
+          this.classList.remove('selected');
+          if (packages[pkgKey] && packages[pkgKey].services) {
+            packages[pkgKey].services.forEach(s => {
+              selectedServices = selectedServices.filter(item => item.id !== s.id);
+              const serviceOption = document.querySelector(`.service-option[data-service-id="${s.id}"]`);
+              if (serviceOption) {
+                serviceOption.classList.remove('selected');
+              }
+            });
+          }
+        }
+        updateServiceDropdownText();
+      });
+    });
+  // Sub-package selection: Toggle sub-package options (for Full Interior only).
+  document.querySelectorAll('.sub-package-option').forEach(item => {
+    item.addEventListener('click', function(e) {
+      e.preventDefault();
+      const subPkgKey = this.getAttribute('data-subpackage');
+      const isSelected = this.classList.contains('selected');
+  
+      // Define a helper to deselect a given sub-package.
+      function deselectSubPackage(key) {
+        const otherElem = document.querySelector(`.sub-package-option[data-subpackage="${key}"]`);
+        if (otherElem && otherElem.classList.contains('selected')) {
+          otherElem.classList.remove('selected');
+          if (subPackages[key] && subPackages[key].services) {
+            subPackages[key].services.forEach(s => {
+              selectedServices = selectedServices.filter(item => item.id !== s.id);
+              const serviceOption = document.querySelector(`.service-option[data-service-id="${s.id}"]`);
+              if (serviceOption) {
+                serviceOption.classList.remove('selected');
+              }
+            });
+          }
+        }
+      }
+  
+      // When selecting one sub-package, deselect its conflicting sibling.
+      if (!isSelected) {
+        // If selecting plasticFloors, deselect carpets.
+        if (subPkgKey === "plasticFloors") {
+          deselectSubPackage("carpets");
+        }
+        // If selecting carpets, deselect plasticFloors.
+        if (subPkgKey === "carpets") {
+          deselectSubPackage("plasticFloors");
+        }
+        // Now, mark this sub-package as selected and add its services.
+        this.classList.add('selected');
+        if (subPackages[subPkgKey] && subPackages[subPkgKey].services) {
+          subPackages[subPkgKey].services.forEach(s => {
+            if (!selectedServices.find(item => item.id === s.id)) {
+              selectedServices.push(s);
+              const serviceOption = document.querySelector(`.service-option[data-service-id="${s.id}"]`);
+              if (serviceOption) {
+                serviceOption.classList.add('selected');
+              }
+            }
+          });
+        }
+      } else {
+        // Deselect this sub-package and remove its services.
+        this.classList.remove('selected');
+        if (subPackages[subPkgKey] && subPackages[subPkgKey].services) {
+          subPackages[subPkgKey].services.forEach(s => {
+            selectedServices = selectedServices.filter(item => item.id !== s.id);
+            const serviceOption = document.querySelector(`.service-option[data-service-id="${s.id}"]`);
+            if (serviceOption) {
+              serviceOption.classList.remove('selected');
+            }
+          });
+        }
+      }
+      updateServiceDropdownText();
+    });
+  });
+  
+    // Close dropdown when user taps outside (simulate auto-close)
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('.dropdown')) {
+        // For each open dropdown, manually hide it using Bootstrap's dropdown hide method.
+        const dropdownToggles = document.querySelectorAll('[data-bs-toggle="dropdown"]');
+        dropdownToggles.forEach(toggle => {
+          const dropdownInstance = bootstrap.Dropdown.getInstance(toggle);
+          if (dropdownInstance) {
+            dropdownInstance.hide();
+          }
+        });
+      }
+    });
+    // Book Now button event listener.
     document.getElementById('bookNowBtn').addEventListener('click', function() {
-      // Validate: Must pick a size and a service
-      if (!selectedVehicleSize || !selectedService) {
-        alert("Please select both a vehicle size and a service.");
+      if (!selectedVehicleSize || selectedServices.length === 0) {
+        alert("Please select a vehicle size and at least one service.");
         return;
       }
-
-      // Build URL for add_to_cart (GET)
       let url = "/customer/add_to_cart";
-      url += "?service_id=" + encodeURIComponent(selectedService.id);
+      const serviceIds = selectedServices.map(s => s.id).join(",");
+      url += "?service_id=" + encodeURIComponent(serviceIds);
       url += "&vehicle_size=" + encodeURIComponent(selectedVehicleSize);
-
-      // If date/time is set, include it
       const dateTime = document.getElementById('appointmentDateTime').value;
       if (dateTime) {
         url += "&appointment=" + encodeURIComponent(dateTime);
       }
-
-      // Redirect via GET
       window.location.href = url;
     });
+  
   });
-</script>
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  document.getElementById('bookNowBtn').addEventListener('click', function() {
+    let selectedServices = [];
+    document.querySelectorAll('.service-option.selected').forEach(item => {
+        selectedServices.push(item.getAttribute('data-service-id'));
+    });
+
+    if (selectedServices.length === 0) {
+        alert("Please select at least one service.");
+        return;
+    }
+
+    let selectedVehicleSize = document.getElementById('vehicleSizeDropdown').textContent.trim();
+    let appointmentDateTime = document.getElementById('appointmentDateTime').value;
+
+    function addServiceToCart(serviceId) {
+        let url = `/customer/add_to_cart?service_id=${encodeURIComponent(serviceId)}&vehicle_size=${encodeURIComponent(selectedVehicleSize)}&appointment=${encodeURIComponent(appointmentDateTime)}`;
+        return fetch(url, { method: 'GET' });
+    }
+
+    // Process all selected services
+    Promise.all(selectedServices.map(serviceId => addServiceToCart(serviceId)))
+        .then(() => window.location.href = "/customer/cart") // Redirect after all are added
+        .catch(error => console.error("Error adding services:", error));
+});
+
+  </script>
+  <style>
+    /* Ensure the image fits within the viewport */
+    .review-photo {
+      max-width: 100%; /* Scale image proportionally to fit the screen width */
+      max-height: 70vh; /* Ensure the image doesn't exceed 70% of the viewport height */
+      object-fit: contain; /* Preserve the aspect ratio */
+    }
+  
+    /* Remove Bootstrap's default carousel control icons */
+    .carousel-control-prev-icon,
+    .carousel-control-next-icon {
+      display: none;
+    }
+  
+    /* Custom arrow styling */
+    .custom-arrow {
+      font-size: 2rem; /* Adjust size of the arrow */
+      color: black !important; /* Plain black color, using !important to override */
+      background: none; /* No background */
+      border: none; /* No border */
+      text-shadow: none; /* Remove any shadow effect */
+      cursor: pointer; /* Show pointer on hover */
+      user-select: none; /* Prevent text selection */
+    }
+  
+    /* Position the arrows */
+    .carousel-control-prev,
+    .carousel-control-next {
+      width: 10%; /* Adjust control area width as needed */
+      background: none; /* Remove default background */
+      border: none; /* Remove default border */
+    }
+  
+    /* Align the arrows vertically centered */
+    .carousel-control-prev,
+    .carousel-control-next {
+      top: 50%;
+      transform: translateY(-50%);
+    }
+  
+    /* Position arrows on the sides */
+    .carousel-control-prev {
+      left: 0;
+    }
+  
+    .carousel-control-next {
+      right: 0;
+    }
+  
+    /* Remove focus outlines */
+    .carousel-control-prev:focus,
+    .carousel-control-next:focus {
+      box-shadow: none;
+      outline: none;
+    }
+  
+    /* Ensure arrows are always visible without any background or hover effects */
+    .carousel-control-prev:hover,
+    .carousel-control-next:hover {
+      background: none;
+    }
+  
+    /* Adjust the arrow spacing and size for smaller screens */
+    @media (max-width: 768px) {
+      .custom-arrow {
+        font-size: 1.5rem;
+      }
+    }
+  
+    @media (max-width: 480px) {
+      .custom-arrow {
+        font-size: 1.2rem;
+      }
+    }
+  
+    /* Footer Styling */
+    .custom-footer {
+      background-color: #0a1b37; /* Replace with your desired background color */
+      border-top: 5px dashed #07173d; /* Replace with your desired border color and thickness */
+      color: #fff; /* Text color */
+      width: 100%; /* Full width */
+      padding: 0; /* No padding */
+      margin: 0; /* No margin */
+    }
+  
+    .sub-package {
+    padding-left: 20px;
+    background-color: #ffffff;
+  }
+  
+  
+    .custom-footer p {
+      margin: 0.5rem 0; /* Minimal vertical spacing between paragraphs */
+    }
+  
+    .custom-footer a {
+      color: #fff; /* Ensure links are white */
+      text-decoration: none;
+      margin-right: 0.5rem; /* Spacing between icons */
+    }
+  
+    .custom-footer a:hover {
+      color: #ddd; /* Change color on hover for better UX */
+      text-decoration: none;
+    }
+  
+    /* Responsive Footer Icons */
+    .custom-footer a i {
+      font-size: 1.5rem; /* Icon size */
+    }
+  
+    @media (max-width: 768px) {
+      .custom-footer a i {
+        font-size: 1.2rem; /* Smaller icons on tablets */
+      }
+    }
+  
+    @media (max-width: 480px) {
+      .custom-footer a i {
+        font-size: 1rem; /* Even smaller icons on mobile */
+      }
+    }
+  
+    /* Carousel Indicators Styling */
+    .carousel-indicators button {
+      background-color: #000;
+      opacity: 0.5;
+    }
+  
+    .carousel-indicators .active {
+      background-color: #000;
+      opacity: 1;
+    }
+  
+    /* Optional: Hover effect for indicators */
+    .carousel-indicators button:hover {
+      opacity: 0.8;
+    }
+  
+    /* Ensure body and html have no unintended padding/margin */
+    body, html {
+      margin: 0;
+      padding: 0;
+    }
+  
+    .white-border {
+      border: 2px solid white; /* White border with desired thickness */
+      padding: 5%;            /* Adequate spacing inside the border */
+      border-radius: 8px;       /* Rounded corners for aesthetics */
+      background-color: transparent; /* Ensure background doesn't obscure the border */
+      transition: border-color 0.3s ease, box-shadow 0.3s ease; /* Smooth transition for hover effects */
+  }
+  
+  /* Optional: Hover Effect for Enhanced UX */
+  .white-border:hover {
+      border-color: #f0f0f0; /* Slightly lighter on hover */
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+  }
+  .dropdown-item.selected {
+    background-color: #e9ecef; /* A subtle highlight */
+  }
+  
+  .dropdown-item .check-icon {
+    display: none;
+    color: #007bff; /* Set your desired color for the check */
+  }
+  
+  .dropdown-item.selected .check-icon {
+    display: inline-block;
+  }
+  #serviceDropdown {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  #serviceDropdown {
+    min-width: 250px;  /* Prevents the button from shrinking below 250px */
+    /* Optionally, you can set a fixed width if that fits your design:
+    width: 250px; */
+    overflow: hidden;  /* Ensures no unexpected overflow */
+    white-space: normal;  /* Allow text to wrap if needed */
+  }
+  
+  </style>
 {% endblock %}

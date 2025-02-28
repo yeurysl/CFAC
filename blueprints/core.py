@@ -44,17 +44,29 @@ def home():
         {"display": "Minivan 6 Seater", "value": "minivan_6_seater"}
     ]
 
-    # Fetch services from the database
-    services_collection = current_app.config['SERVICES_COLLECTION']
-    services = list(services_collection.find({'active': True}))
-    for service in services:
-        service['_id'] = str(service['_id'])  # Convert ObjectId to string
+    try:
+        # Fetch services from the database
+        services_collection = current_app.config['SERVICES_COLLECTION']
+        services = list(services_collection.find({'active': True}))
 
-    # Default image
-    default_image = url_for('static', filename='default_service.jpg')
+        if not services:
+            current_app.logger.error("No active services found in the database.")
 
-    return render_template('home.html', vehicle_sizes=vehicle_sizes , services=services, default_image=default_image)
+        # Convert MongoDB ObjectIds to strings
+        for service in services:
+            service['_id'] = str(service['_id'])
 
+        # Print debugging information
+        current_app.logger.info(f"Fetched {len(services)} services: {services}")
+
+        # Default image
+        default_image = url_for('static', filename='default_service.jpg')
+
+        return render_template('home.html', vehicle_sizes=vehicle_sizes, services=services, default_image=default_image)
+
+    except Exception as e:
+        current_app.logger.error(f"Error fetching services: {e}", exc_info=True)
+        return "Internal Server Error", 500
 
 @core_bp.route('/aboutus')
 def about():
