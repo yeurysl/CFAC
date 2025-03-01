@@ -560,7 +560,8 @@ a:hover .clickable-image {
 
 
 .view-order-bar {
-  background: linear-gradient(90deg, #a8a8a8, #777777); /* Use your desired gradient */
+  background: #fff;
+  color: #000000 !important;
   display: flex;
   justify-content: center;
   width: 250px;  /* Fixed width for a compact look */
@@ -576,7 +577,7 @@ a:hover .clickable-image {
 }
 
 .view-order-bar a {
-  color: #fff;
+  color: #000000;
   text-decoration: none;
   font-weight: bold;
   display: block; /* Ensures the link fills the container */

@@ -1,8 +1,8 @@
 <!-- templates/customer/cart.html -->
-{% extends 'base.html' %}
-
+{% extends 'base.html' %} 
+ 
 {% block title %}Your Cart{% endblock %}
-
+ 
 {% block content %}
 <div class="container">
     <h1 class="my-4">Your Cart</h1>
@@ -29,21 +29,16 @@
                     </td>
                 </tr>
                 {% endfor %}
-
-                
             </tbody>
         </table>
         
-        <!-- Display the Service Address -->
         {% if user_address %}
         <div class="card mb-4">
             <div class="card-body">
                 <div class="row align-items-center">
-                    <!-- Label Column -->
                     <div class="col-md-4">
                         <h5 class="service-address-label mb-0">Where we will be servicing:</h5>
                     </div>
-                    <!-- Address Column -->
                     <div class="col-md-8">
                         <p class="service-address-text mb-0">
                             {{ user_address.street_address }}
@@ -59,11 +54,55 @@
         {% endif %}
         
         <a href="{{ url_for('customer.customer_home') }}" class="btn btn-secondary mb-3">Add more services</a>
-        <h3>Total: {{ total | currency }}</h3>
-        <a href="{{ url_for('customer.checkout') }}" class="btn btn-primary">Proceed to Checkout</a>
+        
+        <!-- Professional Invoice Container -->
+        <div class="card shadow mb-4">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">Invoice Summary</h4>
+            </div>
+            <div class="card-body">
+                <div class="row mb-2">
+                    <div class="col-sm-6">Services Total:</div>
+                    <div class="col-sm-6 text-right">{{ total | currency }}</div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-sm-6">Licensing & Insurance Fee:</div>
+                    <div class="col-sm-6 text-right">{{ fee | currency }}</div>
+                </div>
+                {% if travel_fee > 0 %}
+                <div class="row mb-2">
+                    <div class="col-sm-6">Travel Fee:</div>
+                    <div class="col-sm-6 text-right">{{ travel_fee | currency }}</div>
+                </div>
+                {% endif %}
+                <hr>
+                <div class="row">
+                    <div class="col-sm-6"><strong>Final Total:</strong></div>
+                    <div class="col-sm-6 text-right"><strong>{{ final_total | currency }}</strong></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Payment Option Toggle Form -->
+        <form method="post" action="{{ url_for('customer.checkout') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group">
+                <label class="mb-2">Select Payment Option:</label>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="payment_time" id="pay_now" value="now" required>
+                    <label class="form-check-label" for="pay_now">Pay Now</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="payment_time" id="pay_after" value="after" required>
+                    <label class="form-check-label" for="pay_after">Pay After Completion</label>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">Proceed to Checkout</button>
+        </form>
+
     {% else %}
-    <p>Your cart is empty.</p>
-    <a href="{{ url_for('customer.customer_home') }}" class="btn btn-secondary">Continue Shopping</a>
+        <p>Your cart is empty.</p>
+        <a href="{{ url_for('customer.customer_home') }}" class="btn btn-secondary">Continue Shopping</a>
     {% endif %}
 </div>
 {% endblock %}
