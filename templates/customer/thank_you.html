@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container text-center mt-5">
+    <h2>Thank You for Your Order!</h2>
+    <p>Your payment has been received successfully.</p>
+    <p>You will receive a confirmation email with your order details shortly.</p>
+    <a href="{{ url_for('customer.customer_home') }}" class="btn btn-primary">Return to Home</a>
+</div>
+{% endblock %}

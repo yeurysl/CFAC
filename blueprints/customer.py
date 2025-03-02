@@ -53,8 +53,264 @@ def customer_home():
     default_image = url_for('static', filename='default_service.jpg')
 
     return render_template('customer/home.html', services=services, vehicle_sizes=vehicle_sizes, default_image=default_image)
+from notis import send_postmark_email
 
+@customer_bp.route('/start_payment', methods=['POST'])
+@login_required
+@customer_required
+def start_payment():
+    current_app.logger.info("Starting payment process from cart.")
+    
+    # Check if the cart exists
+    if 'cart' not in session or not session['cart']:
+        current_app.logger.info("Cart is empty; redirecting to customer home.")
+        flash('Your cart is empty.', 'info')
+        return redirect(url_for('customer.customer_home'))
+    
+    # Retrieve necessary collections
+    users_collection = current_app.config['USERS_COLLECTION']
+    services_collection = current_app.config['SERVICES_COLLECTION']
+    orders_collection = current_app.config['ORDERS_COLLECTION']
+    
+    # Fetch the user
+    user_id = current_user.id
+    current_app.logger.info("Fetching user with id: %s", user_id)
+    user = users_collection.find_one({'_id': ObjectId(user_id)})
+    if not user:
+        current_app.logger.error("User not found for id: %s", user_id)
+        flash('User not found.', 'danger')
+        return redirect(url_for('customer.customer_home'))
+    
+    # Build services_in_cart and calculate totals/fees (similar to your checkout logic)
+    total_estimated_minutes = 0
+    services_in_cart = []
+    for cart_item in session['cart']:
+        try:
+            service = services_collection.find_one({'_id': ObjectId(cart_item['service_id'])})
+        except Exception as e:
+            current_app.logger.error("Error fetching service with id %s: %s", cart_item.get('service_id'), e)
+            continue
+        if service:
+            vehicle_size = cart_item.get('vehicle_size')
+            price_info = service.get('price_by_vehicle_size', {}).get(vehicle_size, {})
+            service['price'] = price_info.get('price', 0)
+            completion_time_str = price_info.get('completion_time', '0 minutes')
+            estimated_minutes = int(completion_time_str.split()[0]) if completion_time_str else 0
+            total_estimated_minutes += estimated_minutes
+            service['label'] = service.get('label') or service.get('name', 'Unnamed Service')
+            services_in_cart.append(service)
+    services_total = calculate_cart_total(services_in_cart)
+    preliminary_final_total = services_total / 0.55
+    fee = preliminary_final_total - services_total
+    travel_fee = 35 if services_total < 60 else 0
+    final_price = preliminary_final_total + travel_fee
+    current_app.logger.info("Fee Calculations: Services Total: %s, Fee: %s, Travel Fee: %s, Final Price: %s",
+                             services_total, fee, travel_fee, final_price)
+    
+    user_address = user.get('address', {})
+    
+    # Create the order record
+    order = {
+        'user': user_id,
+        'selectedServices': [item["service_name"].lower().replace(" ", "_").replace("&", "and").replace("-", "_")
+                             for item in session['cart']],
+        'services_total': services_total,
+        'final_price': final_price,
+        'order_date': datetime.now(),
+        'service_date': None,
+        'service_time': None,
+        'status': "ordered",
+        'payment_time': request.form.get('payment_time'),  # "pay_now" or "after"
+        'payment_status': 'pending',
+        'address': user_address,
+        'fee': fee,
+        'travel_fee': travel_fee,
+        'creation_date': datetime.utcnow(),
+        'estimated_minutes': total_estimated_minutes,
+        'email': user.get('email', ''),
+        'full_name': user.get('name', ''),
+        'phone_number': user.get('phone_number', ''),
+        'vehicle_size': session['cart'][0]['vehicle_size'] if session['cart'] else None,
+        'is_guest': False
+    }
+    
+    current_app.logger.info("Creating order with data: %s", order)
+    order_result = orders_collection.insert_one(order)
+    order_id = str(order_result.inserted_id)
+    current_app.logger.info("Order created with id: %s", order_id)
+    
+    # Set Stripe API key
+    stripe.api_key = current_app.config.get('STRIPE_SECRET_KEY')
+    if not stripe.api_key:
+        current_app.logger.error("STRIPE_SECRET_KEY is missing in app.config")
+        flash('Payment processing configuration error. Please try again later.', 'danger')
+        return redirect(url_for('customer.cart'))
+    
+    payment_time = request.form.get('payment_time')
+    
+    # Option 1: Full payment now ("pay_now")
+    if payment_time == 'pay_now':
+        current_app.logger.info("Payment option 'Pay Now' selected.")
+        try:
+            total_amount = int(math.ceil(final_price * 100))  # in cents
+            payment_intent = stripe.PaymentIntent.create(
+                amount=total_amount,
+                currency="usd",
+                payment_method_types=["card"],
+                metadata={"order_id": order_id, "payment_type": "full_payment"}
+            )
+            line_items = [{
+                "price_data": {
+                    "currency": "usd",
+                    "product_data": {"name": f"Order Payment for Order #{order_id}"},
+                    "unit_amount": total_amount,
+                },
+                "quantity": 1,
+            }]
+            customer_email = user.get("email")
+            success_url = url_for('customer.thank_you', _external=True)
+            cancel_url = current_app.config.get("CHECKOUT_CANCEL_URL", "https://yourdomain.com/payment_cancel")
+            payment_intent_data = {"metadata": {"order_id": order_id, "payment_type": "full_payment"}}
+            
+            current_app.logger.debug("Creating Checkout Session for full payment with parameters: line_items=%s, customer_email=%s, success_url=%s, cancel_url=%s",
+                                       line_items, customer_email, success_url, cancel_url)
+            
+            checkout_session = stripe.checkout.Session.create(
+                payment_method_types=["card"],
+                line_items=line_items,
+                customer_email=customer_email,
+                success_url=success_url,
+                cancel_url=cancel_url,
+                payment_intent_data=payment_intent_data,
+                mode="payment"
+            )
+            
+            current_app.logger.info("Checkout session created successfully with URL: %s", checkout_session.url)
+            
+            # Update the order record with full payment info
+            order.update({
+                "payment_status": "pending",
+                "client_secret": payment_intent.client_secret,
+                "payment_intent_id": payment_intent.id,
+                "checkout_url": checkout_session.url,
+                "has_payment_collected": "no"
+            })
+            orders_collection.update_one({"_id": ObjectId(order_id)}, {"$set": order})
+            current_app.logger.info("Stripe payment intent and checkout URL stored successfully.")
+            current_app.logger.info("Redirecting to Stripe Checkout Session URL: %s", checkout_session.url)
+            return redirect(checkout_session.url)
+        except stripe.error.StripeError as e:
+            current_app.logger.error("StripeError: %s", e)
+            flash('Payment processing error. Please try again.', 'danger')
+            return redirect(url_for('customer.cart'))
+    
+    # Option 2: Pay 45% now and 55% later ("after")
+    # Option 2: Pay 45% now and 55% later ("after")
+    elif payment_time == 'after':
+        current_app.logger.info("Payment option 'After' selected: 45% deposit now, 55% remaining later.")
+        try:
+            # Calculate amounts (in cents)
+            deposit_amount = int(math.ceil(final_price * 0.45 * 100))
+            remaining_amount = int(math.ceil(final_price * 0.55 * 100))
+            current_app.logger.info("Deposit amount: %s cents; Remaining amount: %s cents", deposit_amount, remaining_amount)
+            
+            # Create deposit PaymentIntent and Checkout Session (45%)
+            deposit_payment_intent = stripe.PaymentIntent.create(
+                amount=deposit_amount,
+                currency="usd",
+                payment_method_types=["card"],
+                metadata={"order_id": order_id, "payment_type": "deposit"}
+            )
+            deposit_line_items = [{
+                "price_data": {
+                    "currency": "usd",
+                    "product_data": {"name": f"Deposit Payment for Order #{order_id}"},
+                    "unit_amount": deposit_amount,
+                },
+                "quantity": 1,
+            }]
+            deposit_checkout_session = stripe.checkout.Session.create(
+                payment_method_types=["card"],
+                line_items=deposit_line_items,
+                customer_email=user.get("email"),
+                success_url=url_for('customer.thank_you', _external=True),
+                cancel_url=current_app.config.get("CHECKOUT_CANCEL_URL", "https://yourdomain.com/payment_cancel"),
+                payment_intent_data={"metadata": {"order_id": order_id, "payment_type": "deposit"}},
+                mode="payment"
+            )
+            
+            current_app.logger.info("Deposit checkout session created with URL: %s", deposit_checkout_session.url)
+            
+            # Create remaining PaymentIntent and Checkout Session (55%)
+            remaining_payment_intent = stripe.PaymentIntent.create(
+                amount=remaining_amount,
+                currency="usd",
+                payment_method_types=["card"],
+                metadata={"order_id": order_id, "payment_type": "remaining"}
+            )
+            remaining_line_items = [{
+                "price_data": {
+                    "currency": "usd",
+                    "product_data": {"name": f"Remaining Payment for Order #{order_id}"},
+                    "unit_amount": remaining_amount,
+                },
+                "quantity": 1,
+            }]
+            remaining_checkout_session = stripe.checkout.Session.create(
+                payment_method_types=["card"],
+                line_items=remaining_line_items,
+                customer_email=user.get("email"),
+                success_url=url_for('customer.thank_you', _external=True),
+                cancel_url=current_app.config.get("CHECKOUT_CANCEL_URL", "https://yourdomain.com/payment_cancel"),
+                payment_intent_data={"metadata": {"order_id": order_id, "payment_type": "remaining"}},
+                mode="payment"
+            )
+            
+            current_app.logger.info("Remaining checkout session created with URL: %s", remaining_checkout_session.url)
+            
+            # Update order with both payment intents and checkout URLs
+            order.update({
+                "deposit_payment_status": "pending",
+                "deposit_client_secret": deposit_payment_intent.client_secret,
+                "deposit_payment_intent_id": deposit_payment_intent.id,
+                "deposit_checkout_url": deposit_checkout_session.url,
+                "remaining_payment_status": "pending",
+                "remaining_client_secret": remaining_payment_intent.client_secret,
+                "remaining_payment_intent_id": remaining_payment_intent.id,
+                "remaining_checkout_url": remaining_checkout_session.url,
+            })
+            orders_collection.update_one({"_id": ObjectId(order_id)}, {"$set": order})
+            current_app.logger.info("Order updated with both deposit and remaining payment info.")
+            
+            # Send remaining payment link via email
+            subject = "Your Remaining Balance Payment Link"
+            to_email = user.get("email")
+            sender_email = current_app.config.get("POSTMARK_SENDER_EMAIL")
 
+            text_body = (
+            f"Dear {user.get('name')},\n\n"
+            f"Thank you for submitting your deposit for Order #{order_id}.\n"
+            f"Please use the following link to complete your remaining payment of 55% when ready:\n\n"
+            f"{remaining_checkout_session.url}\n\n"
+            "Thank you!"
+        )
+            # Assuming you have a helper function 'send_email'
+            send_postmark_email(subject=subject, to_email=to_email, from_email=sender_email, text_body=text_body)
+            current_app.logger.info("Remaining payment link sent via email to: %s", to_email)
+            
+            # Redirect the customer to the deposit (45%) checkout session
+            current_app.logger.info("Redirecting to Deposit Checkout Session URL: %s", deposit_checkout_session.url)
+            return redirect(deposit_checkout_session.url)
+        except stripe.error.StripeError as e:
+            current_app.logger.error("StripeError: %s", e)
+            flash('Payment processing error. Please try again.', 'danger')
+            return redirect(url_for('customer.cart'))
+
+    
+    # If neither option is valid, redirect back
+    else:
+        flash("Invalid payment option selected.", "danger")
+        return redirect(url_for('customer.cart'))
 
 
 @customer_bp.route('/cart', methods=['GET', 'POST'])
@@ -229,235 +485,25 @@ def add_to_cart_get():
 
 
 
-@customer_bp.route('/checkout', methods=['GET', 'POST'])
+@customer_bp.errorhandler(Exception)
+def handle_exception(e):
+    current_app.logger.error("Unhandled exception: %s", e)
+    flash("An unexpected error occurred.", "danger")
+    return render_template('error.html', error=e), 500
+
+
+@customer_bp.route('/thank_you')
 @login_required
-@customer_required
-def checkout():
-    """
-    Checkout route—creates an order using the final price (services total plus fees)
-    and then, if the customer selects “Pay Now,” creates a Stripe PaymentIntent.
-    The fees are calculated as in the cart page.
-    """
-    current_app.logger.info("Checkout route called. Request method: %s", request.method)
-    
-    if 'cart' not in session or not session['cart']:
-        current_app.logger.info("Cart is empty; redirecting to customer home.")
-        flash('Your cart is empty.', 'info')
+def thank_you():
+    current_app.logger.info("Thank you page requested.")
+    try:
+        # Optionally log any session or order details you need.
+        current_app.logger.debug("Session details: %s", session)
+        return render_template('customer/thank_you.html')
+    except Exception as e:
+        current_app.logger.error("Error rendering thank you page: %s", e)
+        flash("An error occurred while loading the thank you page.", "danger")
         return redirect(url_for('customer.customer_home'))
-    
-    current_app.logger.debug("Session cart contents: %s", session.get('cart'))
-    
-    users_collection = current_app.config['USERS_COLLECTION']
-    services_collection = current_app.config['SERVICES_COLLECTION']
-    orders_collection = current_app.config['ORDERS_COLLECTION']
-    
-    user_id = current_user.id
-    current_app.logger.info("Fetching user with id: %s", user_id)
-    user = users_collection.find_one({'_id': ObjectId(user_id)})
-    if not user:
-        current_app.logger.error("User not found for id: %s", user_id)
-        flash('User not found.', 'danger')
-        return redirect(url_for('customer.customer_home'))
-    current_app.logger.debug("User data: %s", user)
-    
-    # Initialize total estimated completion time
-    total_estimated_minutes = 0
-
-    # Build the services_in_cart with correct 'price' and estimated time
-    services_in_cart = []
-    for cart_item in session['cart']:
-        current_app.logger.debug("Processing cart item: %s", cart_item)
-        try:
-            service = services_collection.find_one({'_id': ObjectId(cart_item['service_id'])})
-        except Exception as e:
-            current_app.logger.error("Error fetching service with id %s: %s", cart_item.get('service_id'), e)
-            continue
-
-        if service:
-            vehicle_size = cart_item.get('vehicle_size')
-            price_info = service.get('price_by_vehicle_size', {}).get(vehicle_size, {})
-            
-            # Get price and estimated completion time
-            service['price'] = price_info.get('price', 0)
-            completion_time_str = price_info.get('completion_time', '0 minutes')
-
-            # Extract numeric value from completion time (e.g., "15 minutes" → 15)
-            estimated_minutes = int(completion_time_str.split()[0]) if completion_time_str else 0
-            total_estimated_minutes += estimated_minutes  # Add to total
-
-            service['label'] = service.get('label') or service.get('name', 'Unnamed Service')
-            services_in_cart.append(service)
-            current_app.logger.debug("Added service: %s", service)
-        else:
-            current_app.logger.warning("Service not found for id: %s", cart_item.get('service_id'))
-
-    # Log the total estimated minutes
-    current_app.logger.info("Total estimated completion time: %s minutes", total_estimated_minutes)
-
-    # Calculate services total using your helper function.
-    services_total = calculate_cart_total(services_in_cart)
-    current_app.logger.info("Calculated services total: %s", services_total)
-    
-    # --- Fee Calculations (same as in your cart page) ---
-    # Preliminary final total such that services_total represents 55% of it.
-    preliminary_final_total = services_total / 0.55
-    #  fee is the difference between the preliminary total and the services total.
-    fee = preliminary_final_total - services_total
-    # Apply a $35 travel fee if services_total is under $60; otherwise, no travel fee.
-    travel_fee = 35 if services_total < 60 else 0
-    # Final price is the sum of the preliminary total and the travel fee.
-    final_price = preliminary_final_total + travel_fee
-    current_app.logger.info("Fee Calculations: Services Total: %s,  Fee: %s, Travel Fee: %s, Final Price: %s",
-                              services_total, fee, travel_fee, final_price)
-    # --- End Fee Calculations ---
-    
-    user_address = user.get('address') if user else None
-    current_app.logger.debug("User address: %s", user_address)
-    
-    if request.method == 'POST':
-        current_app.logger.info("POST request received on checkout.")
-        # Get the service date, time, and payment option from the form.
-        service_date_str = request.form.get('service_date')
-        service_time_str = request.form.get('service_time')
-        payment_time = request.form.get('payment_time')  # expected to be 'now' or 'after'
-        current_app.logger.info("Form data received: service_date=%s, service_time=%s, payment_time=%s", 
-                                service_date_str, service_time_str, payment_time)
-        
-        if not service_date_str or not service_time_str or not payment_time:
-            current_app.logger.warning("Missing required form data.")
-            flash('Missing required information.', 'danger')
-            return redirect(url_for('customer.checkout'))
-        
-        # Parse the date and time from form input.
-        try:
-            service_date = datetime.strptime(service_date_str, '%Y-%m-%d').date()
-            service_time = datetime.strptime(service_time_str, '%H:%M').time()
-            service_datetime = datetime.combine(service_date, service_time)
-            current_app.logger.info("Parsed service datetime: %s", service_datetime)
-        except ValueError as ve:
-            current_app.logger.error("Error parsing service date/time: %s", ve)
-            flash('Invalid date or time format.', 'danger')
-            return redirect(url_for('customer.checkout'))
-        # Normalize service names into a JSON-friendly format
-        def format_service_name(service_name):
-            return service_name.lower().replace(" ", "_").replace("&", "and").replace("-", "_")
-
-
-        # Create the order in the database using the final price.
-        order = {
-            'user': current_user.id,
-            'selectedServices': [format_service_name(item["service_name"]) for item in session['cart']],
-            'services_total': services_total,
-            'final_price': final_price,
-            'order_date': datetime.now(),
-            'service_date': service_datetime,
-            'service_time': service_time_str,
-            'payment_time': payment_time,
-            'payment_status': 'pending',  # default for "Pay After Completion"
-            'address': user.get('address', {}),
-            'fee': fee,
-            'travel_fee': travel_fee,
-            'creation_date': datetime.utcnow(),
-            'estimated_minutes': total_estimated_minutes  # NEW FIELD
-
-        }
-        current_app.logger.info("Creating order with data: %s", order)
-        order_result = orders_collection.insert_one(order)
-        order_id = str(order_result.inserted_id)
-        current_app.logger.info("Order created with id: %s", order_id)
-        
-        # If "Pay Now" is selected, create a Stripe PaymentIntent.
-        if payment_time == 'now':
-            current_app.logger.info("Payment option 'Pay Now' selected.")
-            payment_method_id = request.form.get('payment_method_id')
-            if not payment_method_id:
-                current_app.logger.info("No payment_method_id provided; re-rendering checkout page with card input form.")
-                flash('Please enter your card details to proceed with payment.', 'info')
-                return render_template(
-                    'customer/checkout.html',
-                    selectedServices=services_in_cart,
-                    final_price=final_price,
-                    services_total=services_total,
-                    fee=fee,
-                    travel_fee=travel_fee,
-                    user_address=user_address,
-                    default_service_date=service_date_str,
-                    stripe_publishable_key=current_app.config['STRIPE_PUBLISHABLE_KEY'],
-                    order_id=order_id
-                )
-            
-            current_app.logger.debug("Payment method id received: %s", payment_method_id)
-            stripe.api_key = current_app.config.get('STRIPE_SECRET_KEY')
-            if not stripe.api_key:
-                current_app.logger.error("STRIPE_SECRET_KEY is missing in app.config")
-                flash('Payment processing configuration error. Please try again later.', 'danger')
-                return redirect(url_for('customer.checkout'))
-            
-            try:
-                current_app.logger.info("Creating Stripe PaymentIntent for final_price %s (amount in cents: %s)", 
-                                          final_price, int(math.ceil(final_price * 100)))
-                intent = stripe.PaymentIntent.create(
-                    amount=int(math.ceil(final_price * 100)),  # amount in cents
-                    currency='usd',
-                    payment_method=payment_method_id,
-                    confirmation_method='manual',
-                    confirm=True,
-                    metadata={'order_id': order_id},
-                    return_url=url_for('customer.my_orders', _external=True)
-                )
-                current_app.logger.info("Stripe PaymentIntent created with status: %s", intent.status)
-                
-                if intent.status == 'requires_action' and intent.next_action.type == 'use_stripe_sdk':
-                    current_app.logger.info("Payment requires additional authentication.")
-                    flash('Additional authentication required. Please complete the payment.', 'warning')
-                    return redirect(intent.next_action.use_stripe_sdk.stripe_js)
-                elif intent.status == 'succeeded':
-                    current_app.logger.info("PaymentIntent succeeded. Updating order payment status to 'paid'.")
-                    orders_collection.update_one({'_id': ObjectId(order_id)}, {'$set': {'payment_status': 'paid'}})
-                else:
-                    current_app.logger.error("Unexpected PaymentIntent status: %s", intent.status)
-                    flash('Something went wrong with your payment. Please try again.', 'danger')
-                    return redirect(url_for('customer.checkout'))
-            except stripe.error.CardError as e:
-                current_app.logger.error("Stripe CardError: %s", e.user_message)
-                flash(f"Card error: {e.user_message}", 'danger')
-                return redirect(url_for('customer.checkout'))
-            except stripe.error.StripeError as e:
-                current_app.logger.error("StripeError: %s", e)
-                flash('Payment processing error. Please try again.', 'danger')
-                return redirect(url_for('customer.checkout'))
-            except Exception as e:
-                current_app.logger.exception("Unexpected error during Stripe PaymentIntent creation: %s", e)
-                flash('An unexpected error occurred. Please try again.', 'danger')
-                return redirect(url_for('customer.checkout'))
-        else:
-            current_app.logger.info("Payment option 'Pay After Completion' selected; no immediate payment required.")
-        
-        flash('Your order has been placed successfully!', 'success')
-        session.pop('cart', None)
-        current_app.logger.info("Order processed. Redirecting to my_orders.")
-        return redirect(url_for('customer.my_orders'))
-    
-    # For GET requests, set default service date to tomorrow.
-    default_service_date = (datetime.today() + timedelta(days=1)).strftime('%Y-%m-%d')
-    current_app.logger.info("Default service date for template set to: %s", default_service_date)
-    current_app.logger.info("Rendering checkout template with final_price: %s", final_price)
-    
-    return render_template(
-        'customer/checkout.html',
-        selectedServices=services_in_cart,
-        final_price=final_price,
-        services_total=services_total,
-        fee=fee,
-        travel_fee=travel_fee,
-        user_address=user_address,
-        default_service_date=default_service_date,
-        stripe_publishable_key=current_app.config['STRIPE_PUBLISHABLE_KEY']
-    )
-
-
-
-
 
 @customer_bp.route('/login', methods=['GET', 'POST'])
 def customer_login():
