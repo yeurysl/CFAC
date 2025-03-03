@@ -1,10 +1,16 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container text-center mt-5">
-    <h2>Thank You for Your Order!</h2>
-    <p>Your payment has been received successfully.</p>
-    <p>You will receive a confirmation email with your order details shortly.</p>
-    <a href="{{ url_for('customer.customer_home') }}" class="btn btn-primary">Return to Home</a>
+<div class="container my-5">
+    <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+            <!-- Success Icon (Bootstrap Icons) -->
+            <i class="bi bi-check-circle-fill" style="font-size: 4rem; color: #28a745;"></i>
+            <h2 class="mt-3">Thank You for Your Order!</h2>
+            <p class="lead">Your payment has been received successfully.</p>
+            <p>You will receive a confirmation email with your order details shortly.</p>
+            <a href="{{ url_for('customer.customer_home') }}" class="btn btn-primary mt-3">Return to Home</a>
+        </div>
+    </div>
 </div>
 {% endblock %}

@@ -169,7 +169,7 @@ def start_payment():
             }]
             customer_email = user.get("email")
             success_url = url_for('customer.thank_you', _external=True)
-            cancel_url = current_app.config.get("CHECKOUT_CANCEL_URL", "https://yourdomain.com/payment_cancel")
+            cancel_url = current_app.config.get("CHECKOUT_CANCEL_URL", "https://cfautocare.biz/payment_cancel")
             payment_intent_data = {"metadata": {"order_id": order_id, "payment_type": "full_payment"}}
             
             current_app.logger.debug("Creating Checkout Session for full payment with parameters: line_items=%s, customer_email=%s, success_url=%s, cancel_url=%s",
@@ -198,6 +198,9 @@ def start_payment():
             orders_collection.update_one({"_id": ObjectId(order_id)}, {"$set": order})
             current_app.logger.info("Stripe payment intent and checkout URL stored successfully.")
             current_app.logger.info("Redirecting to Stripe Checkout Session URL: %s", checkout_session.url)
+            send_full_payment_thankyou_email(order)
+            current_app.logger.info("Full payment thank-you email sent to: %s", user.get("email"))
+        
             return redirect(checkout_session.url)
         except stripe.error.StripeError as e:
             current_app.logger.error("StripeError: %s", e)
@@ -234,7 +237,7 @@ def start_payment():
                 line_items=deposit_line_items,
                 customer_email=user.get("email"),
                 success_url=url_for('customer.thank_you', _external=True),
-                cancel_url=current_app.config.get("CHECKOUT_CANCEL_URL", "https://yourdomain.com/payment_cancel"),
+                cancel_url=current_app.config.get("CHECKOUT_CANCEL_URL", "https://cfautocare.biz/payment_cancel"),
                 payment_intent_data={"metadata": {"order_id": order_id, "payment_type": "deposit"}},
                 mode="payment"
             )
@@ -261,7 +264,7 @@ def start_payment():
                 line_items=remaining_line_items,
                 customer_email=user.get("email"),
                 success_url=url_for('customer.thank_you', _external=True),
-                cancel_url=current_app.config.get("CHECKOUT_CANCEL_URL", "https://yourdomain.com/payment_cancel"),
+                cancel_url=current_app.config.get("CHECKOUT_CANCEL_URL", "https://cfautocare.biz/payment_cancel"),
                 payment_intent_data={"metadata": {"order_id": order_id, "payment_type": "remaining"}},
                 mode="payment"
             )
@@ -282,25 +285,107 @@ def start_payment():
             orders_collection.update_one({"_id": ObjectId(order_id)}, {"$set": order})
             current_app.logger.info("Order updated with both deposit and remaining payment info.")
             
+                    # Send the thank-you email for the down payment (partial payment)
+            send_partial_payment_thankyou_email(order)
             # Send remaining payment link via email
             subject = "Your Remaining Balance Payment Link"
             to_email = user.get("email")
             sender_email = current_app.config.get("POSTMARK_SENDER_EMAIL")
 
+            html_body = f"""
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+            <meta charset="UTF-8">
+            <title>Complete Your Payment</title>
+            <style>
+                body {{
+                font-family: Arial, sans-serif;
+                background-color: #f4f4f4;
+                margin: 0;
+                padding: 0;
+                }}
+                .container {{
+                max-width: 600px;
+                margin: 20px auto;
+                background-color: #ffffff;
+                padding: 20px;
+                border-radius: 8px;
+                box-shadow: 0 2px 3px rgba(0,0,0,0.1);
+                }}
+                .header {{
+                text-align: center;
+                padding-bottom: 20px;
+                }}
+                .header h2 {{
+                color: #07173d;
+                }}
+                .content {{
+                font-size: 16px;
+                color: #333333;
+                line-height: 1.5;
+                }}
+                .button {{
+                display: inline-block;
+                padding: 10px 20px;
+                margin-top: 20px;
+                background-color: #07173d;
+                color: #ffffff;
+                text-decoration: none;
+                border-radius: 4px;
+                }}
+                .footer {{
+                margin-top: 30px;
+                font-size: 12px;
+                color: #999999;
+                text-align: center;
+                }}
+            </style>
+            </head>
+            <body>
+            <div class="container">
+                <div class="header">
+                <h2>Complete Your Payment</h2>
+                </div>
+                <div class="content">
+                <p>Dear {user.get("name")},</p>
+                <p>Thank you for submitting your deposit for Order #{order_id}.</p>
+                <p>Please click the button below to complete your remaining payment of 55%:</p>
+                <p><a href="{remaining_checkout_session.url}" class="button">Pay Remaining Balance</a></p>
+                <p>Thank you!</p>
+                </div>
+                <div class="footer">
+                &copy; {datetime.now().year} Centralfloridaautocare LLC. All rights reserved.
+                </div>
+            </div>
+            </body>
+            </html>
+            """
+
             text_body = (
-            f"Dear {user.get('name')},\n\n"
-            f"Thank you for submitting your deposit for Order #{order_id}.\n"
-            f"Please use the following link to complete your remaining payment of 55% when ready:\n\n"
-            f"{remaining_checkout_session.url}\n\n"
-            "Thank you!"
-        )
-            # Assuming you have a helper function 'send_email'
-            send_postmark_email(subject=subject, to_email=to_email, from_email=sender_email, text_body=text_body)
+                f"Dear {user.get('name')},\n\n"
+                f"Thank you for submitting your deposit for Order #{order_id}.\n"
+                f"Please use the following link to complete your remaining payment of 55% when ready:\n\n"
+                f"{remaining_checkout_session.url}\n\n"
+                "Thank you!"
+            )
+
+            # Send the email with the updated HTML content.
+            send_postmark_email(
+                subject=subject,
+                to_email=to_email,
+                from_email=sender_email,
+                text_body=text_body,
+                html_body=html_body
+            )
             current_app.logger.info("Remaining payment link sent via email to: %s", to_email)
-            
+
             # Redirect the customer to the deposit (45%) checkout session
             current_app.logger.info("Redirecting to Deposit Checkout Session URL: %s", deposit_checkout_session.url)
             return redirect(deposit_checkout_session.url)
+
+
+
         except stripe.error.StripeError as e:
             current_app.logger.error("StripeError: %s", e)
             flash('Payment processing error. Please try again.', 'danger')
@@ -311,6 +396,107 @@ def start_payment():
     else:
         flash("Invalid payment option selected.", "danger")
         return redirect(url_for('customer.cart'))
+
+
+
+
+
+
+from datetime import datetime
+from flask import render_template, current_app
+from bson.objectid import ObjectId
+from notis import send_postmark_email  # your email-sending helper
+
+def send_full_payment_thankyou_email(order):
+    """
+    Sends a thank-you email for orders that were paid in full.
+    """
+    # Determine recipient from order data (adjust as needed)
+    guest_email = order.get("guest_email") or order.get("email")
+    if not guest_email:
+        current_app.logger.error("No guest email found for full payment notification.")
+        return
+
+    customer_name = order.get("customer_name") or order.get("full_name", "Customer")
+    order_id = str(order.get("_id", "N/A"))
+    subject = "Thank You for Your Order - Payment Complete"
+
+    # Render an HTML template (create templates/emails/full_payment_thankyou.html)
+    html_body = render_template(
+        "emails/full_payment_thankyou.html",
+        order=order,
+        customer_name=customer_name,
+        order_id=order_id,
+        current_year=datetime.now().year
+    )
+
+    text_body = (
+        f"Dear {customer_name},\n\n"
+        f"Thank you for your order #{order_id}. Your payment has been received in full.\n"
+        "Please find your invoice attached below.\n\n"
+        "Thank you!"
+    )
+
+    send_postmark_email(
+        subject=subject,
+        to_email=guest_email,
+        from_email=current_app.config.get("POSTMARK_SENDER_EMAIL"),
+        text_body=text_body,
+        html_body=html_body
+    )
+    current_app.logger.info("Full payment thank-you email sent to: %s", guest_email)
+
+
+def send_partial_payment_thankyou_email(order):
+    """
+    Sends a thank-you email for orders with a partial payment (deposit paid now,
+    with remaining balance due later). The email shows both amounts.
+    """
+    guest_email = order.get("guest_email") or order.get("email")
+    if not guest_email:
+        current_app.logger.error("No guest email found for partial payment notification.")
+        return
+
+    customer_name = order.get("customer_name") or order.get("full_name", "Customer")
+    order_id = str(order.get("_id", "N/A"))
+    subject = "Thank You for Your Down Payment"
+
+    # Calculate deposit and remaining amounts; adjust percentage as needed.
+    final_price = float(order.get("final_price", 0))
+    deposit_amount = final_price * 0.45
+    remaining_amount = final_price * 0.55
+
+    # Render an HTML template (create templates/emails/partial_payment_thankyou.html)
+    html_body = render_template(
+        "emails/partial_payment_thankyou.html",
+        order=order,
+        customer_name=customer_name,
+        order_id=order_id,
+        deposit_amount=f"{deposit_amount:.2f}",
+        remaining_amount=f"{remaining_amount:.2f}",
+        current_year=datetime.now().year
+    )
+
+    text_body = (
+        f"Dear {customer_name},\n\n"
+        f"Thank you for submitting your down payment for Order #{order_id}.\n"
+        f"You have paid ${deposit_amount:.2f}. Your remaining balance is ${remaining_amount:.2f}.\n\n"
+        "Please complete your remaining payment when you're ready.\n\n"
+        "Thank you!"
+    )
+
+    send_postmark_email(
+        subject=subject,
+        to_email=guest_email,
+        from_email=current_app.config.get("POSTMARK_SENDER_EMAIL"),
+        text_body=text_body,
+        html_body=html_body
+    )
+    current_app.logger.info("Partial payment thank-you email sent to: %s", guest_email)
+
+
+
+
 
 
 @customer_bp.route('/cart', methods=['GET', 'POST'])
@@ -326,27 +512,37 @@ def cart():
     services_in_cart = []
     for item in session['cart']:
         service = services_collection.find_one({'_id': ObjectId(item['service_id'])})
+        current_app.logger.debug("Fetched service from DB for service_id %s: %s", item['service_id'], service)
         if service:
-            # Convert ObjectId to string
+            # Convert ObjectId to string for template use
             service['_id'] = str(service['_id'])
             vehicle_size = item.get('vehicle_size')
             price_info = service.get('price_by_vehicle_size', {}).get(vehicle_size, {})
             service['price'] = price_info.get('price', 0)
+            current_app.logger.debug(
+                "Computed price for service '%s' (vehicle_size: %s): %s", 
+                service.get('label', service.get('name', 'Unnamed Service')), vehicle_size, service['price']
+            )
             services_in_cart.append(service)
+        else:
+            current_app.logger.warning("No service found for service_id: %s", item.get('service_id'))
 
-    # Calculate services total
-    services_total = calculate_cart_total(services_in_cart)
+    # Log the complete list of services in the cart
+    current_app.logger.debug("Final services_in_cart list: %s", pprint.pformat(services_in_cart))
     
-    # Calculate  fee so that services_total represents 55% of the order.
+    # Calculate totals and fees
+    services_total = calculate_cart_total(services_in_cart)
     preliminary_final_total = services_total / 0.55
     fee = preliminary_final_total - services_total
-    
-    # Apply a $35 travel fee if services_total is under $60.
     travel_fee = 35 if services_total < 60 else 0
-    
-    # Final total includes services total,  fee, and travel fee.
     final_total = preliminary_final_total + travel_fee
-
+    
+    # Log the computed totals
+    current_app.logger.info(
+        "Invoice Summary - Services Total: %s, Fee: %s, Travel Fee: %s, Final Total: %s",
+        services_total, fee, travel_fee, final_total
+    )
+    
     # Build forms for each service
     forms = {}
     for service in services_in_cart:
@@ -356,16 +552,11 @@ def cart():
 
     user = users_collection.find_one({'_id': ObjectId(current_user.id)})
     user_address = user.get('address') if user and 'address' in user else None
-
-    if request.method == 'POST':
-        service_id = request.form.get('service_id')
-        if service_id in [item['service_id'] for item in session.get('cart', [])]:
-            session['cart'] = [item for item in session['cart'] if item['service_id'] != service_id]
-            flash('Item removed from your cart.', 'success')
-        else:
-            flash('Item not found in your cart.', 'warning')
-        return redirect(url_for('customer.cart'))
-
+    
+    # Log data that will be sent to the template
+    current_app.logger.debug("Rendering cart template with: services_in_cart=%s, total=%s, fee=%s, travel_fee=%s, final_total=%s, user_address=%s",
+                               pprint.pformat(services_in_cart), services_total, fee, travel_fee, final_total, user_address)
+    
     return render_template(
         'customer/cart.html',
         services=services_in_cart,
@@ -376,6 +567,7 @@ def cart():
         forms=forms,
         user_address=user_address
     )
+
 
 
 
