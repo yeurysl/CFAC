@@ -13,6 +13,8 @@ from dotenv import load_dotenv
 from pymongo import MongoClient
 from config import Config
 from postmark_client import postmark_client, is_valid_email
+from flask_analytics import Analytics
+
 
 # Import extensions
 from extensions import bcrypt, login_manager, csrf, create_unique_indexes
@@ -34,6 +36,9 @@ from flask import render_template
 from error_handlers import register_error_handlers
 
 load_dotenv()
+
+
+
 
 def create_app():
     app = Flask(__name__)
@@ -58,6 +63,11 @@ def create_app():
     bcrypt.init_app(app)
     login_manager.init_app(app)
     csrf.init_app(app)
+
+
+    app.config['GA_ID'] = 'YOUR_TRACKING_ID'
+
+    analytics = Analytics(app)
 
     # Flask-Login settings
     login_manager.login_view = 'employee_login'
