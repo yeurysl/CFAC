@@ -513,14 +513,62 @@
 </div>
 
 
+
+
+
+
+
 <!-- Include Flatpickr JS -->
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
-<!-- Consolidated JavaScript Code -->
 
+
+
+
+<!-- Google Analytics Tag Sending event listener -->
 <script>
+  document.querySelectorAll('.vehicle-size-option').forEach(item => {
+    item.addEventListener('click', function(e) {
+      e.preventDefault();
+      const vehicleSize = this.getAttribute('data-vehicle-size');
+      // Update your UI as usual…
+      document.getElementById('vehicleSizeDropdown').textContent = this.textContent;
+      updateDisplayImage();
+
+      // Send a GA event (for GA4)
+      gtag('event', 'select_vehicle_size', {
+        'event_category': 'Dropdown Selections',
+        'event_label': vehicleSize,
+        'value': 1
+      });
+    });
+  });
+
+  document.querySelectorAll('.service-option').forEach(item => {
+    item.addEventListener('click', function(e) {
+      e.preventDefault();
+      const serviceId = this.getAttribute('data-service-id');
+      // Update your UI as usual…
+      document.getElementById('serviceDropdown').textContent = this.textContent;
+      updateDisplayImage();
+
+      // Send a GA event (for GA4)
+      gtag('event', 'select_service', {
+        'event_category': 'Dropdown Selections',
+        'event_label': serviceId,
+        'value': 1
+      });
+    });
+  });
+</script>
 
 
+
+
+
+
+<!-- Consolidated JavaScript Code -->
+<script>
 // Define your package selections (existing)
 const packages = {
   fullInterior: {
