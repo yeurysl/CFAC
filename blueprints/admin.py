@@ -890,5 +890,54 @@ def send_notification_to_approved_user(new_user_id, custom_message, device_token
         return {"status": "error", "detail": str(e)}
 
 
+# at top
+from utils.visitor_log import DB_PATH     # reuse the sqlite file
+import sqlite3
+from utility import format_date_with_suffix   # already registered as filter
+
+# ────── VISITOR OVERVIEW ────────────────────────────────────────────────────
+@admin_bp.route('/visitors')
+@login_required
+@admin_required
+def visitors():
+    page      = request.args.get('page', 1, type=int)
+    per_page  = 40
+    offset    = (page-1) * per_page
+
+    with sqlite3.connect(DB_PATH) as db:
+        db.row_factory = sqlite3.Row
+        rows = db.execute("""
+            SELECT visitor,
+                   MIN(ts)  AS first_seen,
+                   MAX(ts)  AS last_seen,
+                   COUNT(*) AS hits,
+                   MAX(ip)  AS ip            -- last IP (informative)
+            FROM page_hits
+            GROUP BY visitor
+            ORDER BY last_seen DESC
+            LIMIT ? OFFSET ?;
+        """, (per_page, offset)).fetchall()
+
+        total_visitors = db.execute("SELECT COUNT(DISTINCT visitor) FROM page_hits")\
+                           .fetchone()[0]
+
+    total_pages = (total_visitors + per_page - 1) // per_page
+    return render_template('admin/visitors.html',
+                           rows=rows, page=page, total_pages=total_pages,
+                           total_visitors=total_visitors, endpoint="admin.visitors" )
 
 
+# ────── AJAX: one visitor’s full trail ──────────────────────────────────────
+@admin_bp.route('/visitors/<visitor_id>/hits')
+@login_required
+@admin_required
+def visitor_hits(visitor_id):
+    with sqlite3.connect(DB_PATH) as db:
+        db.row_factory = sqlite3.Row
+        hits = db.execute("""
+            SELECT * FROM page_hits
+            WHERE visitor = ?
+            ORDER BY ts DESC
+            LIMIT 500;             -- safety cap
+        """, (visitor_id,)).fetchall()
+    return render_template('admin/_visitor_hits.html', hits=hits)

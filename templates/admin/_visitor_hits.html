@@ -1,0 +1,22 @@
+<table class="table table-sm table-striped">
+    <thead class="table-light">
+      <tr>
+        <th>Date</th><th>Method</th><th>Path&nbsp;+&nbsp;Query</th>
+        <th>Referrer</th><th>User-Agent</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for h in hits %}
+      <tr>
+        <td class="text-nowrap">{{ h.ts | format_datetime_with_suffix }}</td>
+        <td>{{ h.method }}</td>
+        <td style="max-width:260px; word-wrap:break-word;">
+            {{ h.path }}{% if h.query %}?{{ h.query }}{% endif %}
+        </td>
+        <td>{{ h.referrer or "—" }}</td>
+        <td style="max-width:320px; word-wrap:break-word;">{{ h.user_agent }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  

@@ -38,12 +38,14 @@ from flask import render_template
 from error_handlers import register_error_handlers
 
 
+from utils.visitor_log import init_visitor_logging          # ← add this
 
 
 
 def create_app():
     app = Flask(__name__)
     app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+    init_visitor_logging(app)
 
     # Basic config
     app.secret_key = os.getenv('SECRET_KEY')
