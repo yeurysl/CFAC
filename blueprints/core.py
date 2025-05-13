@@ -389,7 +389,7 @@ def thank_you():
 
 
 @core_bp.route("/founder")
-def about_founder():
+def founder():
     return render_template("founder.html")
 
 
