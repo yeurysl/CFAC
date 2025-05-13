@@ -327,19 +327,28 @@ stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 @core_bp.route("/create-checkout-session", methods=["POST"])
 def create_checkout_session():
     price_id = request.form.get("price_id")
+    current_app.logger.info(f"👀 Received price_id: {price_id}")
+
     try:
         session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
             line_items=[{
-                'price': price_id,
-                'quantity': 1,
+                "price": price_id,
+                "quantity": 1,
             }],
-            mode='payment',
-            success_url=url_for('core.shop', _external=True) + '?success=true',
-            cancel_url=url_for('core.shop', _external=True) + '?canceled=true',
+            mode="payment",
+            shipping_address_collection={"allowed_countries": ["US"]},
+            # point success_url at /thank-you
+            success_url=url_for("core.thank_you", _external=True),
+            cancel_url =url_for("core.shop", _external=True) + "?canceled=true",
         )
+        current_app.logger.info(f"➡️ Redirecting to Stripe checkout: {session.url}")
         return redirect(session.url, code=303)
+
     except Exception as e:
+        current_app.logger.error(f"❌ Stripe error: {e}")
         return str(e), 400
+
 
 from flask import Blueprint, render_template
 
@@ -370,6 +379,11 @@ def shop():
     return render_template("shop.html", products=products)
 
 
+@core_bp.route("/thank-you")
+def thank_you():
+    # You could pull the session_id from a query param and fetch more info here
+    # session_id = request.args.get("session_id")
+    return render_template("thank_you.html")
 
 
 

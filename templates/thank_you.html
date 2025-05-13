@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+  <div style="text-align:center; margin: 50px;">
+    <h1>Thank You!</h1>
+    <p>Your order has been placed successfully.</p>
+    <p>We’ll email you a confirmation shortly.</p>
+    <a href="{{ url_for('core.shop') }}">Back to Shop</a>
+  </div>
+{% endblock %}

@@ -13,9 +13,12 @@
         <p>Cleans your tools thoroughly.</p>
         <p><strong>Price:</strong> $29.99</p>
         <form action="{{ url_for('core.create_checkout_session') }}" method="POST">
-            <input type="hidden" name="price_id" value="prod_SIlsfxdV7CGWoj">
+            <!-- this will render a hidden <input name="csrf_token" ...> -->
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="price_id" value="price_1ROCLoDgSlwbnF7IpYsqaSUT">
             <button type="submit">Buy Now</button>
-        </form>
+          </form>
+          
     </div>
 
     <div class="product-card" style="border: 1px solid #ccc; padding: 16px; width: 300px; border-radius: 8px; text-align: center;">
