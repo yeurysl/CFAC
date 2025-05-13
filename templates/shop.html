@@ -10,7 +10,7 @@
     <div class="product-card" style="border: 1px solid #ccc; padding: 16px; width: 300px; border-radius: 8px; text-align: center;">
         <img src="{{ url_for('static', filename='images/brush.png') }}" alt="Brush Cleaner" style="width: 100%; height: auto; border-radius: 4px; margin-bottom: 10px;">
         <h2>Brushes</h2>
-        <p>5 premium brushes.</p>
+        <p>5 premium brushes</p>
         <p><strong>Price:</strong> $20.00</p>
         <form action="{{ url_for('core.create_checkout_session') }}" method="POST">
             <!-- this will render a hidden <input name="csrf_token" ...> -->
@@ -24,14 +24,14 @@
     <div class="product-card" style="border: 1px solid #ccc; padding: 16px; width: 300px; border-radius: 8px; text-align: center;">
         <img src="{{ url_for('static', filename='images/tank.png') }}" alt="Tank Scrubber" style="width: 100%; height: auto; border-radius: 4px; margin-bottom: 10px;">
         <h2>Water Tank</h2>
-        <p>Store your water for mobile services.</p>
+        <p>Store your water for mobile services</p>
         <p><strong>Price:</strong> $300.00</p>
     </div>
 
     <div class="product-card" style="border: 1px solid #ccc; padding: 16px; width: 300px; border-radius: 8px; text-align: center;">
         <img src="{{ url_for('static', filename='images/vac.png') }}" alt="Vacuum Pro" style="width: 100%; height: auto; border-radius: 4px; margin-bottom: 10px;">
         <h2>Vac Pro</h2>
-        <p>Premium-grade vacuum.</p>
+        <p>Premium-grade vacuum</p>
         <p><strong>Price:</strong> $190.00</p>
     </div>
 
