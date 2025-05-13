@@ -1,65 +1,57 @@
-
 {% extends "base.html" %}
 
 {% block content %}
 <h1 style="text-align: center;"></h1>
 
-<div style="display: flex; flex-direction: column; align-items: center; gap: 30px; margin-top: 30px;">
-    
+<div style="display: flex; flex-direction: column; align-items: center; gap: 50px; margin-top: 50px;">
 
+  <!-- Reusable card style -->
+  {% set card_style = "border:1px solid #ccc; padding:50px 50px; width:340px; min-height:450px; border-radius:8px; text-align:center;" %}
 
+  <!-- Product 1: Brushes -->
+  <div class="product-card" style="{{ card_style }}">
+    <img src="{{ url_for('static', filename='images/brush.png') }}"
+         alt="Brush Cleaner"
+         style="width:100%;height:auto;border-radius:4px;margin-bottom:10px;">
+    <h2>Brushes</h2>
+    <p>5 premium brushes</p>
+    <p><strong>$20.00</strong></p>
+    <form action="{{ url_for('core.create_checkout_session') }}" method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="price_id" value="price_1ROAKfDgSlwbnF7ILoR27Uto">
+      <button type="submit" class="buy-now-btn">Buy&nbsp;Now</button>
+    </form>
+  </div>
 
+  <!-- Product 2: Water Tank -->
+  <div class="product-card" style="{{ card_style }}">
+    <img src="{{ url_for('static', filename='images/tank.png') }}"
+         alt="Water Tank"
+         style="width:100%;height:auto;border-radius:4px;margin-bottom:10px;">
+    <h2>Water Tank</h2>
+    <p>Store water for mobile services</p>
+    <p><strong>$300.00</strong></p>
+    <form action="{{ url_for('core.create_checkout_session') }}" method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="price_id" value="price_1ROE6lDgSlwbnF7IhMyTU1NE">
+      <button type="submit" class="buy-now-btn">Buy&nbsp;Now</button>
+    </form>
+  </div>
 
-
-
-<!-- Product 1 -->
-<div class="product-card"
-     style="border:1px solid #ccc;
-            padding:16px;
-            width:300px;
-            border-radius:8px;
-            text-align:center;">
-
-  <img src="{{ url_for('static', filename='images/brush.png') }}"
-       alt="Brush Cleaner"
-       style="width:100%;height:auto;border-radius:4px;margin-bottom:10px;">
-
-  <h2>Brushes</h2>
-  <p>5 premium brushes</p>
-  <p><strong>$20.00</strong> </p>
-
-  <form action="{{ url_for('core.create_checkout_session') }}" method="POST">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <input type="hidden" name="price_id" value="price_1ROAKfDgSlwbnF7ILoR27Uto">
-
-    <!-- one clean button element -->
-    <button type="submit" class="buy-now-btn">Buy&nbsp;Now</button>
-  </form>
-</div>
-
-
-
-
-
-
-
-
-
-
-    <div class="product-card" style="border: 1px solid #ccc; padding: 16px; width: 300px; border-radius: 8px; text-align: center;">
-        <img src="{{ url_for('static', filename='images/tank.png') }}" alt="Tank Scrubber" style="width: 100%; height: auto; border-radius: 4px; margin-bottom: 10px;">
-        <h2>Water Tank</h2>
-        <p>Store water for mobile services</p>
-        <p><strong>Price:</strong> $300.00</p>
-    </div>
-
-    <div class="product-card" style="border: 1px solid #ccc; padding: 16px; width: 300px; border-radius: 8px; text-align: center;">
-        <img src="{{ url_for('static', filename='images/vac.png') }}" alt="Vacuum Pro" style="width: 100%; height: auto; border-radius: 4px; margin-bottom: 10px;">
-        <h2>Vac Pro</h2>
-        <p>Premium-grade vacuum</p>
-        <p><strong>Price:</strong> $190.00</p>
-    </div>
+  <!-- Product 3: Vac Pro -->
+  <div class="product-card" style="{{ card_style }}">
+    <img src="{{ url_for('static', filename='images/vac.png') }}"
+         alt="Vacuum Pro"
+         style="width:100%;height:auto;border-radius:4px;margin-bottom:10px;">
+    <h2>Vac Pro</h2>
+    <p>Premium-grade vacuum</p>
+    <p><strong>$190.00</strong></p>
+    <form action="{{ url_for('core.create_checkout_session') }}" method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="price_id" value="price_1ROE88DgSlwbnF7IvYXWXVOf">
+      <button type="submit" class="buy-now-btn">Buy&nbsp;Now</button>
+    </form>
+  </div>
 
 </div>
 {% endblock %}
-
