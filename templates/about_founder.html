@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+  <div style="max-width: 800px; margin: 50px auto; text-align: center;">
+    <h1>About Our Founder</h1>
+    <img src="{{ url_for('static', filename='images/founder.jpg') }}"
+         alt="Photo of our founder"
+         style="width:200px; height:auto; border-radius:50%; margin-top:20px;">
+    <p style="margin-top:30px; line-height:1.6">
+      Yeurys “Reese” Lora started Central Florida Auto Care LLC at age 18, driven by a passion
+      for automation and exceptional customer service. What began as a one‑man detailing service
+      in Riverview, FL has grown into a full‑service operation with a team of vetted technicians—
+      all coordinated through the CFAC app Reese built from scratch.
+    </p>
+  </div>
+{% endblock %}

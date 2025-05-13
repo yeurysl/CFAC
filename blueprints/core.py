@@ -388,6 +388,9 @@ def thank_you():
 
 
 
+@core_bp.route("/about-founder")
+def about_founder():
+    return render_template("about_founder.html")
 
 
 
