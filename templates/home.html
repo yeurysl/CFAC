@@ -184,6 +184,27 @@
   </div>
 </div>
 
+
+
+
+<!-- Quote / Total Price -------------------------------------->
+<div class="container-fluid px-0">
+  <div class="row g-0 mb-4">
+    <div class="col">
+      <div class="white-border bg-light text-center py-3">
+        <h2 class="mb-1">Your Quote</h2>
+        <h2 id="quoteTotal" class="fw-bold m-0">$0.00</h2>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- /Quote --------------------------------------------------->
+
+
+
+
+
+
 <!-- Date and Time Section with White Borders -->
 <div class="container-fluid px-0">
   <div class="row g-0 mb-4">
@@ -543,6 +564,128 @@
 <script>
 
 
+
+
+const PRICES = {
+  interior_plastics_dry_detail: {
+    coupe_2_seater: 6.75, hatch_2_door: 7.65, hatch_4_door: 8.55,
+    minivan_6_seater: 9.45, sedan_2_door: 7.65, sedan_4_door: 8.55,
+    suv_4_seater: 8.55, suv_6_seater: 9.45,
+    truck_2_seater: 6.75, truck_4_seater: 8.55
+  },
+
+  interior_plastics_wet_detail: {
+    coupe_2_seater: 6.75, hatch_2_door: 7.65, hatch_4_door: 8.55,
+    minivan_6_seater: 9.45, sedan_2_door: 7.65, sedan_4_door: 8.55,
+    suv_4_seater: 8.55, suv_6_seater: 9.45,
+    truck_2_seater: 6.75, truck_4_seater: 8.55
+  },
+
+  seats_dry_detail: {
+    coupe_2_seater: 0.9, hatch_2_door: 2.25, hatch_4_door: 2.25,
+    minivan_6_seater: 3.6, sedan_2_door: 2.25, sedan_4_door: 2.25,
+    suv_4_seater: 2.25, suv_6_seater: 3.6,
+    truck_2_seater: 0.9, truck_4_seater: 2.25
+  },
+
+  seats_wet_detail: {
+    coupe_2_seater: 3.15, hatch_2_door: 6.3, hatch_4_door: 6.3,
+    minivan_6_seater: 9.45, sedan_2_door: 6.3, sedan_4_door: 6.3,
+    suv_4_seater: 6.3, suv_6_seater: 9.45,
+    truck_2_seater: 3.15, truck_4_seater: 6.3
+  },
+
+  seats_shampoo: {
+    coupe_2_seater: 9, hatch_2_door: 15.75, hatch_4_door: 15.75,
+    minivan_6_seater: 22.5, sedan_2_door: 15.75, sedan_4_door: 15.75,
+    suv_4_seater: 15.75, suv_6_seater: 22.5,
+    truck_2_seater: 9, truck_4_seater: 15.75
+  },
+
+  floors_dry_detail: {
+    coupe_2_seater: 2.25, hatch_2_door: 5.4, hatch_4_door: 5.4,
+    minivan_6_seater: 7.2, sedan_2_door: 5.4, sedan_4_door: 5.4,
+    suv_4_seater: 5.4, suv_6_seater: 7.2,
+    truck_2_seater: 2.25, truck_4_seater: 5.4
+  },
+
+  floors_wet_detail: {
+    coupe_2_seater: 2.7, hatch_2_door: 5.85, hatch_4_door: 5.85,
+    minivan_6_seater: 8.1, sedan_2_door: 5.85, sedan_4_door: 5.85,
+    suv_4_seater: 5.85, suv_6_seater: 8.1,
+    truck_2_seater: 2.7, truck_4_seater: 5.85
+  },
+
+  carpet_dry_detail: {
+    coupe_2_seater: 3.15, hatch_2_door: 6.75, hatch_4_door: 6.75,
+    minivan_6_seater: 9.9, sedan_2_door: 6.75, sedan_4_door: 6.75,
+    suv_4_seater: 6.75, suv_6_seater: 9.9,
+    truck_2_seater: 3.15, truck_4_seater: 6.75
+  },
+
+  carpet_wet_detail: {
+    coupe_2_seater: 8.1, hatch_2_door: 15.75, hatch_4_door: 15.75,
+    minivan_6_seater: 21.15, sedan_2_door: 15.75, sedan_4_door: 15.75,
+    suv_4_seater: 15.75, suv_6_seater: 21.15,
+    truck_2_seater: 8.1, truck_4_seater: 15.75
+  },
+
+  seatbelts_detail: {
+    coupe_2_seater: 3.6, hatch_2_door: 9, hatch_4_door: 9,
+    minivan_6_seater: 12.6, sedan_2_door: 9, sedan_4_door: 9,
+    suv_4_seater: 9, suv_6_seater: 12.6,
+    truck_2_seater: 3.6, truck_4_seater: 9
+  },
+
+  exterior_handwash: {
+    coupe_2_seater: 9.9, hatch_2_door: 12.15, hatch_4_door: 13.05,
+    minivan_6_seater: 16.65, sedan_2_door: 12.15, sedan_4_door: 13.05,
+    suv_4_seater: 13.95, suv_6_seater: 16.65,
+    truck_2_seater: 9.9, truck_4_seater: 13.95
+  },
+
+  bug_tar_removal: {
+    coupe_2_seater: 5.4, hatch_2_door: 6.75, hatch_4_door: 6.75,
+    minivan_6_seater: 6.75, sedan_2_door: 6.75, sedan_4_door: 6.75,
+    suv_4_seater: 6.75, suv_6_seater: 6.75,
+    truck_2_seater: 5.4, truck_4_seater: 6.75
+  },
+
+  tire_rim_detail: {
+    coupe_2_seater: 12.6, hatch_2_door: 12.6, hatch_4_door: 12.6,
+    minivan_6_seater: 12.6, sedan_2_door: 12.6, sedan_4_door: 12.6,
+    suv_4_seater: 12.6, suv_6_seater: 12.6,
+    truck_2_seater: 12.6, truck_4_seater: 12.6
+  },
+
+  claybar_wax: {
+    coupe_2_seater: 18, hatch_2_door: 27, hatch_4_door: 31.5,
+    minivan_6_seater: 42.75, sedan_2_door: 27, sedan_4_door: 31.5,
+    suv_4_seater: 36, suv_6_seater: 42.75,
+    truck_2_seater: 20.25, truck_4_seater: 35.1
+  },
+
+  headliner_cleaning: {
+    coupe_2_seater: 5.85, hatch_2_door: 9, hatch_4_door: 9.9,
+    minivan_6_seater: 15.75, sedan_2_door: 9, sedan_4_door: 9.9,
+    suv_4_seater: 12.15, suv_6_seater: 15.75,
+    truck_2_seater: 5.85, truck_4_seater: 9.9
+  },
+
+  truckbed: {  // note Swift key was "truck_bed" – JS uses same key you use in packages[]
+    truck_2_seater: 7.5,
+    truck_4_seater: 7.5
+  }
+};
+
+
+
+
+
+
+
+
+
 // Define your package selections (existing)
 const packages = {
   fullInterior: {
@@ -679,6 +822,15 @@ document.addEventListener('DOMContentLoaded', function() {
       imageElement.alt = "Default service image";
     }
   }
+  function updateQuote() {
+  if (!selectedVehicleSize) return;
+  const total = selectedServices.reduce((sum, s) => {
+    const svcPrices = PRICES[s.key] || {};
+    return sum + (svcPrices[selectedVehicleSize] || 0);
+  }, 0);
+  document.getElementById('quoteTotal').textContent =
+      `$${total.toFixed(2)}`;
+}
 
   // Set default vehicle size text and update display image.
   document.getElementById('vehicleSizeDropdown').textContent = "Coupe 2 Seater";
