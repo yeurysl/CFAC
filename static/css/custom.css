@@ -5,6 +5,34 @@ body, html {
   margin: 0;
   padding: 0;
 }
+/* ---- fancy buy-now button ---- */
+/* ---------------- Buy-Now (matches other btn-* styles) -------------- */
+.buy-now-btn{
+  display:inline-block;
+  width:100%;
+  padding:15px 75px;                 /* same as .btn-primary */
+  font-weight:600;
+  font-size:1rem;
+  color:#ffffff;
+  background-color:#07173d;          /* same navy */
+  border:1px solid #07173d;
+  border-radius:2px;                 /* same sharp corner */
+  text-transform:uppercase;
+  transition:background-color .15s ease,
+             box-shadow .15s ease;
+}
+
+.buy-now-btn:hover{
+  background-color:#4e5f8a;          /* mimic .btn-product-view-details:hover */
+  box-shadow:0 4px 8px rgba(0,0,0,.20);
+  color:#ffffff;
+}
+
+.buy-now-btn:active{
+  background-color:#0b0b22;          /* slightly darker when pressed */
+  box-shadow:0 2px 4px rgba(0,0,0,.25);
+}
+
 
 /* Navbar Styling */
 .custom-navbar {
