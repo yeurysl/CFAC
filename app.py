@@ -1,10 +1,12 @@
 # app.py
 import monkey_patch
+import os
+from dotenv import load_dotenv 
+load_dotenv()
 
 from collections import MutableMapping
 from apscheduler.schedulers.background import BackgroundScheduler
 from api_tech import start_scheduler  
-import os
 import decimal
 import logging
 from flask import Flask
@@ -35,7 +37,6 @@ from blueprints.core import core_bp
 from flask import render_template
 from error_handlers import register_error_handlers
 
-load_dotenv()
 
 
 

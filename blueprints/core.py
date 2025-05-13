@@ -316,3 +316,64 @@ def public_sales_profile(user_id):
 
 
 
+
+import os
+import stripe
+import stripe
+from flask import request, redirect, url_for, Blueprint
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+
+
+@core_bp.route("/create-checkout-session", methods=["POST"])
+def create_checkout_session():
+    price_id = request.form.get("price_id")
+    try:
+        session = stripe.checkout.Session.create(
+            line_items=[{
+                'price': price_id,
+                'quantity': 1,
+            }],
+            mode='payment',
+            success_url=url_for('core.shop', _external=True) + '?success=true',
+            cancel_url=url_for('core.shop', _external=True) + '?canceled=true',
+        )
+        return redirect(session.url, code=303)
+    except Exception as e:
+        return str(e), 400
+
+from flask import Blueprint, render_template
+
+
+@core_bp.route("/shop")
+def shop():
+    products = [
+        {
+            'name': 'Brush Cleaner',
+            'description': 'Cleans your tools thoroughly.',
+            'price': 29.99,
+            'image': 'brush.png'
+        },
+        {
+            'name': 'Tank Scrubber',
+            'description': 'Heavy-duty tank scrubbing device.',
+            'price': 39.99,
+            'image': 'tank.png'
+        },
+        {
+            'name': 'Vacuum Pro',
+            'description': 'Professional-grade vacuum.',
+            'price': 49.99,
+            'image': 'vac.png'
+        }
+    ]
+
+    return render_template("shop.html", products=products)
+
+
+
+
+
+
+
+
+

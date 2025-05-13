@@ -1,0 +1,37 @@
+
+{% extends "base.html" %}
+
+{% block content %}
+<h1 style="text-align: center;">Shop</h1>
+
+<div style="display: flex; flex-direction: column; align-items: center; gap: 30px; margin-top: 30px;">
+    
+     <!-- Product 1 -->
+    <div class="product-card" style="border: 1px solid #ccc; padding: 16px; width: 300px; border-radius: 8px; text-align: center;">
+        <img src="{{ url_for('static', filename='images/brush.png') }}" alt="Brush Cleaner" style="width: 100%; height: auto; border-radius: 4px; margin-bottom: 10px;">
+        <h2>Brush Cleaner</h2>
+        <p>Cleans your tools thoroughly.</p>
+        <p><strong>Price:</strong> $29.99</p>
+        <form action="{{ url_for('core.create_checkout_session') }}" method="POST">
+            <input type="hidden" name="price_id" value="prod_SIlsfxdV7CGWoj">
+            <button type="submit">Buy Now</button>
+        </form>
+    </div>
+
+    <div class="product-card" style="border: 1px solid #ccc; padding: 16px; width: 300px; border-radius: 8px; text-align: center;">
+        <img src="{{ url_for('static', filename='images/tank.png') }}" alt="Tank Scrubber" style="width: 100%; height: auto; border-radius: 4px; margin-bottom: 10px;">
+        <h2>Tank Scrubber</h2>
+        <p>Heavy-duty tank scrubbing device.</p>
+        <p><strong>Price:</strong> $39.99</p>
+    </div>
+
+    <div class="product-card" style="border: 1px solid #ccc; padding: 16px; width: 300px; border-radius: 8px; text-align: center;">
+        <img src="{{ url_for('static', filename='images/vac.png') }}" alt="Vacuum Pro" style="width: 100%; height: auto; border-radius: 4px; margin-bottom: 10px;">
+        <h2>Vacuum Pro</h2>
+        <p>Professional-grade vacuum.</p>
+        <p><strong>Price:</strong> $49.99</p>
+    </div>
+
+</div>
+{% endblock %}
+
