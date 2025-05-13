@@ -188,16 +188,21 @@
 
 
 <!-- Quote / Total Price -------------------------------------->
-<div class="container-fluid px-0">
-  <div class="row g-0 mb-4">
-    <div class="col">
-      <div class="white-border bg-light text-center py-3">
-        <h2 class="mb-1">Your Quote</h2>
-        <h2 id="quoteTotal" class="fw-bold m-0">$0.00</h2>
-      </div>
-    </div>
+<div class="white-border bg-light text-center py-3">
+  <h2 class="mb-2">Your Quote</h2>
+
+  <div class="display-6 fw-bold" id="quoteGrandTotal">$0.00</div>
+
+  <!-- new: travel-fee line -->
+  <div class="small mt-1">
+       Travel fee — <span id="quoteTravelFee">—</span>
+  </div>
+
+  <div class="mt-2 small text-muted">
+       Est. time — <span id="quoteTime">0&nbsp;min</span>
   </div>
 </div>
+
 <!-- /Quote --------------------------------------------------->
 
 
@@ -559,13 +564,35 @@
 <!-- Include Flatpickr JS -->
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
-<!-- Consolidated JavaScript Code -->
+<script>
+  // --- helper constants -------------------------------------------------
+  const PROFIT_MULTIPLIER  = 1 / 0.55;           // 45% margin   (same as iOS)
+  const COMPLETION_TIMES   = {                   // minutes per service
+    interior_plastics_dry_detail  : 10,
+    interior_plastics_wet_detail  : 15,
+    seats_dry_detail              :  5,
+    seats_wet_detail              : 20,
+    seats_shampoo                 : 25,
+    floors_dry_detail             :  5,
+    floors_wet_detail             : 10,
+    carpet_dry_detail             : 10,
+    carpet_wet_detail             : 20,
+    seatbelts_detail              :  5,
+    exterior_handwash             : 20,
+    bug_tar_removal               : 10,
+    tire_rim_detail               : 15,
+    claybar_wax                   : 40,
+    headliner_cleaning            : 15,
+    truck_bed                     : 10        // ← use one single key everywhere
+  };
+  </script>
+  
+
+
+
+
 
 <script>
-
-
-
-
 const PRICES = {
   interior_plastics_dry_detail: {
     coupe_2_seater: 6.75, hatch_2_door: 7.65, hatch_4_door: 8.55,
@@ -691,10 +718,10 @@ const packages = {
   fullInterior: {
     label: "Full Interior",
     services: [
-      { id: "6780627528fc752af68c43e4", key: "interior_plastics_dry_detail", label: "Interior Plastics Dry Detail" },
-      { id: "6780627528fc752af68c43e5", key: "interior_plastics_wet_detail", label: "Interior Plastics Wet Detail/Protectants" },
-      { id: "6780627528fc752af68c43e6", key: "seats_dry_detail", label: "Seats Dry Detail(Vacuum)" },
-      { id: "6780627528fc752af68c43e7", key: "seats_wet_detail", label: "Seats Wet Detail (Leather)" },
+      { id: "6780627528fc752af68c43e4", key: "interior_plastics_dry_detail", label: "Interior Plastics Dry Clean" },
+      { id: "6780627528fc752af68c43e5", key: "interior_plastics_wet_detail", label: "Interior Plastics Wet Clean/Protectants" },
+      { id: "6780627528fc752af68c43e6", key: "seats_dry_detail", label: "Seats Dry Clean(Vacuum)" },
+      { id: "6780627528fc752af68c43e7", key: "seats_wet_detail", label: "Seats Wet Clean (Leather)" },
       { id: "6780627528fc752af68c43e8", key: "seats_shampoo", label: "Seats Shampoo (Fabric)" },
       { id: "6780627528fc752af68c43f3", key: "light_pet_hair_removal", label: "Light Pet Hair Removal" }
     ]
@@ -704,7 +731,7 @@ const packages = {
     services: [
       { id: "6780627528fc752af68c43ee", key: "exterior_handwash", label: "Exterior Handwash and Windows" },
       { id: "6780627528fc752af68c43ef", key: "bug_tar_removal", label: "Bug and Tar Removal" },
-      { id: "6780627528fc752af68c43f0", key: "tire_rim_detail", label: "Tire and Rim Detail/Shine" },
+      { id: "6780627528fc752af68c43f0", key: "tire_rim_detail", label: "Tire and Rim Clean/Shine" },
       { id: "6780627528fc752af68c43f1", key: "claybar_wax", label: "Claybar/Wax" },
     ]
   },
@@ -713,17 +740,17 @@ const packages = {
     services: [
       // Combine services from fullInterior and fullExterior
       ...[
-        { id: "6780627528fc752af68c43e4", key: "interior_plastics_dry_detail", label: "Interior Plastics Dry Detail" },
-        { id: "6780627528fc752af68c43e5", key: "interior_plastics_wet_detail", label: "Interior Plastics Wet Detail/Protectants" },
-        { id: "6780627528fc752af68c43e6", key: "seats_dry_detail", label: "Seats Dry Detail(Vacuum)" },
-        { id: "6780627528fc752af68c43e7", key: "seats_wet_detail", label: "Seats Wet Detail (Leather)" },
+        { id: "6780627528fc752af68c43e4", key: "interior_plastics_dry_detail", label: "Interior Plastics Dry Clean" },
+        { id: "6780627528fc752af68c43e5", key: "interior_plastics_wet_detail", label: "Interior Plastics Wet Clean/Protectants" },
+        { id: "6780627528fc752af68c43e6", key: "seats_dry_detail", label: "Seats Dry Clean(Vacuum)" },
+        { id: "6780627528fc752af68c43e7", key: "seats_wet_detail", label: "Seats Wet Clean (Leather)" },
         { id: "6780627528fc752af68c43e8", key: "seats_shampoo", label: "Seats Shampoo (Fabric)" },
         { id: "6780627528fc752af68c43f3", key: "light_pet_hair_removal", label: "Light Pet Hair Removal" }
       ],
       ...[
         { id: "6780627528fc752af68c43ee", key: "exterior_handwash", label: "Exterior Handwash and Windows" },
         { id: "6780627528fc752af68c43ef", key: "bug_tar_removal", label: "Bug and Tar Removal" },
-        { id: "6780627528fc752af68c43f0", key: "tire_rim_detail", label: "Tire and Rim Detail/Shine" },
+        { id: "6780627528fc752af68c43f0", key: "tire_rim_detail", label: "Tire and Rim Clean/Shine" },
         { id: "6780627528fc752af68c43f1", key: "claybar_wax", label: "Claybar/Wax" },
         { id: "6780627528fc752af68c43f7", key: "truckbed", label: "Truckbed" }
       ]
@@ -736,15 +763,15 @@ const subPackages = {
   carpets: {
     label: "Carpets",
     services: [
-      { id: "6780627528fc752af68c43eb", key: "carpet_dry_detail", label: "Carpet Dry Detail (Vacuum)" },
-      { id: "6780627528fc752af68c43ec", key: "carpet_wet_detail", label: "Carpet Wet Detail (Shampoo)" }
+      { id: "6780627528fc752af68c43eb", key: "carpet_dry_detail", label: "Carpet Dry Clean (Vacuum)" },
+      { id: "6780627528fc752af68c43ec", key: "carpet_wet_detail", label: "Carpet Wet Clean (Shampoo)" }
     ]
   },
   plasticFloors: {
     label: "Plastic Floors",
     services: [
-      { id: "6780627528fc752af68c43e9", key: "floors_dry_detail", label: "Floors Dry Detail" },
-      { id: "6780627528fc752af68c43ea", key: "floors_wet_detail", label: "Floors Wet Detail" }
+      { id: "6780627528fc752af68c43e9", key: "floors_dry_detail", label: "Floors Dry Clean" },
+      { id: "6780627528fc752af68c43ea", key: "floors_wet_detail", label: "Floors Wet Clean" }
     ]
   }
 };
@@ -822,15 +849,45 @@ document.addEventListener('DOMContentLoaded', function() {
       imageElement.alt = "Default service image";
     }
   }
+
+
   function updateQuote() {
   if (!selectedVehicleSize) return;
-  const total = selectedServices.reduce((sum, s) => {
-    const svcPrices = PRICES[s.key] || {};
-    return sum + (svcPrices[selectedVehicleSize] || 0);
+
+  /* a) subtotal ---------------------------------------------------- */
+  const subtotal = selectedServices.reduce((sum, s) => {
+    const p = PRICES[s.key] || {};
+    return sum + (p[selectedVehicleSize] || 0);
   }, 0);
-  document.getElementById('quoteTotal').textContent =
-      `$${total.toFixed(2)}`;
+
+  /* b) gross + margin --------------------------------------------- */
+  const grossPrice = Math.ceil(subtotal * PROFIT_MULTIPLIER);
+  const fee        = grossPrice - subtotal;          // still used later
+
+  /* c) travel-fee tiers ------------------------------------------- */
+  let travelFee = 0;
+  if      (grossPrice <  90) travelFee = 25;
+  else if (grossPrice < 100) travelFee = 15;
+
+  const grandTotal = grossPrice + travelFee;
+
+  /* d) completion time -------------------------------------------- */
+  const minutes = selectedServices.reduce(
+        (m, s) => m + (COMPLETION_TIMES[s.key] || 0), 0);
+  const timeStr = minutes >= 60
+        ? `${Math.floor(minutes/60)} hr${minutes>=120?'s':''} ${minutes%60?minutes%60+' min':''}`
+        : `${minutes} min${minutes!==1?'s':''}`;
+
+  /* e) push to DOM ------------------------------------------------- */
+  document.getElementById('quoteGrandTotal').textContent =
+        `$${grandTotal.toFixed(2)}`;
+
+  document.getElementById('quoteTravelFee').textContent =      // ★
+        travelFee ? `$${travelFee.toFixed(2)}` : '—';          // ★
+
+  document.getElementById('quoteTime').textContent = timeStr;
 }
+
 
   // Set default vehicle size text and update display image.
   document.getElementById('vehicleSizeDropdown').textContent = "Coupe 2 Seater";
@@ -843,6 +900,7 @@ document.addEventListener('DOMContentLoaded', function() {
       selectedVehicleSize = this.getAttribute('data-vehicle-size');
       document.getElementById('vehicleSizeDropdown').textContent = this.textContent;
       updateDisplayImage();
+      updateQuote();  
     });
   });
 
@@ -871,6 +929,7 @@ document.addEventListener('DOMContentLoaded', function() {
         this.classList.remove('selected');
       }
       updateServiceDropdownText();
+      updateQuote(); 
     });
   });
 
@@ -918,6 +977,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       }
       updateServiceDropdownText();
+      updateQuote();    
     });
   });
 // Sub-package selection: Toggle sub-package options (for Full Interior only).
@@ -981,6 +1041,7 @@ document.querySelectorAll('.sub-package-option').forEach(item => {
       }
     }
     updateServiceDropdownText();
+    updateQuote();    
   });
 });
 
@@ -1013,7 +1074,7 @@ document.querySelectorAll('.sub-package-option').forEach(item => {
     }
     window.location.href = url;
   });
-
+  updateQuote();  
 });
 </script>
 
