@@ -1,5 +1,5 @@
 # core.py
-from flask import Blueprint, render_template, request, flash, redirect, url_for, current_app, jsonify
+from flask import Blueprint, render_template, request, flash, redirect, url_for, current_app, jsonify, Response
 from flask_login import login_required, logout_user, current_user, login_user
 from bson.objectid import ObjectId, InvalidId
 from datetime import datetime
@@ -7,7 +7,7 @@ import re
 import json
 from dateutil.parser import parse 
 import stripe
-from forms import EmployeeLoginForm, UpdateAccountForm
+from forms import EmployeeLoginForm, UpdateAccountForm, GuestOrderForm
 from extensions import User 
 from utility import register_filters
 
@@ -394,3 +394,140 @@ def founder():
 
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+#  G U E S T   C H E C K O U T   (core.guest_order)
+# ──────────────────────────────────────────────────────────────────────────────
+from datetime import datetime
+from pprint import pformat
+import math, stripe
+from flask import (
+    Blueprint, render_template, request, redirect,
+    url_for, flash, current_app, Response,
+)
+from bson import ObjectId
+from forms import GuestOrderForm
+
+
+@core_bp.route("/guest/order", methods=["GET", "POST"])
+def guest_order() -> Response:
+    form = GuestOrderForm()
+
+    # ── query-string params --------------------------------------------------
+    service_ids  = request.args.get("service_id", "").split(",")
+    vehicle_size = request.args.get("vehicle_size", "")
+    appt_iso     = request.args.get("appointment", "")      # 2025-05-15T04:30
+    date_str, time_str = ("", "")
+    if "T" in appt_iso:
+        date_str, time_str = appt_iso.split("T")
+
+    # pre-fill WTForms on first load
+    if request.method == "GET":
+        if date_str:
+            form.service_date.data = datetime.strptime(date_str, "%Y-%m-%d").date()
+        if time_str:
+            form.service_time.data = datetime.strptime(time_str, "%H:%M").time()
+        form.payment_time.data = "pay_now"                 # default choice
+    # ------------------------------------------------------------------------
+
+    # ── rebuild service list & price calc -----------------------------------
+    services, subtotal, total_minutes = [], 0.0, 0
+    coll = current_app.config["SERVICES_COLLECTION"]
+
+    for sid in filter(ObjectId.is_valid, service_ids):
+        doc = coll.find_one({"_id": ObjectId(sid)})
+        if not doc:
+            continue
+        sz = doc.get("price_by_vehicle_size", {}).get(vehicle_size, {})
+        price   = sz.get("price", 0)
+        minutes = int(sz.get("completion_time", "0").split()[0] or 0)
+        services.append({"label": doc["label"], "price": price, "minutes": minutes})
+        subtotal      += price
+        total_minutes += minutes
+
+    gross       = math.ceil(subtotal / 0.55)               # 45 % margin
+    travel_fee  = 25 if gross < 90 else (15 if gross < 100 else 0)
+    total       = gross + travel_fee                       # ←     KEY “total”
+    deposit     = round(total * 0.25, 2)                   # 25 % down-payment
+    # ------------------------------------------------------------------------
+
+    order = {
+        "vehicle_size"     : vehicle_size.replace("_", " ").title(),
+        "service_date"     : form.service_date.data.isoformat() if form.service_date.data else "",
+        "service_time"     : form.service_time.data.strftime("%H:%M") if form.service_time.data else "",
+        "services"         : services,
+        "services_total"   : round(subtotal, 2),
+        "travel_fee"       : travel_fee,
+        "fee"              : round(gross * 0.45, 2),
+        "total"            : total,          # ← used in template & Stripe
+        "deposit"          : deposit,
+        "estimated_minutes": total_minutes
+    }
+
+    # ── POST: validate & save ----------------------------------------------
+    if form.validate_on_submit():
+        orders = current_app.config["ORDERS_COLLECTION"]
+        _id = orders.insert_one({
+            **order,
+            "creation_date" : datetime.utcnow().isoformat(),
+            "status"        : "ordered",
+            "payment_status": "Pending",
+            "payment_time"  : form.payment_time.data,
+            "is_guest"      : True,
+            "guest_name"    : form.guest_name.data,
+            "guest_email"   : form.guest_email.data,
+            "guest_phone_number": form.guest_phone_number.data,
+            "guest_address" : {
+                "street" : form.street_address.data,
+                "unit"   : form.unit_apt.data,
+                "city"   : form.city.data,
+                "zip"    : form.zip_code.data,
+                "country": form.country.data,
+            },
+            "selectedServices": services,
+        }).inserted_id
+
+        current_app.logger.info("✅ order %s stored – redirecting to Stripe", _id)
+        return redirect(url_for("core.guest_stripe_checkout", order_id=str(_id)))
+
+    return render_template("guest_order.html", form=form, order=order)
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+# ── Stripe one-off checkout (full amount OR deposit – you can branch later) ──
+@core_bp.route("/guest/stripe/<order_id>")
+def guest_stripe_checkout(order_id: str) -> Response:
+    orders = current_app.config["ORDERS_COLLECTION"]
+    order  = orders.find_one({"_id": ObjectId(order_id)})
+    if not order:
+        flash("Order not found.", "danger")
+        return redirect(url_for("core.guest_order"))
+
+    stripe.api_key = current_app.config["STRIPE_SECRET_KEY"]
+
+    amount_cents = int(order["total"] * 100)       # Stripe uses cents
+    session = stripe.checkout.Session.create(
+        payment_method_types=["card"],
+        line_items=[{
+            "price_data": {
+                "currency"    : "usd",
+                "product_data": {"name": f"Guest Order #{order_id}"},
+                "unit_amount" : amount_cents,
+            },
+            "quantity": 1,
+        }],
+        mode="payment",
+        success_url=url_for("core.guest_thank_you", _external=True),
+        cancel_url =url_for("core.guest_order", _external=True),
+        metadata={"order_id": order_id},
+    )
+    return redirect(session.url, code=303)
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+
+
+
+# 2c) Thank‑you page
+@core_bp.route('/guest/thank-you')
+def guest_thank_you():
+    return render_template('guest_thank_you.html')

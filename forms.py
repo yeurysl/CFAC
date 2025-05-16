@@ -259,6 +259,11 @@ class GuestOrderForm(FlaskForm):
         ],
         validators=[DataRequired(message="Please select a payment time.")]
     )
+
+    service_ids  = HiddenField()
+    vehicle_size = HiddenField()
+    appointment  = HiddenField()
+
     submit = SubmitField('Schedule Guest Order')
     
     def validate(self, *args, **kwargs):

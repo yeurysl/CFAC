@@ -100,12 +100,12 @@
             </li>
             <li class="dropdown-item sub-package" data-parent-package="fullInterior">
               <a class="dropdown-item sub-package-option" href="#" data-subpackage="carpets">
-                Carpets
+                Floor Type | Carpets
               </a>
             </li>
             <li class="dropdown-item sub-package" data-parent-package="fullInterior">
               <a class="dropdown-item sub-package-option" href="#" data-subpackage="plasticFloors">
-                Plastic Floors
+                Floor Type | Plastic Floors
               </a>
             </li>
             
@@ -229,7 +229,7 @@
 
 
 
-<!-- Book Now Button -->
+<!-- … your existing Book Now button … -->
 <div class="container-fluid px-0">
   <div class="row g-0">
     <div class="col text-center">
@@ -237,6 +237,7 @@
     </div>
   </div>
 </div>
+
 
 <!-- Or Section -->
 <div class="container-fluid mt-5 text-center px-0">
@@ -561,6 +562,27 @@
 </div>
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 <!-- Include Flatpickr JS -->
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
@@ -593,118 +615,157 @@
 
 
 <script>
+
+/* exact DB-synced prices — generated 15 May 2025 */
 const PRICES = {
+  /* ─────────── INTERIOR ─────────── */
   interior_plastics_dry_detail: {
-    coupe_2_seater: 6.75, hatch_2_door: 7.65, hatch_4_door: 8.55,
-    minivan_6_seater: 9.45, sedan_2_door: 7.65, sedan_4_door: 8.55,
-    suv_4_seater: 8.55, suv_6_seater: 9.45,
-    truck_2_seater: 6.75, truck_4_seater: 8.55
+    coupe_2_seater: 7.5,  hatch_2_door: 8.5,  hatch_4_door: 9.5,
+    sedan_2_door: 8.5,    sedan_4_door: 9.5,
+    suv_4_seater: 9.5,    suv_6_seater: 10.5,
+    truck_2_seater: 7.5,  truck_4_seater: 9.5,
+    minivan_6_seater: 10.5
   },
-
   interior_plastics_wet_detail: {
-    coupe_2_seater: 6.75, hatch_2_door: 7.65, hatch_4_door: 8.55,
-    minivan_6_seater: 9.45, sedan_2_door: 7.65, sedan_4_door: 8.55,
-    suv_4_seater: 8.55, suv_6_seater: 9.45,
-    truck_2_seater: 6.75, truck_4_seater: 8.55
+    coupe_2_seater: 7.5,  hatch_2_door: 8.5,  hatch_4_door: 9.5,
+    sedan_2_door: 8.5,    sedan_4_door: 9.5,
+    suv_4_seater: 9.5,    suv_6_seater: 10.5,
+    truck_2_seater: 7.5,  truck_4_seater: 9.5,
+    minivan_6_seater: 10.5
   },
-
   seats_dry_detail: {
-    coupe_2_seater: 0.9, hatch_2_door: 2.25, hatch_4_door: 2.25,
-    minivan_6_seater: 3.6, sedan_2_door: 2.25, sedan_4_door: 2.25,
-    suv_4_seater: 2.25, suv_6_seater: 3.6,
-    truck_2_seater: 0.9, truck_4_seater: 2.25
+    coupe_2_seater: 1,    hatch_2_door: 2.5,  hatch_4_door: 2.5,
+    sedan_2_door: 2.5,    sedan_4_door: 2.5,
+    suv_4_seater: 2.5,    suv_6_seater: 4,
+    truck_2_seater: 1,    truck_4_seater: 2.5,
+    minivan_6_seater: 4
   },
-
   seats_wet_detail: {
-    coupe_2_seater: 3.15, hatch_2_door: 6.3, hatch_4_door: 6.3,
-    minivan_6_seater: 9.45, sedan_2_door: 6.3, sedan_4_door: 6.3,
-    suv_4_seater: 6.3, suv_6_seater: 9.45,
-    truck_2_seater: 3.15, truck_4_seater: 6.3
+    coupe_2_seater: 3.5,  hatch_2_door: 7,    hatch_4_door: 7,
+    sedan_2_door: 7,      sedan_4_door: 7,
+    suv_4_seater: 7,      suv_6_seater: 10.5,
+    truck_2_seater: 3.5,  truck_4_seater: 7,
+    minivan_6_seater: 10.5
   },
-
   seats_shampoo: {
-    coupe_2_seater: 9, hatch_2_door: 15.75, hatch_4_door: 15.75,
-    minivan_6_seater: 22.5, sedan_2_door: 15.75, sedan_4_door: 15.75,
-    suv_4_seater: 15.75, suv_6_seater: 22.5,
-    truck_2_seater: 9, truck_4_seater: 15.75
+    coupe_2_seater: 10,   hatch_2_door: 17.5, hatch_4_door: 17.5,
+    sedan_2_door: 17.5,   sedan_4_door: 17.5,
+    suv_4_seater: 17.5,   suv_6_seater: 25,
+    truck_2_seater: 10,   truck_4_seater: 17.5,
+    minivan_6_seater: 25
   },
-
   floors_dry_detail: {
-    coupe_2_seater: 2.25, hatch_2_door: 5.4, hatch_4_door: 5.4,
-    minivan_6_seater: 7.2, sedan_2_door: 5.4, sedan_4_door: 5.4,
-    suv_4_seater: 5.4, suv_6_seater: 7.2,
-    truck_2_seater: 2.25, truck_4_seater: 5.4
+    coupe_2_seater: 2.5,  hatch_2_door: 6,    hatch_4_door: 6,
+    sedan_2_door: 6,      sedan_4_door: 6,
+    suv_4_seater: 6,      suv_6_seater: 8,
+    truck_2_seater: 2.5,  truck_4_seater: 6,
+    minivan_6_seater: 8
   },
-
   floors_wet_detail: {
-    coupe_2_seater: 2.7, hatch_2_door: 5.85, hatch_4_door: 5.85,
-    minivan_6_seater: 8.1, sedan_2_door: 5.85, sedan_4_door: 5.85,
-    suv_4_seater: 5.85, suv_6_seater: 8.1,
-    truck_2_seater: 2.7, truck_4_seater: 5.85
+    coupe_2_seater: 3,    hatch_2_door: 6.5,  hatch_4_door: 6.5,
+    sedan_2_door: 6.5,    sedan_4_door: 6.5,
+    suv_4_seater: 6.5,    suv_6_seater: 9,
+    truck_2_seater: 3,    truck_4_seater: 6.5,
+    minivan_6_seater: 9
   },
-
   carpet_dry_detail: {
-    coupe_2_seater: 3.15, hatch_2_door: 6.75, hatch_4_door: 6.75,
-    minivan_6_seater: 9.9, sedan_2_door: 6.75, sedan_4_door: 6.75,
-    suv_4_seater: 6.75, suv_6_seater: 9.9,
-    truck_2_seater: 3.15, truck_4_seater: 6.75
+    coupe_2_seater: 3.5,  hatch_2_door: 7.5,  hatch_4_door: 7.5,
+    sedan_2_door: 7.5,    sedan_4_door: 7.5,
+    suv_4_seater: 7.5,    suv_6_seater: 11,
+    truck_2_seater: 3.5,  truck_4_seater: 7.5,
+    minivan_6_seater: 11
   },
-
   carpet_wet_detail: {
-    coupe_2_seater: 8.1, hatch_2_door: 15.75, hatch_4_door: 15.75,
-    minivan_6_seater: 21.15, sedan_2_door: 15.75, sedan_4_door: 15.75,
-    suv_4_seater: 15.75, suv_6_seater: 21.15,
-    truck_2_seater: 8.1, truck_4_seater: 15.75
+    coupe_2_seater: 9,    hatch_2_door: 17.5, hatch_4_door: 17.5,
+    sedan_2_door: 17.5,   sedan_4_door: 17.5,
+    suv_4_seater: 17.5,   suv_6_seater: 23.5,
+    truck_2_seater: 9,    truck_4_seater: 17.5,
+    minivan_6_seater: 23.5
   },
-
   seatbelts_detail: {
-    coupe_2_seater: 3.6, hatch_2_door: 9, hatch_4_door: 9,
-    minivan_6_seater: 12.6, sedan_2_door: 9, sedan_4_door: 9,
-    suv_4_seater: 9, suv_6_seater: 12.6,
-    truck_2_seater: 3.6, truck_4_seater: 9
+    coupe_2_seater: 4,    hatch_2_door: 10,   hatch_4_door: 10,
+    sedan_2_door: 10,     sedan_4_door: 10,
+    suv_4_seater: 10,     suv_6_seater: 14,
+    truck_2_seater: 4,    truck_4_seater: 10,
+    minivan_6_seater: 14
   },
 
+  /* ─────────── EXTERIOR ─────────── */
   exterior_handwash: {
-    coupe_2_seater: 9.9, hatch_2_door: 12.15, hatch_4_door: 13.05,
-    minivan_6_seater: 16.65, sedan_2_door: 12.15, sedan_4_door: 13.05,
-    suv_4_seater: 13.95, suv_6_seater: 16.65,
-    truck_2_seater: 9.9, truck_4_seater: 13.95
+    coupe_2_seater: 11,   hatch_2_door: 13.5, hatch_4_door: 14.5,
+    sedan_2_door: 13.5,   sedan_4_door: 14.5,
+    suv_4_seater: 15.5,   suv_6_seater: 18.5,
+    truck_2_seater: 11,   truck_4_seater: 15.5,
+    minivan_6_seater: 18.5
   },
-
   bug_tar_removal: {
-    coupe_2_seater: 5.4, hatch_2_door: 6.75, hatch_4_door: 6.75,
-    minivan_6_seater: 6.75, sedan_2_door: 6.75, sedan_4_door: 6.75,
-    suv_4_seater: 6.75, suv_6_seater: 6.75,
-    truck_2_seater: 5.4, truck_4_seater: 6.75
+    coupe_2_seater: 6,    hatch_2_door: 7.5,  hatch_4_door: 7.5,
+    sedan_2_door: 7.5,    sedan_4_door: 7.5,
+    suv_4_seater: 7.5,    suv_6_seater: 7.5,
+    truck_2_seater: 6,    truck_4_seater: 7.5,
+    minivan_6_seater: 7.5
   },
-
   tire_rim_detail: {
-    coupe_2_seater: 12.6, hatch_2_door: 12.6, hatch_4_door: 12.6,
-    minivan_6_seater: 12.6, sedan_2_door: 12.6, sedan_4_door: 12.6,
-    suv_4_seater: 12.6, suv_6_seater: 12.6,
-    truck_2_seater: 12.6, truck_4_seater: 12.6
+    coupe_2_seater: 14,   hatch_2_door: 14,   hatch_4_door: 14,
+    sedan_2_door: 14,     sedan_4_door: 14,
+    suv_4_seater: 14,     suv_6_seater: 14,
+    truck_2_seater: 14,   truck_4_seater: 14,
+    minivan_6_seater: 14
   },
-
   claybar_wax: {
-    coupe_2_seater: 18, hatch_2_door: 27, hatch_4_door: 31.5,
-    minivan_6_seater: 42.75, sedan_2_door: 27, sedan_4_door: 31.5,
-    suv_4_seater: 36, suv_6_seater: 42.75,
-    truck_2_seater: 20.25, truck_4_seater: 35.1
-  },
-
-  headliner_cleaning: {
-    coupe_2_seater: 5.85, hatch_2_door: 9, hatch_4_door: 9.9,
-    minivan_6_seater: 15.75, sedan_2_door: 9, sedan_4_door: 9.9,
-    suv_4_seater: 12.15, suv_6_seater: 15.75,
-    truck_2_seater: 5.85, truck_4_seater: 9.9
-  },
-
-  truckbed: {  // note Swift key was "truck_bed" – JS uses same key you use in packages[]
+  coupe_2_seater : 33.33,   // 40 min  →  0.667 h × $50
+  hatch_2_door   : 50.00,   // 1 h     →  1.000 h × $50
+  hatch_4_door   : 58.33,   // 1 h 10 m →  1.167 h × $50
+  truck_2_seater : 37.50,   // 45 min  →  0.750 h × $50
+  truck_4_seater : 65.00,   // 1 h 18 m →  1.300 h × $50
+  sedan_2_door   : 50.00,   // 1 h     →  1.000 h × $50
+  sedan_4_door   : 58.33,   // 1 h 10 m →  1.167 h × $50
+  suv_4_seater   : 66.67,   // 1 h 20 m →  1.333 h × $50
+  suv_6_seater   : 79.17,   // 1 h 35 m →  1.583 h × $50
+  minivan_6_seater:79.17    // 1 h 35 m →  1.583 h × $50
+},
+  truckbed: {            // only for trucks
     truck_2_seater: 7.5,
     truck_4_seater: 7.5
+  },
+
+  /* ─────────── ADDITIONAL ─────────── */
+  headliner_cleaning: {
+    coupe_2_seater: 6.5,  hatch_2_door: 10,   hatch_4_door: 11,
+    sedan_2_door: 10,     sedan_4_door: 11,
+    suv_4_seater: 13.5,   suv_6_seater: 17.5,
+    truck_2_seater: 6.5,  truck_4_seater: 11,
+    minivan_6_seater: 17.5
+  },
+  headliner_stain_removal: {
+    coupe_2_seater: 2.5,  hatch_2_door: 2.5,  hatch_4_door: 2.5,
+    sedan_2_door: 2.5,    sedan_4_door: 2.5,
+    suv_4_seater: 2.5,    suv_6_seater: 2.5,
+    truck_2_seater: 2.5,  truck_4_seater: 2.5,
+    minivan_6_seater: 2.5
+  },
+  light_pet_hair_removal: {
+    coupe_2_seater: 2.5,  hatch_2_door: 2.5,  hatch_4_door: 2.5,
+    sedan_2_door: 2.5,    sedan_4_door: 2.5,
+    suv_4_seater: 2.5,    suv_6_seater: 2.5,
+    truck_2_seater: 2.5,  truck_4_seater: 2.5,
+    minivan_6_seater: 2.5
+  },
+  extreme_pet_hair_removal: {
+    coupe_2_seater: 12.5, hatch_2_door: 15,   hatch_4_door: 15,
+    sedan_2_door: 15,     sedan_4_door: 15,
+    suv_4_seater: 15,     suv_6_seater: 17.5,
+    truck_2_seater: 12.5, truck_4_seater: 15,
+    minivan_6_seater: 17.5
+  },
+  one_seat_stain_removal: {
+    coupe_2_seater: 2.5,  hatch_2_door: 2.5,  hatch_4_door: 2.5,
+    sedan_2_door: 2.5,    sedan_4_door: 2.5,
+    suv_4_seater: 2.5,    suv_6_seater: 2.5,
+    truck_2_seater: 2.5,  truck_4_seater: 2.5,
+    minivan_6_seater: 2.5
   }
 };
-
 
 
 
@@ -904,6 +965,65 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
+
+// === guest‑vs‑login prompt logic (inside DOMContentLoaded) ===
+const isAuthenticated = {{ current_user.is_authenticated|tojson }};
+const guestPrompt     = document.getElementById('guestPrompt');
+const bookBtn         = document.getElementById('bookNowBtn');
+bookBtn.addEventListener('click', function(e) {
+  e.preventDefault();
+
+  // 1) validation
+  if (!selectedVehicleSize || selectedServices.length === 0) {
+    alert("Please select a vehicle size and at least one service.");
+    return;
+  }
+
+  // 2) if guest, show overlay—but first build & attach the query‑string
+  if (!isAuthenticated) {
+    const serviceIds = selectedServices.map(s => s.id).join(",");
+    let guestUrl = "{{ url_for('core.guest_order') }}";
+    guestUrl += "?service_id="   + encodeURIComponent(serviceIds);
+    guestUrl += "&vehicle_size=" + encodeURIComponent(selectedVehicleSize);
+
+    const dateTime = document.getElementById('appointmentDateTime').value;
+    if (dateTime) {
+      guestUrl += "&appointment=" + encodeURIComponent(dateTime);
+    }
+    // set the Guest button’s href
+    document.getElementById('guestLink').href = guestUrl;
+
+    // hide dropdown, show prompt
+    bootstrap.Dropdown.getInstance(document.getElementById('serviceDropdown'))?.hide();
+    guestPrompt.classList.remove('d-none');
+    return;
+  }
+
+  // 3) authenticated: build your add_to_cart URL as before
+  let url = "/customer/add_to_cart";
+  const serviceIds = selectedServices.map(s => s.id).join(",");
+  url += "?service_id="   + encodeURIComponent(serviceIds);
+  url += "&vehicle_size=" + encodeURIComponent(selectedVehicleSize);
+
+  const dateTime = document.getElementById('appointmentDateTime').value;
+  if (dateTime) {
+    url += "&appointment=" + encodeURIComponent(dateTime);
+  }
+
+  window.location.href = url;
+});
+
+
+// allow clicking the dark backdrop to close the prompt
+guestPrompt.addEventListener('click', function(e) {
+  // only hide when background itself is clicked
+  if (e.target === guestPrompt) {
+    guestPrompt.classList.add('d-none');
+  }
+});
+
+
+
   // Multi-select for individual service options.
   document.querySelectorAll('.service-option').forEach(item => {
     item.addEventListener('click', function(e) {
@@ -1047,33 +1167,22 @@ document.querySelectorAll('.sub-package-option').forEach(item => {
 
   // Close dropdown when user taps outside (simulate auto-close)
   document.addEventListener('click', function(e) {
-    if (!e.target.closest('.dropdown')) {
-      // For each open dropdown, manually hide it using Bootstrap's dropdown hide method.
-      const dropdownToggles = document.querySelectorAll('[data-bs-toggle="dropdown"]');
-      dropdownToggles.forEach(toggle => {
-        const dropdownInstance = bootstrap.Dropdown.getInstance(toggle);
-        if (dropdownInstance) {
-          dropdownInstance.hide();
-        }
-      });
-    }
-  });
-  // Book Now button event listener.
-  document.getElementById('bookNowBtn').addEventListener('click', function() {
-    if (!selectedVehicleSize || selectedServices.length === 0) {
-      alert("Please select a vehicle size and at least one service.");
-      return;
-    }
-    let url = "/customer/add_to_cart";
-    const serviceIds = selectedServices.map(s => s.id).join(",");
-    url += "?service_id=" + encodeURIComponent(serviceIds);
-    url += "&vehicle_size=" + encodeURIComponent(selectedVehicleSize);
-    const dateTime = document.getElementById('appointmentDateTime').value;
-    if (dateTime) {
-      url += "&appointment=" + encodeURIComponent(dateTime);
-    }
-    window.location.href = url;
-  });
+  // if click inside a dropdown → let Bootstrap handle it
+  if (e.target.closest('.dropdown')) return;
+
+  // if click inside the open modal → do nothing
+  if (document.querySelector('.modal.show')
+      && e.target.closest('.modal-content')) {
+    return;
+  }
+
+  // otherwise: hide all dropdowns
+  document
+    .querySelectorAll('[data-bs-toggle="dropdown"]')
+    .forEach(toggle => bootstrap.Dropdown.getInstance(toggle)?.hide());
+});
+
+
   updateQuote();  
 });
 </script>
