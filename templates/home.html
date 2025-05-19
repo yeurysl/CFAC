@@ -679,6 +679,30 @@
 
 <!-- Include Flatpickr JS -->
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script>
+  // Round now() to nearest 30m
+  function roundToNearest30(date) {
+    const ms = 1000*60*30;
+    return new Date(Math.round(date.getTime()/ms)*ms);
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    flatpickr("#appointmentDateTime", {
+      enableTime: true,
+      noCalendar: false,           // keep the calendar for date
+      dateFormat: "Y-m-d h:i K",   // 12‑hour w/ AM/PM
+      time_24hr: false,            // force 12‑hour picker
+      minuteIncrement: 30,
+      defaultDate: roundToNearest30(new Date()),
+      minTime: "04:00",            // 4 AM
+      maxTime: "16:00",            // 4 PM
+      allowInput: true,            // let arrow keys & manual edits
+      // show the little clock icon so AM/PM toggle appears
+      wrap: false,
+      clickOpens: true
+    });
+  });
+</script>
 
 <script>
   // --- helper constants -------------------------------------------------
@@ -931,22 +955,7 @@ const subPackages = {
   }
 };
 
-// Helper function: Round a Date object to the nearest 30 minutes.
-function roundToNearest30(date) {
-  const ms = 1800000; // 30 minutes in milliseconds
-  return new Date(Math.round(date.getTime() / ms) * ms);
-}
 
-document.addEventListener('DOMContentLoaded', function() {
-
-  // Initialize Flatpickr on the datetime input with 30-minute increments.
-  flatpickr("#appointmentDateTime", {
-    enableTime: true,
-    dateFormat: "Y-m-d\\TH:i",
-    time_24hr: true,
-    minuteIncrement: 30,
-    defaultDate: roundToNearest30(new Date())
-  });
 
   let selectedVehicleSize = "coupe_2_seater";
   let selectedServices = [];
