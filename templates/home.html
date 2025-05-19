@@ -31,9 +31,8 @@
   <div class="row text-center" style="width: 100%;">
     <!-- Single Column to stack h1 and p -->
     <div class="col-12">
-      <h1 class="mb-2">Immediate Free Quotes</h1>
-      <p class="mt-1 mb-0">Enter your size to get an exact price</p>
-      
+      <h1 class="mb-4">Immediate Free Quotes</h1>  <!-- Added margin-bottom -->
+      <p class="mb-2">Enter your size to get an exact price</p>
     </div>
   </div>
 </div>
@@ -954,6 +953,14 @@ const subPackages = {
     ]
   }
 };
+
+// Helper function: Round a Date object to the nearest 30 minutes.
+function roundToNearest30(date) {
+  const ms = 1800000; // 30 minutes in milliseconds
+  return new Date(Math.round(date.getTime() / ms) * ms);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
 
 
 
