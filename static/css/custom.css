@@ -22,6 +22,33 @@ body, html {
              box-shadow .15s ease;
 }
 
+
+
+
+/* black primary-style button */
+.btn-black {
+  display: inline-block;
+  padding: 15px 75px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #ffffff;
+  background-color: #000000;
+  border: 1px solid #000000;
+  border-radius: 3%;
+  text-transform: uppercase;
+  transition: background-color .15s ease, box-shadow .15s ease;
+}
+
+.btn-black:hover {
+  background-color: #303030;      /* stays black on hover */
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  color: #ffffff;
+}
+
+
+
+
+
 .buy-now-btn:hover{
   background-color:#4e5f8a;          /* mimic .btn-product-view-details:hover */
   box-shadow:0 4px 8px rgba(0,0,0,.20);
