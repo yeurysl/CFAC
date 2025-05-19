@@ -250,16 +250,15 @@ class GuestOrderForm(FlaskForm):
     
     service_package = StringField('Service Package', validators=[Optional()])
 
-    
-    payment_time = SelectField(
+    payment_time = RadioField(
         'Payment Time',
         choices=[
-            ('pay_now', 'Pay Now'),
-            ('pay_after_completion', 'Pay After Completion')
+            ('pay_now', 'Pay now (full)'),
+            ('pay_after_completion', 'Pay deposit now')
         ],
-        validators=[DataRequired(message="Please select a payment time.")]
+        default='pay_now',
+        validators=[DataRequired(message="Please select a payment option.")]
     )
-
     service_ids  = HiddenField()
     vehicle_size = HiddenField()
     appointment  = HiddenField()

@@ -1,119 +1,171 @@
 {# ────────────────────────────────────────────────────────────── #}
 {% extends "base.html" %}
-{% block title %}Guest Checkout{% endblock %}
+{% block title %}Guest&nbsp;Checkout{% endblock %}
 
 {% block content %}
 <div class="container py-5">
-  <h2>Guest Checkout</h2>
 
-  {% if order %}
-  <div class="card shadow-sm mb-4">
-    <div class="card-header bg-light fw-bold">Order Summary</div>
-    <div class="card-body">
-      <p class="mb-1"><strong>Vehicle&nbsp;Size:</strong> {{ order.vehicle_size }}</p>
-      <p><strong>Service Date:</strong> {{ order.service_date or "—" }}</p>
-      <p><strong>Service Time:</strong>
-         {{ order.service_time[:5] if order.service_time else "—" }}</p>
+  <div class="row justify-content-center">
+    <div class="col-12 col-md-10 col-lg-8">   {# ✔ limits width #}
 
-      <ul class="list-group mb-3">
-        {% for svc in order.services %}
-          <li class="list-group-item">{{ loop.index }}.&nbsp;{{ svc.label }}</li>
-        {% endfor %}
-      </ul>
+      <h2 class="mb-4 text-center">Guest&nbsp;Checkout</h2>
 
-      <div class="d-flex justify-content-between">
-        <span>Travel&nbsp;Fee:</span>  <span>${{ order.travel_fee }}</span>
+      {# ── ORDER SUMMARY ── #}
+      {% if order %}
+      <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light fw-bold">Order&nbsp;Summary</div>
+        <div class="card-body">
+          <p class="mb-1"><strong>Vehicle&nbsp;Size:</strong> {{ order.vehicle_size }}</p>
+          <p class="mb-1"><strong>Service&nbsp;Date:</strong> {{ order.service_date or "—" }}</p>
+          <p><strong>Service&nbsp;Time:</strong> {{ order.service_time[:5] if order.service_time else "—" }}</p>
+
+          <ul class="list-group mb-3">
+            {% for svc in order.services %}
+              <li class="list-group-item">{{ loop.index }}.&nbsp;{{ svc.label }}</li>
+            {% endfor %}
+          </ul>
+
+          <div class="d-flex justify-content-between">
+            <span>Travel&nbsp;Fee:</span><span>${{ order.travel_fee }}</span>
+          </div>
+          <div class="d-flex justify-content-between fs-5 fw-semibold border-top pt-2 mt-2">
+            <span>Total:</span><span>${{ order.total }}</span>
+          </div>
+        </div>
       </div>
-      <div class="d-flex justify-content-between fs-5 fw-semibold border-top pt-2 mt-2">
-        <span>Total:</span>           <span>${{ order.total }}</span>
-      </div>
+      {% endif %}
+
+      {# ── CHECK-OUT FORM ── #}
+      <form method="post"
+            action="{{ url_for('core.guest_start_payment') }}"
+            novalidate>
+
+        {{ form.csrf_token }}
+        <input type="hidden" name="order_id" value="{{ order._id }}">
+        {{ form.service_date(type="hidden") }}
+        {{ form.service_time(type="hidden") }}
+
+
+
+        {# guest / address #}
+        <div class="row g-3">
+
+          <div class="col-md-6">
+            {{ form.guest_name.label(class="form-label") }}
+            {{ form.guest_name(class="form-control", placeholder="Full name") }}
+            {% if form.guest_name.errors %}
+              <div class="text-danger small">{{ form.guest_name.errors[0] }}</div>
+            {% endif %}
+          </div>
+
+          <div class="col-md-6">
+            {{ form.guest_email.label(class="form-label") }}
+            {{ form.guest_email(class="form-control", placeholder="email@example.com") }}
+            {% if form.guest_email.errors %}
+              <div class="text-danger small">{{ form.guest_email.errors[0] }}</div>
+            {% endif %}
+          </div>
+
+          <div class="col-md-6">
+            {{ form.guest_phone_number.label(class="form-label") }}
+            {{ form.guest_phone_number(class="form-control", placeholder="(555) 123-4567") }}
+          </div>
+
+          <div class="col-12">
+            {{ form.street_address.label(class="form-label") }}
+            {{ form.street_address(class="form-control", placeholder="123 Main St") }}
+          </div>
+
+          <div class="col-md-6">
+            {{ form.unit_apt.label(class="form-label") }}
+            {{ form.unit_apt(class="form-control", placeholder="Apt / Unit (optional)") }}
+          </div>
+
+          <div class="col-md-4">
+            {{ form.city.label(class="form-label") }}
+            {{ form.city(class="form-control") }}
+          </div>
+
+          <div class="col-md-2">
+            {{ form.zip_code.label(class="form-label") }}
+            {{ form.zip_code(class="form-control") }}
+          </div>
+
+          <div class="col-12">
+            {{ form.country.label(class="form-label") }}
+            {{ form.country(class="form-select") }}
+          </div>
+        </div>
+
+
+
+
+
+
+
+
+
+
+
+        {# ── payment choice (Bootstrap btn-check radios) ── #}
+        <div class="mt-4 pt-3 border-top">
+        
+          <label class="form-label fw-bold mb-3 d-block">
+            How would you like to pay?
+          </label>
+        
+          <div class="btn-group-vertical w-100" role="group">
+        
+            {# — full payment — #}
+            <input  type="radio"  class="btn-check"
+                    name="payment_time"  id="pay_now"
+                    value="pay_now"
+                    {% if form.payment_time.data != 'pay_after_completion' %}checked{% endif %} >
+            <label class="btn btn-outline-primary w-100 text-start py-3" for="pay_now">
+              <span>Pay in&nbsp;full&nbsp;now</span>
+              <span class="float-end text-muted">
+                ${{ "%.2f"|format(order.total) }}
+              </span>
+            </label>
+        
+            {# — deposit — #}
+            <input  type="radio"  class="btn-check"
+                    name="payment_time"  id="pay_deposit"
+                    value="pay_after_completion"
+                    {% if form.payment_time.data == 'pay_after_completion' %}checked{% endif %} >
+            <label class="btn btn-outline-primary w-100 text-start py-3" for="pay_deposit">
+              <span>Pay&nbsp;deposit&nbsp;now</span>
+              <span class="float-end text-muted">
+                ${{ "%.2f"|format(order.deposit) }}
+                (bal.&nbsp;${{ "%.2f"|format(order.total - order.deposit) }})
+              </span>
+            </label>
+        
+          </div>
+        
+          {% if form.payment_time.errors %}
+            <div class="text-danger small mt-2">
+              {{ form.payment_time.errors[0] }}
+            </div>
+          {% endif %}
+        
+        </div>
+        
+        
+
+
+
+
+
+
+
+
+        <button type="submit" class="btn btn-primary mt-4 w-100">
+          {{ form.submit.label.text }}
+        </button>
+      </form>
     </div>
   </div>
-  {% endif %}
-
-  {# ──────────────── GUEST CHECKOUT FORM ──────────────── #}
-  <form method="post" novalidate>
-    {{ form.csrf_token }}
-
-    {# ── payment choice ── #}
-    <div class="mb-3">
-      <label class="form-label fw-bold">How would you like to pay?</label>
-
-      <div class="form-check">
-        <input  class="form-check-input" type="radio" id="pay_full_now"
-                name="payment_time" value="pay_now"
-                {{ "checked" if form.payment_time.data != "pay_after_completion" }}>
-        <label class="form-check-label" for="pay_full_now">
-          Pay <strong>in&nbsp;full&nbsp;now</strong>
-          <span class="text-muted">– ${{ "%.2f"|format(order.total) }}</span>
-        </label>
-      </div>
-
-      <div class="form-check">
-        <input  class="form-check-input" type="radio" id="pay_deposit"
-                name="payment_time" value="pay_after_completion"
-                {{ "checked" if form.payment_time.data == "pay_after_completion" }}>
-        <label class="form-check-label" for="pay_deposit">
-          Pay <strong>deposit&nbsp;now</strong>
-          <span class="text-muted">
-            – ${{ "%.2f"|format(order.deposit) }}
-            (balance ${{ "%.2f"|format(order.total - order.deposit) }} at completion)
-          </span>
-        </label>
-      </div>
-      {% if form.payment_time.errors %}
-        <div class="text-danger small">{{ form.payment_time.errors[0] }}</div>
-      {% endif %}
-    </div>
-
-    {# ── guest & address fields ── #}
-    <div class="row g-3">
-      <div class="col-md-6">
-        {{ form.guest_name.label(class="form-label") }}
-        {{ form.guest_name(class="form-control", placeholder="Full name") }}
-        {% if form.guest_name.errors %}
-          <div class="text-danger small">{{ form.guest_name.errors[0] }}</div>
-        {% endif %}
-      </div>
-
-      <div class="col-md-6">
-        {{ form.guest_email.label(class="form-label") }}
-        {{ form.guest_email(class="form-control", placeholder="email@example.com") }}
-        {% if form.guest_email.errors %}
-          <div class="text-danger small">{{ form.guest_email.errors[0] }}</div>
-        {% endif %}
-      </div>
-
-      <div class="col-12">
-        {{ form.street_address.label(class="form-label") }}
-        {{ form.street_address(class="form-control", placeholder="123 Main St") }}
-      </div>
-
-      <div class="col-md-6">
-        {{ form.unit_apt.label(class="form-label") }}
-        {{ form.unit_apt(class="form-control", placeholder="Apt / Unit (optional)") }}
-      </div>
-
-      <div class="col-md-4">
-        {{ form.city.label(class="form-label") }}
-        {{ form.city(class="form-control") }}
-      </div>
-
-      <div class="col-md-2">
-        {{ form.zip_code.label(class="form-label") }}
-        {{ form.zip_code(class="form-control") }}
-      </div>
-
-      <div class="col-12">
-        {{ form.country.label(class="form-label") }}
-        {{ form.country(class="form-select") }}
-      </div>
-    </div>
-
-    <button type="submit" class="btn btn-primary mt-4">
-      {{ form.submit.label.text }}
-    </button>
-  </form>
 </div>
 {% endblock %}
 {# ────────────────────────────────────────────────────────────── #}

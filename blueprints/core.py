@@ -394,7 +394,17 @@ def founder():
 
 
 
-# ──────────────────────────────────────────────────────────────────────────────
+# ─────────── blueprints/core.py (or blueprints/guest.py) ───────────
+from flask import (
+    Blueprint, request, redirect, url_for, flash,
+    current_app, session, render_template, Response
+)
+from bson.objectid import ObjectId
+from datetime import datetime
+import math, stripe, pprint
+from notis import send_postmark_email            #  ← same helper you use for customers
+from forms import GuestOrderForm
+
 #  G U E S T   C H E C K O U T   (core.guest_order)
 # ──────────────────────────────────────────────────────────────────────────────
 from datetime import datetime
@@ -491,6 +501,144 @@ def guest_order() -> Response:
 
     return render_template("guest_order.html", form=form, order=order)
 # ──────────────────────────────────────────────────────────────────────────────
+
+def send_partial_payment_thankyou_email(order, balance_url):
+    
+    html_body = render_template("emails/partial_payment_thankyou.html",
+                                order=order,
+                                balance_url=balance_url,
+                                )
+
+
+@core_bp.route("/guest/start_payment", methods=["POST"])
+def guest_start_payment():
+    orders  = current_app.config["ORDERS_COLLECTION"]
+    stripe.api_key = current_app.config["STRIPE_SECRET_KEY"]
+
+    order_id      = request.form["order_id"]           # hidden field in the form
+    payment_time  = request.form["payment_time"]       # pay_now | after
+    order         = orders.find_one({"_id": ObjectId(order_id)})
+
+    if not order:                                     # basic guard-rails
+        flash("Order not found.", "danger")
+        return redirect(url_for("core.home"))
+
+    email        = order["guest_email"]
+    final_price  = float(order["total"])
+    success_url  = url_for("core.guest_thank_you", _external=True)
+    cancel_url   = url_for("core.guest_order", _external=True)
+
+    # ---------- full payment (100 %) -----------------
+    if payment_time == "pay_now":
+        amount_cents = int(final_price * 100)
+
+        payment_intent = stripe.PaymentIntent.create(
+            amount              = amount_cents,
+            currency            = "usd",
+            payment_method_types= ["card"],
+            metadata            = {"order_id": order_id, "payment_type": "full"},
+        )
+
+        checkout_session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            line_items=[{
+                "price_data": {
+                    "currency"   : "usd",
+                    "product_data": {"name": f"Guest Order #{order_id}"},
+                    "unit_amount": amount_cents,
+                },
+                "quantity": 1,
+            }],
+            customer_email   = email,
+            success_url      = success_url,
+            cancel_url       = cancel_url,
+            payment_intent_data={"metadata": {"order_id": order_id}},
+            mode             = "payment",
+        )
+
+        orders.update_one({"_id": order["_id"]}, {"$set": {
+            "payment_status" : "pending",
+            "payment_intent_id": payment_intent.id,
+            "client_secret"  : payment_intent.client_secret,
+            "checkout_url"   : checkout_session.url,
+        }})
+
+        # optional thanks-email
+        send_full_payment_thankyou_email({**order, **{"_id": order["_id"]}})
+        return redirect(checkout_session.url)
+
+    # ---------- 25 % deposit  /  75 % later ----------
+    elif payment_time == "after":
+        deposit   = round(final_price * 0.25, 2)
+        balance   = round(final_price * 0.75, 2)
+
+        # a) create deposit session
+        dep_intent  = stripe.PaymentIntent.create(
+            amount   = int(deposit * 100),
+            currency = "usd",
+            payment_method_types=["card"],
+            metadata={"order_id": order_id, "payment_type": "deposit"},
+        )
+        dep_session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            customer_email=email,
+            line_items=[{
+                "price_data": {
+                    "currency":"usd",
+                    "product_data":{"name": f"25 % Deposit – Order #{order_id}"},
+                    "unit_amount": int(deposit * 100),
+                },
+                "quantity": 1,
+            }],
+            success_url = success_url,
+            cancel_url  = cancel_url,
+            payment_intent_data={"metadata": {"order_id": order_id, "payment_type": "deposit"}},
+            mode="payment",
+        )
+
+        # b) create remaining-balance session
+        bal_intent  = stripe.PaymentIntent.create(
+            amount   = int(balance * 100),
+            currency = "usd",
+            payment_method_types=["card"],
+            metadata={"order_id": order_id, "payment_type": "remaining"},
+        )
+        bal_session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            customer_email=email,
+            line_items=[{
+                "price_data": {
+                    "currency":"usd",
+                    "product_data":{"name": f"75 % Balance – Order #{order_id}"},
+                    "unit_amount": int(balance * 100),
+                },
+                "quantity": 1,
+            }],
+            success_url = success_url,
+            cancel_url  = cancel_url,
+            payment_intent_data={"metadata": {"order_id": order_id, "payment_type": "remaining"}},
+            mode="payment",
+        )
+
+        orders.update_one({"_id": order["_id"]}, {"$set": {
+            "deposit_payment_status"   : "pending",
+            "deposit_payment_intent_id": dep_intent.id,
+            "deposit_client_secret"    : dep_intent.client_secret,
+            "deposit_checkout_url"     : dep_session.url,
+            "remaining_payment_status" : "pending",
+            "remaining_payment_intent_id": bal_intent.id,
+            "remaining_client_secret"  : bal_intent.client_secret,
+            "remaining_checkout_url"   : bal_session.url,
+        }})
+
+        # send deposit-thanks + link for balance
+        send_partial_payment_thankyou_email({**order, **{"_id": order["_id"]}},
+                                            bal_session.url)
+        return redirect(dep_session.url)
+
+    else:
+        flash("Invalid payment option.", "danger")
+        return redirect(url_for("core.guest_order"))
 
 
 # ── Stripe one-off checkout (full amount OR deposit – you can branch later) ──
