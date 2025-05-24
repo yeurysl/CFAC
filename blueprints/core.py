@@ -417,35 +417,39 @@ from flask import (
 from bson import ObjectId
 from forms import GuestOrderForm
 
+import pprint                                    # add once at top of file
+pp = pprint.PrettyPrinter(indent=2).pformat      # handy alias
 
 @core_bp.route("/guest/order", methods=["GET", "POST"])
 def guest_order() -> Response:
+    print("🔵 ENTER guest_order --------------------------------------------------")
     form = GuestOrderForm()
 
-    # ── query-string params --------------------------------------------------
+    # ── query-string --------------------------------------------------------
     service_ids  = request.args.get("service_id", "").split(",")
     vehicle_size = request.args.get("vehicle_size", "")
-    appt_iso     = request.args.get("appointment", "")      # 2025-05-15T04:30
+    appt_iso     = request.args.get("appointment", "")
     date_str, time_str = ("", "")
     if "T" in appt_iso:
         date_str, time_str = appt_iso.split("T")
 
-    # pre-fill WTForms on first load
+    print(f"💠 Query params → service_ids={service_ids}  "
+          f"vehicle_size='{vehicle_size}'  appointment='{appt_iso}'")
+
+    # ── pre-fill WTForms ----------------------------------------------------
     if request.method == "GET":
         if date_str:
             form.service_date.data = datetime.strptime(date_str, "%Y-%m-%d").date()
         if time_str:
             form.service_time.data = datetime.strptime(time_str, "%H:%M").time()
-        form.payment_time.data = "pay_now"                 # default choice
-    # ------------------------------------------------------------------------
+        form.payment_time.data = "pay_now"
 
-    # ── rebuild service list & price calc -----------------------------------
+    # ── rebuild service list & pricing -------------------------------------
     services, subtotal, total_minutes = [], 0.0, 0
-    coll = current_app.config["SERVICES_COLLECTION"]
-
     for sid in filter(ObjectId.is_valid, service_ids):
-        doc = coll.find_one({"_id": ObjectId(sid)})
+        doc = current_app.config["SERVICES_COLLECTION"].find_one({"_id": ObjectId(sid)})
         if not doc:
+            print(f"⚠️  Service id {sid} not found in DB")
             continue
         sz = doc.get("price_by_vehicle_size", {}).get(vehicle_size, {})
         price   = sz.get("price", 0)
@@ -454,11 +458,16 @@ def guest_order() -> Response:
         subtotal      += price
         total_minutes += minutes
 
-    gross       = math.ceil(subtotal / 0.55)               # 45 % margin
-    travel_fee  = 25 if gross < 90 else (15 if gross < 100 else 0)
-    total       = gross + travel_fee                       # ←     KEY “total”
-    deposit     = round(total * 0.25, 2)                   # 25 % down-payment
-    # ------------------------------------------------------------------------
+    print(f"💠 After service loop → services={pp(services)}")
+    print(f"   subtotal={subtotal}  total_minutes={total_minutes}")
+
+    gross      = math.ceil(subtotal / 0.55)
+    travel_fee = 25 if gross < 90 else (15 if gross < 100 else 0)
+    total      = gross + travel_fee
+    deposit    = round(total * 0.25, 2)
+
+    print(f"💠 Pricing → gross={gross} travel_fee={travel_fee} "
+          f"total={total} deposit={deposit}")
 
     order = {
         "vehicle_size"     : vehicle_size.replace("_", " ").title(),
@@ -468,25 +477,26 @@ def guest_order() -> Response:
         "services_total"   : round(subtotal, 2),
         "travel_fee"       : travel_fee,
         "fee"              : round(gross * 0.45, 2),
-        "total"            : total,          # ← used in template & Stripe
+        "total"            : total,
         "deposit"          : deposit,
         "estimated_minutes": total_minutes
     }
+    print("💠 Built `order` dict →\n", pp(order))
 
-    # ── POST: validate & save ----------------------------------------------
+    # ── POST: insert & redirect --------------------------------------------
     if form.validate_on_submit():
-        orders = current_app.config["ORDERS_COLLECTION"]
-        _id = orders.insert_one({
+        print("🟢 WTForms validation PASSED – inserting order…")
+        _id = current_app.config["ORDERS_COLLECTION"].insert_one({
             **order,
-            "creation_date" : datetime.utcnow().isoformat(),
-            "status"        : "ordered",
+            "creation_date": datetime.utcnow().isoformat(),
+            "status"       : "ordered",
             "payment_status": "Pending",
-            "payment_time"  : form.payment_time.data,
-            "is_guest"      : True,
-            "guest_name"    : form.guest_name.data,
-            "guest_email"   : form.guest_email.data,
+            "payment_time" : form.payment_time.data,
+            "is_guest"     : True,
+            "guest_name"   : form.guest_name.data,
+            "guest_email"  : form.guest_email.data,
             "guest_phone_number": form.guest_phone_number.data,
-            "guest_address" : {
+            "guest_address": {
                 "street" : form.street_address.data,
                 "unit"   : form.unit_apt.data,
                 "city"   : form.city.data,
@@ -495,12 +505,17 @@ def guest_order() -> Response:
             },
             "selectedServices": services,
         }).inserted_id
-
-        current_app.logger.info("✅ order %s stored – redirecting to Stripe", _id)
+        print(f"✅ order {_id} INSERTED – redirecting to /guest/stripe/{_id}")
         return redirect(url_for("core.guest_stripe_checkout", order_id=str(_id)))
 
+    if request.method == "POST":
+        print("🔴 WTForms validation FAILED →", form.errors)
+
+    print("🔵 EXIT guest_order (render template)")
     return render_template("guest_order.html", form=form, order=order)
-# ──────────────────────────────────────────────────────────────────────────────
+
+
+
 
 def send_partial_payment_thankyou_email(order, balance_url):
     
@@ -510,135 +525,155 @@ def send_partial_payment_thankyou_email(order, balance_url):
                                 )
 
 
+
+
+
+import pprint
+pp = pprint.PrettyPrinter(indent=2).pformat
+
+
 @core_bp.route("/guest/start_payment", methods=["POST"])
 def guest_start_payment():
-    orders  = current_app.config["ORDERS_COLLECTION"]
+    """
+    Single-step flow:
+        – rebuild pricing from posted hidden fields
+        – insert order
+        – immediately start Stripe checkout
+    """
+    print("🔵 ENTER start_payment + create order")
+
+    # ── 0. basic config ----------------------------------------------------
+    coll_services = current_app.config["SERVICES_COLLECTION"]
+    coll_orders   = current_app.config["ORDERS_COLLECTION"]
     stripe.api_key = current_app.config["STRIPE_SECRET_KEY"]
 
-    order_id      = request.form["order_id"]           # hidden field in the form
-    payment_time  = request.form["payment_time"]       # pay_now | after
-    order         = orders.find_one({"_id": ObjectId(order_id)})
+    # ── 1. pull form fields ------------------------------------------------
+    service_ids   = request.form.get("service_ids", "").split(",")
+    vehicle_size  = request.form.get("vehicle_size", "")
+    appointment   = request.form.get("appointment", "")          # optional
+    payment_time  = request.form.get("payment_time", "pay_now")   # radio btn
 
-    if not order:                                     # basic guard-rails
-        flash("Order not found.", "danger")
-        return redirect(url_for("core.home"))
+    guest_name    = request.form["guest_name"]
+    guest_email   = request.form["guest_email"]
+    guest_phone = request.form.get("guest_phone") \
+            or request.form.get("guest_phone_number")  
+    street        = request.form["street_address"]
+    unit_apt      = request.form.get("unit_apt")
+    city          = request.form["city"]
+    zip_code      = request.form["zip_code"]
+    country       = request.form["country"]
 
-    email        = order["guest_email"]
-    final_price  = float(order["total"])
-    success_url  = url_for("core.guest_thank_you", _external=True)
-    cancel_url   = url_for("core.guest_order", _external=True)
+    print("💠 Raw POST →", pp(request.form.to_dict(flat=True)))
 
-    # ---------- full payment (100 %) -----------------
+    # ── 2. rebuild services + pricing -------------------------------------
+    services, subtotal, minutes = [], 0.0, 0
+    for sid in filter(ObjectId.is_valid, service_ids):
+        doc = coll_services.find_one({"_id": ObjectId(sid)})
+        if not doc:
+            continue
+        sz = doc.get("price_by_vehicle_size", {}).get(vehicle_size, {})
+        price   = sz.get("price", 0)
+        mins    = int(sz.get("completion_time", "0").split()[0] or 0)
+        services.append({"label": doc["label"], "price": price, "minutes": mins})
+        subtotal += price
+        minutes  += mins
+
+    gross       = math.ceil(subtotal / 0.55)            # keep 45 % margin
+    travel_fee  = 25 if gross < 90 else (15 if gross < 100 else 0)
+    total       = gross + travel_fee
+    deposit_amt = round(total * 0.25, 2)
+
+    print(f"💠 Pricing → subtotal={subtotal} gross={gross} "
+          f"travel_fee={travel_fee} total={total}")
+
+    # ── 3. build + INSERT order doc ---------------------------------------
+    order_doc = {
+        "vehicle_size" : vehicle_size.replace("_", " ").title(),
+        "appointment"  : appointment,
+        "services"     : services,
+        "services_total": round(subtotal, 2),
+        "travel_fee"   : travel_fee,
+        "fee"          : round(gross * 0.45, 2),
+        "total"        : total,
+        "deposit"      : deposit_amt,
+        "estimated_minutes": minutes,
+        "creation_date": datetime.utcnow().isoformat(),
+        "status"       : "ordered",
+        "payment_status": "Pending",
+        "payment_time" : payment_time,
+        "is_guest"     : True,
+        "guest_name"   : guest_name,
+        "guest_email"  : guest_email,
+    **({"guest_phone_number": guest_phone} if guest_phone else {}),
+        "guest_address": {
+            "street": street, "unit": unit_apt, "city": city,
+            "zip": zip_code, "country": country,
+        },
+        "selectedServices": services,
+    }
+    order_id = coll_orders.insert_one(order_doc).inserted_id
+    print(f"✅ order {order_id} INSERTED")
+
+    # ── 4. create Stripe checkout(s) --------------------------------------
+    success_url = url_for("core.guest_thank_you", _external=True)
+    cancel_url  = url_for("core.guest_order", _external=True)
+
     if payment_time == "pay_now":
-        amount_cents = int(final_price * 100)
-
-        payment_intent = stripe.PaymentIntent.create(
-            amount              = amount_cents,
-            currency            = "usd",
-            payment_method_types= ["card"],
-            metadata            = {"order_id": order_id, "payment_type": "full"},
-        )
-
-        checkout_session = stripe.checkout.Session.create(
+        amount_cents = int(total * 100)
+        session = stripe.checkout.Session.create(
             payment_method_types=["card"],
+            customer_email=guest_email,
             line_items=[{
                 "price_data": {
-                    "currency"   : "usd",
-                    "product_data": {"name": f"Guest Order #{order_id}"},
+                    "currency":"usd",
+                    "product_data":{"name": f"Guest Order #{order_id}"},
                     "unit_amount": amount_cents,
                 },
                 "quantity": 1,
             }],
-            customer_email   = email,
-            success_url      = success_url,
-            cancel_url       = cancel_url,
-            payment_intent_data={"metadata": {"order_id": order_id}},
-            mode             = "payment",
+            mode="payment",
+            success_url=success_url,
+            cancel_url =cancel_url,
+            metadata={"order_id": str(order_id), "payment_type": "full"},
         )
+        coll_orders.update_one({"_id": order_id},
+                               {"$set": {"checkout_url": session.url}})
+        print("✅ Stripe FULL session url →", session.url)
+        return redirect(session.url)
 
-        orders.update_one({"_id": order["_id"]}, {"$set": {
-            "payment_status" : "pending",
-            "payment_intent_id": payment_intent.id,
-            "client_secret"  : payment_intent.client_secret,
-            "checkout_url"   : checkout_session.url,
-        }})
-
-        # optional thanks-email
-        send_full_payment_thankyou_email({**order, **{"_id": order["_id"]}})
-        return redirect(checkout_session.url)
-
-    # ---------- 25 % deposit  /  75 % later ----------
+    # ------------ deposit / balance -----------------
     elif payment_time == "after":
-        deposit   = round(final_price * 0.25, 2)
-        balance   = round(final_price * 0.75, 2)
+        dep_cents = int(deposit_amt * 100)
+        bal_cents = int((total - deposit_amt) * 100)
 
-        # a) create deposit session
-        dep_intent  = stripe.PaymentIntent.create(
-            amount   = int(deposit * 100),
-            currency = "usd",
-            payment_method_types=["card"],
-            metadata={"order_id": order_id, "payment_type": "deposit"},
-        )
         dep_session = stripe.checkout.Session.create(
             payment_method_types=["card"],
-            customer_email=email,
+            customer_email=guest_email,
             line_items=[{
                 "price_data": {
                     "currency":"usd",
                     "product_data":{"name": f"25 % Deposit – Order #{order_id}"},
-                    "unit_amount": int(deposit * 100),
+                    "unit_amount": dep_cents,
                 },
                 "quantity": 1,
             }],
-            success_url = success_url,
-            cancel_url  = cancel_url,
-            payment_intent_data={"metadata": {"order_id": order_id, "payment_type": "deposit"}},
             mode="payment",
+            success_url=success_url,
+            cancel_url =cancel_url,
+            metadata={"order_id": str(order_id), "payment_type": "deposit"},
         )
-
-        # b) create remaining-balance session
-        bal_intent  = stripe.PaymentIntent.create(
-            amount   = int(balance * 100),
-            currency = "usd",
-            payment_method_types=["card"],
-            metadata={"order_id": order_id, "payment_type": "remaining"},
-        )
-        bal_session = stripe.checkout.Session.create(
-            payment_method_types=["card"],
-            customer_email=email,
-            line_items=[{
-                "price_data": {
-                    "currency":"usd",
-                    "product_data":{"name": f"75 % Balance – Order #{order_id}"},
-                    "unit_amount": int(balance * 100),
-                },
-                "quantity": 1,
-            }],
-            success_url = success_url,
-            cancel_url  = cancel_url,
-            payment_intent_data={"metadata": {"order_id": order_id, "payment_type": "remaining"}},
-            mode="payment",
-        )
-
-        orders.update_one({"_id": order["_id"]}, {"$set": {
-            "deposit_payment_status"   : "pending",
-            "deposit_payment_intent_id": dep_intent.id,
-            "deposit_client_secret"    : dep_intent.client_secret,
-            "deposit_checkout_url"     : dep_session.url,
-            "remaining_payment_status" : "pending",
-            "remaining_payment_intent_id": bal_intent.id,
-            "remaining_client_secret"  : bal_intent.client_secret,
-            "remaining_checkout_url"   : bal_session.url,
-        }})
-
-        # send deposit-thanks + link for balance
-        send_partial_payment_thankyou_email({**order, **{"_id": order["_id"]}},
-                                            bal_session.url)
+        # you could also create the balance session here and store its URL
+        coll_orders.update_one({"_id": order_id},
+                               {"$set": {
+                                   "deposit_checkout_url": dep_session.url,
+                                   "remaining_amount_cents": bal_cents,
+                               }})
+        print("✅ Stripe DEPOSIT session url →", dep_session.url)
         return redirect(dep_session.url)
 
     else:
         flash("Invalid payment option.", "danger")
-        return redirect(url_for("core.guest_order"))
+        return redirect(url_for("core.home"))
 
 
 # ── Stripe one-off checkout (full amount OR deposit – you can branch later) ──
