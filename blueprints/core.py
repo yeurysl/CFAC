@@ -331,7 +331,7 @@ def create_checkout_session():
 
     try:
         session = stripe.checkout.Session.create(
-            payment_method_types=["card"],
+            payment_method_types=["card", "afterpay_clearpay", "klarna"],
             line_items=[{
                 "price": price_id,
                 "quantity": 1,
