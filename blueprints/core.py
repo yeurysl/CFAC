@@ -84,12 +84,12 @@ def careers():
     return render_template('careers.html')
 
 
-@core_bp.route('/limlex')
-def careers():
+@core_bp.route('/ceramic')
+def ceramic():
     """
-    Limlex Page Route
+    Ceramic Page Route
     """
-    return render_template('limlex.html')
+    return render_template('ceramic.html')
 
 
 
