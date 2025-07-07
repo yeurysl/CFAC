@@ -84,6 +84,16 @@ def careers():
     return render_template('careers.html')
 
 
+@core_bp.route('/limlex')
+def careers():
+    """
+    Limlex Page Route
+    """
+    return render_template('limlex.html')
+
+
+
+
 @core_bp.route('/header')
 def header():
     """
