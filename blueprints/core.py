@@ -91,10 +91,10 @@ def ceramic():
     """
     products = [
         {
-            'name': 'Brush Cleaner',
+            'name': 'Ceramic Spray',
             'description': 'Cleans your tools thoroughly.',
             'price': 29.99,
-            'image': 'brush.png'
+            'image': 'limlex.png'
         }
     ]
     return render_template('ceramic.html', products=products)
