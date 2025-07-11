@@ -1,9 +1,55 @@
 
 {% extends 'base.html' %}
 
-{% block title %}About Us{% endblock %}
+{% block title %}Ceramic{% endblock %}
 
 {% block content %}
 <section class="our-story container py-5">
   <h2 class="text-center mb-4">Ceramic</h2>
+
+
+
+
+  
+  <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;
+              padding:14px 22px;margin:30px auto 40px;max-width:900px;
+              text-align:center;">
+  
+    <h1 style="margin:0 0 8px;font-size:1.7rem;line-height:1.3;">
+      All of our products are manufactured and distributed here in the U.S.
+    </h1>
+  
+    <p style="margin:0;font-size:1.05rem;line-height:1.45;">
+      Shop with <em>Central Florida AutoCare</em> to guarantee the highest-quality
+      products—and, in turn, the highest-quality service.
+    </p>
+  </div>
+  
+  
+  
+  
+  <h1 style="text-align: center;"></h1>
+  
+  <div style="display: flex; flex-direction: column; align-items: center; gap: 50px; margin-top: 50px;">
+  
+    <!-- Reusable card style -->
+    {% set card_style = "border:1px solid #ccc; padding:50px 50px; width:340px; min-height:450px; border-radius:8px; text-align:center;" %}
+  
+    <!-- Product 1: Brushes -->
+    <div class="product-card" style="{{ card_style }}">
+      <img src="{{ url_for('static', filename='images/limlex.png') }}"
+           alt="Brush Cleaner"
+           style="width:100%;height:auto;border-radius:4px;margin-bottom:10px;">
+      <h2>Brushes</h2>
+      <p>5 premium brushes</p>
+      <p><strong>$20.00</strong></p>
+      <form action="{{ url_for('core.create_checkout_session') }}" method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="price_id" value="price_1ROAKfDgSlwbnF7ILoR27Uto">
+        <button type="submit" class="buy-now-btn">Buy&nbsp;Now</button>
+      </form>
+    </div>
+  
+
+
 {% endblock %}
