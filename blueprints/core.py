@@ -89,7 +89,15 @@ def ceramic():
     """
     Ceramic Page Route
     """
-    return render_template('ceramic.html')
+    products = [
+        {
+            'name': 'Brush Cleaner',
+            'description': 'Cleans your tools thoroughly.',
+            'price': 29.99,
+            'image': 'brush.png'
+        }
+    ]
+    return render_template('ceramic.html', products=products)
 
 
 
