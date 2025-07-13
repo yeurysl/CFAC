@@ -84,8 +84,8 @@ def careers():
     return render_template('careers.html')
 
 
-@core_bp.route('/ceramic')
-def ceramic():
+@core_bp.route('/pdf')
+def pdf():
     """
     Ceramic Page Route
     """
@@ -97,7 +97,7 @@ def ceramic():
             'image': 'limlex.png'
         }
     ]
-    return render_template('ceramic.html', products=products)
+    return render_template('pdf.html', products=products)
 
 
 
