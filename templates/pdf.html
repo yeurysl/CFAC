@@ -1,28 +1,22 @@
-
 {% extends 'base.html' %}
 
 {% block title %}PDF{% endblock %}
 
 {% block content %}
 <section class="our-story container py-5">
-  <h2 class="text-center mb-4">PDF</h2>
 
-
-
-  
   <h1 style="text-align: center;"></h1>
   
   <div style="display: flex; flex-direction: column; align-items: center; gap: 50px; margin-top: 50px;">
   
-    <!-- Reusable card style -->
-{% set card_style = "background-color:white; padding:50px; width:340px; min-height:450px; border-radius:8px; text-align:center;" %}
+    <!-- Reusable card style with larger width -->
+    {% set card_style = "background-color:white; padding:50px; width:680px; min-height:600px; border-radius:8px; text-align:center;" %}
   
-    <!-- Product 1: Brushes -->
+    <!-- Product 1: PDF Guide -->
     <div class="product-card" style="{{ card_style }}">
       <img src="{{ url_for('static', filename='images/PDFSELL.jpg') }}"
-           alt="Brush Cleaner"
-           style="width:100%;height:auto;border-radius:4px;margin-bottom:10px;">
-      <h2>How to Sell Door to Door</h2>
+           alt="PDF Guide"
+           style="width:100%; height:auto; border-radius:4px; margin-bottom:20px;">
       <p><strong>$15.00</strong></p>
       <form action="{{ url_for('core.create_checkout_session') }}" method="POST">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -30,7 +24,8 @@
         <button type="submit" class="buy-now-btn">Buy&nbsp;Now</button>
       </form>
     </div>
-  
 
-
+  </div>
+</section>
 {% endblock %}
+
