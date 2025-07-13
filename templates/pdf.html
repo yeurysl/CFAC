@@ -4,13 +4,79 @@
 {# <-- override the header block with nothing #}
 {% block header %}{% endblock %}
 {% block content %}
-<section class="our-story container" style="padding-top: 0;">
+
+<style>
+/* Prevent horizontal scroll on html/body */
+html, body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+/* Container adjustments */
+.pdf-our-story-container {
+  max-width: 100vw;
+  padding-left: 10px;
+  padding-right: 10px;
+  box-sizing: border-box;
+}
+
+/* Product card */
+.pdf-product-card {
+  box-sizing: border-box;
+  max-width: 680px;
+  width: 100%;
+  padding: 5px;
+  min-height: 600px;
+  border-radius: 8px;
+  text-align: center;
+  background-color: white;
+}
+
+/* Reviews container */
+.pdf-review-container {
+  max-width: 100vw;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  margin-top: 40px;
+}
+
+/* Reviews cards flexbox */
+.pdf-review-cards {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  flex-wrap: wrap;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Individual review cards */
+.pdf-review-card {
+  flex: 1 1 180px;
+  max-width: 200px;
+  background: #f9f9f9;
+  padding: 15px;
+  border-radius: 8px;
+  box-sizing: border-box;
+}
+
+/* Responsive adjustments for small screens */
+@media (max-width: 600px) {
+  .pdf-product-card {
+    padding: 20px;
+    min-height: auto;
+  }
+}
+</style>
+
+<section class="pdf-our-story-container container" style="padding-top: 0;">
 
   <div style="display: flex; flex-direction: column; align-items: center; gap: 50px; margin-top: 50px;">
 
-{% set card_style = "background-color:white; padding:5px; max-width:680px; width:100%; min-height:600px; border-radius:8px; text-align:center;" %}
+    {% set card_style = "padding:5px; max-width:680px; width:100%; min-height:600px; border-radius:8px; text-align:center; background-color:white; box-sizing:border-box;" %}
 
-    <div class="product-card" style="{{ card_style }}">
+    <div class="pdf-product-card" style="{{ card_style }}">
       <img src="{{ url_for('static', filename='images/SELLPDF.png') }}"
            alt="PDF Guide"
            style="width:100%; height:auto; border-radius:4px; margin-bottom:20px;">
@@ -25,31 +91,27 @@
   </div>
 </section>
 
-
 <!-- Reviews Section -->
-<div style="margin-top: 40px;">
-  <div style="display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">
+<div class="pdf-review-container">
+  <div class="pdf-review-cards">
   
     <!-- Review 1 -->
-    <div style="flex: 1 1 180px; max-width: 200px; background: #f9f9f9; padding: 15px; border-radius: 8px;">
-      <p style="margin: 0; font-weight: bold;">John Doe <br>  <span style="font-weight: normal;">Instagram: @rysbeselling</span><br>
-</p>
+    <div class="pdf-review-card">
+      <p style="margin: 0; font-weight: bold;">John Doe <br>  <span style="font-weight: normal;">Instagram: @rysbeselling</span><br></p>
       <p style="color: #FFD700; margin: 5px 0;">★★★★★</p>
       <p style="font-size: 14px;">“No Reviews Yet but ill add some when i get them”</p>
     </div>
 
     <!-- Review 2 -->
-    <div style="flex: 1 1 180px; max-width: 200px; background: #f9f9f9; padding: 15px; border-radius: 8px;">
-      <p style="margin: 0; font-weight: bold;">John Doe <br>  <span style="font-weight: normal;">Instagram: @rysbeselling</span><br>
-</p>
+    <div class="pdf-review-card">
+      <p style="margin: 0; font-weight: bold;">John Doe <br>  <span style="font-weight: normal;">Instagram: @rysbeselling</span><br></p>
       <p style="color: #FFD700; margin: 5px 0;">★★★★★</p>
       <p style="font-size: 14px;">“No Reviews Yet but ill add some when i get them”</p>
     </div>
 
     <!-- Review 3 -->
-    <div style="flex: 1 1 180px; max-width: 200px; background: #f9f9f9; padding: 15px; border-radius: 8px;">
-      <p style="margin: 0; font-weight: bold;">John Doe  <br>  <span style="font-weight: normal;">Instagram: @rysbeselling</span><br>
-</p>
+    <div class="pdf-review-card">
+      <p style="margin: 0; font-weight: bold;">John Doe  <br>  <span style="font-weight: normal;">Instagram: @rysbeselling</span><br></p>
       <p style="color: #FFD700; margin: 5px 0;">★★★★★</p>
       <p style="font-size: 14px;">“No Reviews Yet but ill add some when i get them”</p>
     </div>
@@ -57,7 +119,5 @@
   </div>
 </div>
 
-
-
-  
 {% endblock %}
+
