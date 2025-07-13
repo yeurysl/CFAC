@@ -8,7 +8,7 @@
 
   <div style="display: flex; flex-direction: column; align-items: center; gap: 50px; margin-top: 50px;">
 
-    {% set card_style = "background-color:white; padding:50px; width:680px; min-height:600px; border-radius:8px; text-align:center;" %}
+{% set card_style = "background-color:white; padding:50px; max-width:680px; width:100%; min-height:600px; border-radius:8px; text-align:center;" %}
 
     <div class="product-card" style="{{ card_style }}">
       <img src="{{ url_for('static', filename='images/SELLPDF.png') }}"
