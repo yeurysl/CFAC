@@ -1,5 +1,3 @@
-{% extends 'base.html' %}
-
 {% block title %}PDF{% endblock %}
 {# <-- override the header block with nothing #}
 {% block header %}{% endblock %}
@@ -7,9 +5,9 @@
 <section class="our-story container" style="padding-top: 0;">
 
   <div style="display: flex; flex-direction: column; align-items: center; gap: 50px; margin-top: 50px;">
-  
+
     {% set card_style = "background-color:white; padding:50px; width:680px; min-height:600px; border-radius:8px; text-align:center;" %}
-  
+
     <div class="product-card" style="{{ card_style }}">
       <img src="{{ url_for('static', filename='images/PDFSELL.jpg') }}"
            alt="PDF Guide"
@@ -20,48 +18,41 @@
         <input type="hidden" name="price_id" value="price_1ROAKfDgSlwbnF7ILoR27Uto">
         <button type="submit" class="buy-now-btn">Buy&nbsp;Now</button>
       </form>
-
-      <!-- Reviews Section -->
-      <div style="margin-top: 40px; text-align: center;">
-        <h3 style="margin-bottom: 20px;">What People Are Saying</h3>
-        <div style="display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">
-
-          <!-- Review 1 -->
-          <div style="flex: 1 1 180px; max-width: 200px; background: #f9f9f9; padding: 15px; border-radius: 8px; text-align: left;">
-            <p style="margin: 0; font-weight: bold;">Alex T. <br>
-            <span style="font-weight: normal;">Instagram: @alex_detailz</span><br>
-              <small style="color: gray; font-size: 12px;">{{ "now"|date("F j, Y - H:i") }}</small>
-            </p>
-            <p style="color: #FFD700; margin: 5px 0;">★★★★★</p>
-            <p style="font-size: 14px;">“Straight to the point and super helpful. I sold 4 details my first day using these strategies.”</p>
-          </div>
-
-          <!-- Review 2 -->
-          <div style="flex: 1 1 180px; max-width: 200px; background: #f9f9f9; padding: 15px; border-radius: 8px; text-align: left;">
-            <p style="margin: 0; font-weight: bold;">Maria R. <br>
-            <span style="font-weight: normal;">Instagram: @alex_detailz</span><br>
-              <small style="color: gray; font-size: 12px;">{{ ("now"|date_modify("+4 hours"))|date("F j, Y - H:i") }}</small>
-            </p>
-            <p style="color: #FFD700; margin: 5px 0;">★★★★★</p>
-            <p style="font-size: 14px;">“Loved how real it was. This guide doesn’t sugarcoat and that’s what made it hit.”</p>
-          </div>
-
-          <!-- Review 3 -->
-          <div style="flex: 1 1 180px; max-width: 200px; background: #f9f9f9; padding: 15px; border-radius: 8px; text-align: left;">
-            <p style="margin: 0; font-weight: bold;">Jalen M. <br>
-            <span style="font-weight: normal;">Instagram: @alex_detailz</span><br>
-              <small style="color: gray; font-size: 12px;">{{ ("now"|date_modify("+8 hours"))|date("F j, Y - H:i") }}</small>
-            </p>
-            <p style="color: #FFD700; margin: 5px 0;">★★★★★</p>
-            <p style="font-size: 14px;">“The section on knocking strategy changed how I approach people completely.”</p>
-          </div>
-
-        </div>
-      </div>
-      <!-- End Reviews Section -->
-
     </div>
 
   </div>
 </section>
+
+
+<!-- Reviews Section -->
+<div style="margin-top: 40px;">
+  <div style="display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">
+  
+    <!-- Review 1 -->
+    <div style="flex: 1 1 180px; max-width: 200px; background: #f9f9f9; padding: 15px; border-radius: 8px;">
+      <p style="margin: 0; font-weight: bold;">Alex T. <br><span style="font-weight: normal;">@alex_detailz</span></p>
+      <p style="color: #FFD700; margin: 5px 0;">★★★★★</p>
+      <p style="font-size: 14px;">“Straight to the point and super helpful. I sold 4 details my first day using these strategies.”</p>
+    </div>
+
+    <!-- Review 2 -->
+    <div style="flex: 1 1 180px; max-width: 200px; background: #f9f9f9; padding: 15px; border-radius: 8px;">
+      <p style="margin: 0; font-weight: bold;">Maria R. <br><span style="font-weight: normal;">@maria_mobileclean</span></p>
+      <p style="color: #FFD700; margin: 5px 0;">★★★★★</p>
+      <p style="font-size: 14px;">“Loved how real it was. This guide doesn’t sugarcoat and that’s what made it hit.”</p>
+    </div>
+
+    <!-- Review 3 -->
+    <div style="flex: 1 1 180px; max-width: 200px; background: #f9f9f9; padding: 15px; border-radius: 8px;">
+      <p style="margin: 0; font-weight: bold;">Jalen M. <br><span style="font-weight: normal;">@jm_salesmoves</span></p>
+      <p style="color: #FFD700; margin: 5px 0;">★★★★★</p>
+      <p style="font-size: 14px;">“The section on knocking strategy changed how I approach people completely.”</p>
+    </div>
+
+  </div>
+</div>
+
+
+
+  
 {% endblock %}
