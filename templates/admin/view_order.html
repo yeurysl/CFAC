@@ -86,8 +86,14 @@
 
             <!-- 5. Final Price -->
             <p>
-                <strong>Final Price:</strong> {{ order.final_price | currency }}
-            </p>
+                <strong>Final Price:</strong>
+                {% if order.final_price is defined %}
+                  {{ order.final_price | currency }}
+                {% else %}
+                  Error
+                {% endif %}
+              </p>
+              
 
             <!-- 6. Payment Status -->
             <p>
@@ -137,9 +143,4 @@
             <a href="{{ url_for('admin.edit_order', order_id=order._id) }}" class="btn btn-warning">Edit</a>
             <form action="{{ url_for('admin.delete_order', order_id=order._id) }}" method="post" style="display:inline;">
                 {{ delete_form.hidden_tag() }}
-                <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure you want to delete this order?');">Delete</button>
-            </form>
-        </div>
-    </div>
-</div>
-{% endblock %}
+                <button type="submit" class="btn b

@@ -154,7 +154,13 @@
                             N/A
                         {% endif %}
                     </td>
-                    <td>{{ order.final_price | currency }}</td>
+                    <td>
+                        {% if order.final_price is defined %}
+                          {{ order.final_price | currency }}
+                        {% else %}
+                          Error
+                        {% endif %}
+                    </td>
                     <td>
                         {% if order.creation_date %}
                             {{ order.creation_date | format_date_with_suffix }}
@@ -186,12 +192,4 @@
             {% endfor %}
             <!-- Next Page -->
             <li class="page-item {% if page == total_pages %}disabled{% endif %}">
-                <a class="page-link" href="{{ url_for('admin.admin_main', page=page+1) }}" aria-label="Next">
-                    <span aria-hidden="true">&raquo;</span>
-                </a>
-            </li>
-        </ul>
-    </nav>
-    {% endif %}
-</div>
-{% endblock %}
+                <a class="page-link" href="{{ url_for('admi
