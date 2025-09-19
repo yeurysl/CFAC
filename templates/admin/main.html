@@ -192,4 +192,12 @@
             {% endfor %}
             <!-- Next Page -->
             <li class="page-item {% if page == total_pages %}disabled{% endif %}">
-                <a class="page-link" href="{{ url_for('admi
+                <a class="page-link" href="{{ url_for('admin.admin_main', page=page+1) }}" aria-label="Next">
+                    <span aria-hidden="true">&raquo;</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}

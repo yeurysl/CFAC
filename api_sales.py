@@ -39,44 +39,77 @@ def decode_jwt(token, secret_key):
 
 @api_sales_bp.route('/orders', methods=['GET'])
 def fetch_orders():
+    current_app.logger.info("[Orders] /api/orders endpoint hit")
+
+    # Step 1: Authorization header
     auth_header = request.headers.get('Authorization', '')
+    current_app.logger.info(f"[Orders] Raw Authorization header: {auth_header}")
+
     if not auth_header.startswith("Bearer "):
+        current_app.logger.error("[Orders] Missing or invalid Authorization header")
         return jsonify({"error": "Missing or invalid Authorization header."}), 401
 
+    # Step 2: Extract and decode token
     token = auth_header.replace("Bearer ", "").strip()
-    secret_key = current_app.config['JWT_SECRET']
+    current_app.logger.info(f"[Orders] Extracted token: {token}")
+
+    secret_key = current_app.config.get('JWT_SECRET')
+    if not secret_key:
+        current_app.logger.error("[Orders] No JWT_SECRET configured in environment")
+        return jsonify({"error": "Server misconfiguration: missing JWT secret."}), 500
+
     user_id = decode_jwt(token, secret_key)
+    current_app.logger.info(f"[Orders] Decoded user_id from token: {user_id}")
+
     if not user_id:
+        current_app.logger.error("[Orders] Invalid or expired token")
         return jsonify({"error": "Invalid or expired token"}), 401
 
-    # Optionally, you can verify the user exists:
-    users_collection = current_app.config['USERS_COLLECTION']
+    # Step 3: Verify user exists
+    users_collection = current_app.config.get('USERS_COLLECTION')
+    if not users_collection:
+        current_app.logger.error("[Orders] USERS_COLLECTION not configured in app config")
+        return jsonify({"error": "Server misconfiguration: missing users collection."}), 500
+
     user = users_collection.find_one({"_id": ObjectId(user_id)})
+    current_app.logger.info(f"[Orders] User lookup result: {user}")
+
     if not user:
+        current_app.logger.error(f"[Orders] No user found with ID {user_id}")
         return jsonify({"error": "User not found"}), 404
 
+    # Step 4: Orders collection check
     orders_collection = current_app.config.get('ORDERS_COLLECTION')
-    if orders_collection is None:
+    if not orders_collection:
+        current_app.logger.error("[Orders] ORDERS_COLLECTION not configured in app config")
         return jsonify({"error": "Orders collection not configured."}), 500
 
+    # Step 5: Pagination
     page = int(request.args.get('page', 1))
     per_page = int(request.args.get('per_page', 20))
     skip = (page - 1) * per_page
+    current_app.logger.info(f"[Orders] Pagination: page={page}, per_page={per_page}, skip={skip}")
 
-    # Update the query to filter orders by the salesperson field.
+    # Step 6: Query by salesperson
     query = {"salesperson": user_id}
+    current_app.logger.info(f"[Orders] MongoDB query: {query}")
+
     total_orders = orders_collection.count_documents(query)
+    current_app.logger.info(f"[Orders] Total matching orders: {total_orders}")
+
     orders_cursor = orders_collection.find(query).skip(skip).limit(per_page)
 
+    # Step 7: Process orders
     orders = []
     for order in orders_cursor:
         order['_id'] = str(order['_id'])
-        # Convert datetime fields to ISO strings if needed.
         if 'order_date' in order and isinstance(order['order_date'], datetime):
             order['order_date'] = order['order_date'].isoformat()
         if 'service_date' in order and isinstance(order['service_date'], datetime):
             order['service_date'] = order['service_date'].isoformat()
         orders.append(order)
+
+    current_app.logger.info(f"[Orders] Returning {len(orders)} orders for user {user_id}")
 
     return jsonify({
         "orders": orders,
@@ -84,6 +117,7 @@ def fetch_orders():
         "per_page": per_page,
         "total_orders": total_orders
     }), 200
+
 
 
 @api_sales_bp.route('/services', methods=['GET'])
