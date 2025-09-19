@@ -67,7 +67,7 @@ def fetch_orders():
 
     # Step 3: Verify user exists
     users_collection = current_app.config.get('USERS_COLLECTION')
-    if not users_collection:
+    if users_collection is None:
         current_app.logger.error("[Orders] USERS_COLLECTION not configured in app config")
         return jsonify({"error": "Server misconfiguration: missing users collection."}), 500
 
@@ -80,7 +80,7 @@ def fetch_orders():
 
     # Step 4: Orders collection check
     orders_collection = current_app.config.get('ORDERS_COLLECTION')
-    if not orders_collection:
+    if orders_collection is None:
         current_app.logger.error("[Orders] ORDERS_COLLECTION not configured in app config")
         return jsonify({"error": "Orders collection not configured."}), 500
 
