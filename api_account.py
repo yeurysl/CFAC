@@ -35,15 +35,13 @@ def get_user_from_token(token):
 
 @api_account_bp.route('/', methods=['GET'])
 def fetch_account_settings():
-    """
-    GET /api/account
-    Expects a query parameter, e.g., ?token=<user_token>.
-    Returns the account settings for the authenticated user.
-    """
-    token = request.args.get('token')
-    if not token:
-        return jsonify({"error": "Missing token parameter."}), 400
-
+    # Get the Authorization header
+    auth_header = request.headers.get('Authorization', '')
+    if not auth_header.startswith('Bearer '):
+        return jsonify({"error": "Missing or invalid Authorization header"}), 401
+    
+    # Extract token
+    token = auth_header.replace("Bearer ", "").strip()
     user = get_user_from_token(token)
     if not user:
         return jsonify({"error": "Invalid token or user not found."}), 404
@@ -53,23 +51,25 @@ def fetch_account_settings():
         "name": user.get("name", ""),
         "email": user.get("email", ""),
         "phone_number": user.get("phone_number", ""),
-        "address": user.get("address", {})  # Assuming address is stored as a subdocument
+        "address": user.get("address", {})
     }
     return jsonify(account_settings), 200
 
 @csrf.exempt
 @api_account_bp.route('/', methods=['PUT'])
 def update_account_settings():
-    data = request.get_json()
-    if not data or 'token' not in data:
-        return jsonify({"error": "Token is required in the request body."}), 400
+    auth_header = request.headers.get('Authorization', '')
+    if not auth_header.startswith('Bearer '):
+        return jsonify({"error": "Missing or invalid Authorization header"}), 401
 
-    token = data.pop('token')
+    token = auth_header.replace("Bearer ", "").strip()
     user = get_user_from_token(token)
     if not user:
         return jsonify({"error": "Invalid token or user not found."}), 404
 
+    data = request.get_json() or {}
     update_fields = {}
+
     if 'name' in data:
         update_fields['name'] = data['name'].strip()
     if 'email' in data:
@@ -77,22 +77,17 @@ def update_account_settings():
     if 'phone_number' in data:
         update_fields['phone_number'] = data['phone_number'].strip()
     if 'address' in data and isinstance(data['address'], dict):
-        address = data['address']
         update_fields['address'] = {
-            'street_address': address.get('street_address', "").strip(),
-            'city': address.get('city', "").strip(),
-            'country': address.get('country', "").strip(),
-            'zip_code': address.get('zip_code', "").strip()
+            'street_address': data['address'].get('street_address', "").strip(),
+            'city': data['address'].get('city', "").strip(),
+            'country': data['address'].get('country', "").strip(),
+            'zip_code': data['address'].get('zip_code', "").strip()
         }
 
     users_collection = current_app.config.get('USERS_COLLECTION')
-    try:
-        # Use the user's ObjectId from the decoded user document
-        result = users_collection.update_one({"_id": user['_id']}, {"$set": update_fields})
-        if result.modified_count >= 1:
-            return jsonify({"message": "Account settings updated successfully."}), 200
-        else:
-            return jsonify({"message": "No changes were made."}), 200
-    except Exception as e:
-        current_app.logger.error(f"Error updating account settings: {e}")
-        return jsonify({"error": "Failed to update settings."}), 500
+    result = users_collection.update_one({"_id": user['_id']}, {"$set": update_fields})
+
+    if result.modified_count >= 1:
+        return jsonify({"message": "Account settings updated successfully."}), 200
+    else:
+        return jsonify({"message": "No changes were made."}), 200
