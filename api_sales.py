@@ -1190,3 +1190,45 @@ def register_user():
     except Exception as e:
         current_app.logger.error(f"Error inserting user into approval collection: {e}", exc_info=True)
         return jsonify({"error": f"An error occurred while adding the user to approval queue: {str(e)}"}), 500
+
+
+
+
+#NEW MAP FEATURE/////////////////////////////////////
+
+
+
+from flask import Flask, request, jsonify
+import requests
+
+
+@api_sales_bp.route("/houses", methods=["GET"])
+def get_houses():
+    lat = float(request.args.get("lat"))
+    lon = float(request.args.get("lon"))
+    radius = int(request.args.get("radius", 500))  # default 500m
+
+    # Overpass QL query for residential buildings within radius
+    query = f"""
+    [out:json];
+    (
+      way["building"="residential"](around:{radius},{lat},{lon});
+      relation["building"="residential"](around:{radius},{lat},{lon});
+    );
+    out center;
+    """
+
+    response = requests.post("https://overpass-api.de/api/interpreter", data={"data": query})
+    data = response.json()
+
+    houses = []
+    for element in data["elements"]:
+        if "center" in element:
+            houses.append({
+                "lat": element["center"]["lat"],
+                "lon": element["center"]["lon"],
+                "id": element["id"]
+            })
+
+    return jsonify(houses)
+
