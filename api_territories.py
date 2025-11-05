@@ -5,6 +5,8 @@ from datetime import datetime
 from bson import ObjectId
 import jwt
 from math import inf
+from extensions import csrf  
+
 
 api_territories_bp = Blueprint("api_territories", __name__)
 
@@ -51,6 +53,7 @@ def calc_centroid(ring):
 @api_territories_bp.route("/api/territories", methods=["POST"])
 @require_auth
 @csrf.exempt
+
 def create_territory():
     """
     Body:
@@ -91,6 +94,7 @@ def create_territory():
 
 @api_territories_bp.route("/api/territories", methods=["GET"])
 @require_auth
+@csrf.exempt
 def list_territories():
     db = app.config["MONGO_DB"]
     cur = db.territories.find({"user_id": request.user.get("sub")}).sort("created_at", -1)
