@@ -26,12 +26,12 @@ def require_auth(f):
     return wrapper
 
 def ensure_closed_ring(ring):
-    # ring: [[lon,lat], ...]
-    if not ring or len(ring) < 4:
+    if not ring or len(ring) < 3:   # allow triangles
         return None
     if ring[0] != ring[-1]:
         ring = ring + [ring[0]]
     return ring
+
 
 def calc_bbox(ring):
     minLon, minLat, maxLon, maxLat = inf, inf, -inf, -inf
