@@ -50,6 +50,7 @@ def calc_centroid(ring):
 
 @api_territories_bp.route("/api/territories", methods=["POST"])
 @require_auth
+@csrf.exempt
 def create_territory():
     """
     Body:
