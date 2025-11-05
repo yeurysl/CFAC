@@ -1232,3 +1232,34 @@ def get_houses():
 
     return jsonify(houses)
 
+
+
+@api_sales_bp.route("/api/houses-in-area", methods=["POST"])
+def houses_in_area():
+    data = request.get_json()
+    query = {}
+
+    if data.get("circle"):
+        lon, lat = data["circle"]["center"]
+        radius_miles = data["circle"]["radius"]
+        query = {
+            "location": {
+                "$geoWithin": {
+                    "$centerSphere": [[lon, lat], radius_miles / 3963.2]
+                }
+            }
+        }
+
+    elif data.get("polygon"):
+        query = {
+            "location": {
+                "$geoWithin": {
+                    "$polygon": data["polygon"]
+                }
+            }
+        }
+
+    houses = list(db.houses.find(query))
+    for h in houses:
+        h["_id"] = str(h["_id"])
+    return jsonify(houses)
