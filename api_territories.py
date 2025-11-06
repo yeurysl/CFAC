@@ -25,7 +25,7 @@ def require_auth(f):
         print(f"[AUTH] Extracted JWT Token: {token[:40]}... (truncated)")
 
         try:
-            payload = jwt.decode(token, app.config["JWT_SECRET_KEY"], algorithms=["HS256"])
+            payload = jwt.decode(token, app.config["JWT_SECRET"], algorithms=["HS256"])
             print(f"[AUTH] Decoded JWT Payload: {payload}")
         except Exception as e:
             print(f"[AUTH ERROR] Failed to decode JWT: {e}")
