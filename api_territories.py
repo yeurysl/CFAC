@@ -3,6 +3,7 @@
 from flask import Blueprint, request, jsonify
 from flask import current_app as app
 from datetime import datetime
+import os
 from math import inf
 import jwt
 from bson import ObjectId  # keep if you later want to store ObjectIds
@@ -16,53 +17,15 @@ api_territories_bp = Blueprint("api_territories", __name__)
 # -------------------------------
 # DB helper (uses MONGODB_URI)
 # -------------------------------
-def _get_db():
-    """
-    Lazily create and cache a Mongo DB handle from Config.MONGODB_URI.
-    No changes to your config.py are required.
-    """
-    # Reuse cached handle if already built
-    cached = app.config.get("_MONGO_DB_HANDLE")
-    if cached is not None and hasattr(cached, "list_collection_names"):
-        return cached
-
-    uri = app.config.get("MONGODB_URI")
-    if not uri:
-        print("[DB ERROR] MONGODB_URI not set in app.config (env).")
-        return None
-
-    try:
-        client = app.config.get("_MONGO_CLIENT")
-        if client is None:
-            client = MongoClient(uri)
-            app.config["_MONGO_CLIENT"] = client
-            print("[DB] Created new MongoClient from MONGODB_URI.")
-
-        # Prefer default DB from URI (…/dbname?...). If not present, derive from path.
-        db = client.get_default_database()
-        if db is None:
-            name = (urlparse(uri).path or "").lstrip("/")
-            if not name:
-                print("[DB ERROR] Your MONGODB_URI has no DB name. "
-                      "Add '/cfacdb' (or your db) to the URI.")
-                return None
-            db = client[name]
-            print(f"[DB] Using DB from URI path: '{name}'")
-
-        # Cache the handle for subsequent requests
-        app.config["_MONGO_DB_HANDLE"] = db
-
-        # Optional visibility (safe): list collections (may be empty on new db)
-        try:
-            print(f"[DB] Mongo DB handle ready. Collections: {db.list_collection_names()}")
-        except Exception as e:
-            print(f"[DB WARN] Could not list collections: {e}")
-
-        return db
-
-    except Exception as e:
-        print(f"[DB ERROR] Failed to connect to Mongo: {e}")
-        return None
+def get_db():
+    global _client
+    if _client is None:
+        _client = MongoClient(os.environ["MONGODB_URI"], tls=True, tlsAllowInvalidCertificates=False)
+    db_name = os.environ.get("MONGODB_DB")
+    if not db_name:
+        # try to read default db from URI; raise clear error if absent
+        raise RuntimeError("MONGODB_DB not set and URI has no default database")
+    return _client[db_name]
 
 
 # -------------------------------
