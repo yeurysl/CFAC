@@ -1,44 +1,51 @@
 # api_territories.py
-
 from flask import Blueprint, request, jsonify
 from flask import current_app as app
 from datetime import datetime
 import os
 from math import inf
 import jwt
-from bson import ObjectId  # keep if you later want to store ObjectIds
 from extensions import csrf
-
 from pymongo import MongoClient
-from urllib.parse import urlparse
 
 api_territories_bp = Blueprint("api_territories", __name__)
 
 # -------------------------------
 # DB helper (uses MONGODB_URI)
 # -------------------------------
+_client = None  # <-- add this
+
 def get_db():
     global _client
-    if _client is None:
-        _client = MongoClient(os.environ["MONGODB_URI"], tls=True, tlsAllowInvalidCertificates=False)
-    db_name = os.environ.get("MONGODB_DB")
-    if not db_name:
-        # try to read default db from URI; raise clear error if absent
-        raise RuntimeError("MONGODB_DB not set and URI has no default database")
-    return _client[db_name]
+    uri = os.environ.get("MONGODB_URI")
+    db_name = os.environ.get("MONGODB_DB")  # set this OR include /cfacdb in the URI
 
+    if not uri:
+        raise RuntimeError("MONGODB_URI not set")
+
+    if _client is None:
+        # Reuse a single client across requests
+        _client = MongoClient(uri, tls=True, tlsAllowInvalidCertificates=False)
+
+    if not db_name:
+        # If you prefer pulling from the URI's path, parse it here instead of raising:
+        # from urllib.parse import urlparse
+        # parsed = urlparse(uri)
+        # db_name = parsed.path.lstrip('/') or None
+        raise RuntimeError("MONGODB_DB not set and URI has no default database name")
+
+    return _client[db_name]
 
 # -------------------------------
 # Auth helper (uses JWT_SECRET)
 # -------------------------------
 def require_auth(f):
     from functools import wraps
-
     @wraps(f)
     def wrapper(*args, **kwargs):
         print("\n[AUTH] Checking Authorization Header...")
         auth = request.headers.get("Authorization", "")
-        print(f"[AUTH] Raw Authorization Header: {auth}")
+        print(f"[AUTH] Raw Authorization Header: {auth[:20]}... (truncated)" if auth else "[AUTH] Raw Authorization Header:")
 
         if not auth.startswith("Bearer "):
             print("[AUTH] Missing or malformed Bearer token.")
@@ -68,9 +75,7 @@ def require_auth(f):
         request.user = payload
         print(f"[AUTH] Authenticated user: {request.user}")
         return f(*args, **kwargs)
-
     return wrapper
-
 
 # -------------------------------
 # Geometry helpers
@@ -89,7 +94,6 @@ def ensure_closed_ring(ring):
     print(f"[GEOMETRY] Final ring length: {len(ring)}")
     return ring
 
-
 def calc_bbox(ring):
     print("\n[GEOMETRY] Calculating bounding box...")
     minLon, minLat, maxLon, maxLat = inf, inf, -inf, -inf
@@ -103,7 +107,6 @@ def calc_bbox(ring):
     print(f"[GEOMETRY] Final Bounding Box: {bbox}")
     return bbox
 
-
 def calc_centroid(ring):
     print("\n[GEOMETRY] Calculating centroid for polygon...")
     lons = [p[0] for p in ring[:-1]]  # ignore duplicate last point
@@ -111,7 +114,6 @@ def calc_centroid(ring):
     centroid = [sum(lons) / len(lons), sum(lats) / len(lats)]
     print(f"[GEOMETRY] Centroid calculated: {centroid}")
     return centroid
-
 
 # -------------------------------
 # Routes
@@ -121,9 +123,10 @@ def calc_centroid(ring):
 @csrf.exempt
 def create_territory():
     print("\n=== [POST] /api/territories called ===")
-    db = _get_db()
-    if not db:
-        print("[POST ERROR] DB handle unavailable (check MONGODB_URI and DB name).")
+    try:
+        db = get_db()
+    except Exception as e:
+        print(f"[POST ERROR] DB handle unavailable: {e}")
         return jsonify({"error": "Server DB misconfigured"}), 500
 
     data = request.get_json(silent=True) or {}
@@ -140,7 +143,6 @@ def create_territory():
         print("[POST ERROR] ensure_closed_ring returned None — invalid ring.")
         return jsonify({"error": "invalid ring"}), 400
 
-    # Auto-name if not provided
     name = data.get("name")
     user_id = request.user.get("sub")
     if not name:
@@ -185,9 +187,10 @@ def create_territory():
 @csrf.exempt
 def list_territories():
     print("\n=== [GET] /api/territories called ===")
-    db = _get_db()
-    if not db:
-        print("[GET ERROR] DB handle unavailable (check MONGODB_URI and DB name).")
+    try:
+        db = get_db()
+    except Exception as e:
+        print(f"[GET ERROR] DB handle unavailable: {e}")
         return jsonify({"error": "Server DB misconfigured"}), 500
 
     user_id = request.user.get("sub")
@@ -201,18 +204,15 @@ def list_territories():
         return jsonify({"error": "Database query failed"}), 500
 
     items = []
-    count = 0
-    for d in cur:
+    for i, d in enumerate(cur, 1):
         d["_id"] = str(d["_id"])
         items.append(d)
-        count += 1
-        print(f"[GET] Loaded document #{count}: {d}")
+        print(f"[GET] Loaded document #{i}: {d}")
 
-    print(f"[GET] Total territories found: {count}")
+    print(f"[GET] Total territories found: {len(items)}")
     return jsonify(items), 200
 
 
-# Optional: add this to remove the 404 for /api/houses-in-area
 @api_territories_bp.route("/api/houses-in-area", methods=["POST"])
 @require_auth
 @csrf.exempt
@@ -220,5 +220,4 @@ def houses_in_area():
     print("\n=== [POST] /api/houses-in-area called ===")
     body = request.get_json(silent=True) or {}
     print(f"[HOUSES] Input: {body}")
-    # TODO: implement your spatial lookup here
     return jsonify({"ok": True, "message": "stub"}), 200
