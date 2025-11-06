@@ -82,7 +82,7 @@ def calc_centroid(ring):
 @csrf.exempt
 def create_territory():
     print("\n=== [POST] /api/territories called ===")
-    db = app.config["MONGO_DB"]
+    db = app.config["MONGODB_URI"]
 
     data = request.get_json(silent=True) or {}
     print(f"[POST] Received JSON data: {data}")
