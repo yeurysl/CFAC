@@ -137,38 +137,46 @@ def create_territory():
         print("[POST ERROR] Invalid or missing 'ring_lonlat'.")
         return jsonify({"error": "ring_lonlat must have >= 3 vertices"}), 400
 
-    print(f"[POST] Received ring with {len(ring)} points.")
-    ring = ensure_closed_ring(ring + [])  # copy the list
+    ring = ensure_closed_ring(ring + [])
     if not ring:
         print("[POST ERROR] ensure_closed_ring returned None — invalid ring.")
         return jsonify({"error": "invalid ring"}), 400
 
-    name = data.get("name")
     user_id = request.user.get("sub")
+    LIMIT = 3  # ✅ hard limit per user
+
+    # ✅ ENFORCE LIMIT
+    try:
+        existing = db.territories.count_documents({"user_id": user_id})
+        print(f"[POST] Existing territories for user {user_id}: {existing}")
+        if existing >= LIMIT:
+            print(f"[POST] Limit reached (limit={LIMIT}). Rejecting creation.")
+            return jsonify({
+                "error": "territory_limit_reached",
+                "message": f"You already have {LIMIT} territories.",
+                "limit": LIMIT
+            }), 400
+    except Exception as e:
+        print(f"[POST ERROR] Counting territories failed: {e}")
+        return jsonify({"error": "Database query failed"}), 500
+
+    # Name (auto if not provided)
+    name = data.get("name")
     if not name:
-        print(f"[POST] No name provided. Counting existing territories for user: {user_id}")
-        try:
-            count = db.territories.count_documents({"user_id": user_id})
-        except Exception as e:
-            print(f"[POST ERROR] Counting territories failed: {e}")
-            return jsonify({"error": "Database query failed"}), 500
-        print(f"[POST] Found {count} existing territories.")
-        name = f"Territory {count + 1}"
+        name = f"Territory {existing + 1}"
     print(f"[POST] Using territory name: '{name}'")
 
     bbox = calc_bbox(ring)
     centroid = calc_centroid(ring)
 
     doc = {
-        "user_id": user_id,  # keep as string unless your schema expects ObjectId
+        "user_id": user_id,
         "name": name,
         "geometry": {"type": "Polygon", "coordinates": [ring]},
         "bbox": bbox,
         "centroid": {"type": "Point", "coordinates": centroid},
         "created_at": datetime.utcnow(),
     }
-
-    print(f"[POST] Document ready for insertion: {doc}")
 
     try:
         res = db.territories.insert_one(doc)
@@ -178,7 +186,6 @@ def create_territory():
         print(f"[POST ERROR] Failed to insert into MongoDB: {e}")
         return jsonify({"error": "Database insertion failed"}), 500
 
-    print(f"[POST] Successfully created territory: {doc}")
     return jsonify(doc), 201
 
 
