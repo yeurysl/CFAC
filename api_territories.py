@@ -7,13 +7,15 @@ from math import inf
 import jwt
 from extensions import csrf
 from pymongo import MongoClient
+from bson import ObjectId
+from pymongo import UpdateOne
 
 api_territories_bp = Blueprint("api_territories", __name__)
 
 # -------------------------------
 # DB helper (uses MONGODB_URI)
 # -------------------------------
-_client = None  # <-- add this
+_client = None  # reuse a single client across requests
 
 def get_db():
     global _client
@@ -28,7 +30,7 @@ def get_db():
         _client = MongoClient(uri, tls=True, tlsAllowInvalidCertificates=False)
 
     if not db_name:
-        # If you prefer pulling from the URI's path, parse it here instead of raising:
+        # If you prefer pulling from the URI's path, parse it here.
         # from urllib.parse import urlparse
         # parsed = urlparse(uri)
         # db_name = parsed.path.lstrip('/') or None
@@ -116,7 +118,7 @@ def calc_centroid(ring):
     return centroid
 
 # -------------------------------
-# Routes
+# Routes: Territories
 # -------------------------------
 @api_territories_bp.route("/api/territories", methods=["POST"])
 @require_auth
@@ -143,9 +145,9 @@ def create_territory():
         return jsonify({"error": "invalid ring"}), 400
 
     user_id = request.user.get("sub")
-    LIMIT = 3  # ✅ hard limit per user
+    LIMIT = 3  # hard limit per user
 
-    # ✅ ENFORCE LIMIT
+    # Enforce limit
     try:
         existing = db.territories.count_documents({"user_id": user_id})
         print(f"[POST] Existing territories for user {user_id}: {existing}")
@@ -161,9 +163,7 @@ def create_territory():
         return jsonify({"error": "Database query failed"}), 500
 
     # Name (auto if not provided)
-    name = data.get("name")
-    if not name:
-        name = f"Territory {existing + 1}"
+    name = data.get("name") or f"Territory {existing + 1}"
     print(f"[POST] Using territory name: '{name}'")
 
     bbox = calc_bbox(ring)
@@ -219,92 +219,114 @@ def list_territories():
     print(f"[GET] Total territories found: {len(items)}")
     return jsonify(items), 200
 
-
-#//////////////////////////////////////// FETCH HOUSES 
-@api_territories_bp.route("/api/houses-in-area", methods=["POST"])
-@require_auth
-@csrf.exempt
-def houses_in_area():
-    print("\n=== [POST] /api/houses-in-area called ===")
-    body = request.get_json(silent=True) or {}
-    print(f"[HOUSES] Input: {body}")
-
-    # Prefer polygon for “territory” fetch; circle still supported if you want your old mode
-    polygon = body.get("polygon")
-    circle  = body.get("circle")
-    limit   = min(int(body.get("limit", 800)), 2000)
-
-    if polygon and circle:
-        return jsonify({"error": "Provide either 'polygon' or 'circle', not both"}), 400
-    if not polygon and not circle:
-        return jsonify({"error": "Provide 'polygon' (preferred) or 'circle'"}), 400
-
-    try:
-        if polygon:
-            # polygon is [[lon,lat], ...]; we’ll pass it straight to OSM helper
-            ring = [list(map(float, pt)) for pt in polygon]
-            items = _fetch_osm_addresses_in_polygon(ring)
-        else:
-            # Optional: circle path via Overpass (slower to emulate; you can approximate with polygon)
-            center = circle["center"]  # [lon,lat]
-            radius_mi = float(circle["radius"])
-            # Create a rough N-gon around the circle for Overpass
-            import math
-            def circle_to_ring(lon, lat, radius_miles, steps=36):
-                R = 3959.0  # miles
-                ang = radius_miles / R
-                ring = []
-                lat0 = math.radians(lat)
-                lon0 = math.radians(lon)
-                for k in range(steps):
-                    bearing = 2*math.pi*k/steps
-                    lat1 = math.asin(math.sin(lat0)*math.cos(ang) +
-                                     math.cos(lat0)*math.sin(ang)*math.cos(bearing))
-                    lon1 = lon0 + math.atan2(math.sin(bearing)*math.sin(ang)*math.cos(lat0),
-                                             math.cos(ang)-math.sin(lat0)*math.sin(lat1))
-                    ring.append([math.degrees(lon1), math.degrees(lat1)])
-                return ring
-            ring = circle_to_ring(center[0], center[1], radius_mi, steps=36)
-            items = _fetch_osm_addresses_in_polygon(ring)
-
-        # Trim if needed
-        if len(items) > limit:
-            items = items[:limit]
-
-        print(f"[HOUSES] Returning {len(items)} item(s) from OSM")
-        # Small preview in logs
-        for i, h in enumerate(items[:5], 1):
-            print(f"[HOUSES] #{i}: {h.get('address','')} {h.get('city','')} {h.get('state','')} {h.get('zip','')} @ ({h.get('lat'):.5f}, {h.get('lon'):.5f})")
-
-        return jsonify(items), 200
-
-    except requests.HTTPError as e:
-        print(f"[HOUSES ERROR] Overpass HTTP error: {e}")
-        return jsonify({"error": "Overpass unavailable"}), 502
-    except Exception as e:
-        print(f"[HOUSES ERROR] {e}")
-        return jsonify({"error": str(e)}), 400
-
-def _ensure_houses_geo_index(db):
+# -------------------------------
+# Houses: indexing & persistence
+# -------------------------------
+def _ensure_houses_indexes(db):
     """
-    Ensure a 2dsphere index on 'loc'. This is idempotent (Mongo no-ops if exists).
-    Call on first request to be safe.
+    Create the geospatial and de-dup indexes for houses.
+    Idempotent: safe to call on each request.
     """
     try:
-        # if you also query by user_id/owner, consider a compound index:
-        # db.houses.create_index([("user_id", 1), ("loc", "2dsphere")])
+        # Geo index for spatial queries
         db.houses.create_index([("loc", "2dsphere")])
-        print("[HOUSES] 2dsphere index on 'loc' ensured")
+        # Uniqueness per territory by address+zip
+        db.houses.create_index(
+            [("territory_id", 1), ("address", 1), ("zip", 1)],
+            unique=True,
+            name="uniq_per_territory_addr_zip"
+        )
+        print("[HOUSES] Indexes ensured (2dsphere + unique key).")
     except Exception as e:
-        print(f"[HOUSES WARN] Could not create 2dsphere index: {e}")
+        print(f"[HOUSES WARN] Ensuring indexes failed: {e}")
 
+def _normalize_house_for_db(h, user_id, territory_id):
+    """
+    Convert an item from Overpass into our Mongo shape for `houses`.
+    """
+    lon = float(h["lon"])
+    lat = float(h["lat"])
+    return {
+        "user_id": user_id,
+        "territory_id": ObjectId(territory_id),
+        "address": h.get("address") or "",
+        "city": h.get("city") or "",
+        "state": h.get("state") or "",
+        "zip": h.get("zip") or "",
+        "loc": {"type": "Point", "coordinates": [lon, lat]},
+        "source": "osm",
+        "created_at": datetime.utcnow(),
+    }
 
+def _persist_houses_to_territory(db, user_id, territory_id, items):
+    """
+    Upsert houses under `houses` collection and update a summary onto the territory.
+    """
+    _ensure_houses_indexes(db)
 
+    # Verify the territory belongs to the user
+    terr = db.territories.find_one({"_id": ObjectId(territory_id), "user_id": user_id})
+    if not terr:
+        raise ValueError("territory_not_found_or_forbidden")
 
+    # Prepare bulk upserts
+    ops = []
+    for h in items:
+        doc = _normalize_house_for_db(h, user_id, territory_id)
+        filt = {
+            "territory_id": doc["territory_id"],
+            "address": doc["address"],
+            "zip": doc["zip"],
+        }
+        ops.append(UpdateOne(filt, {"$setOnInsert": doc}, upsert=True))
 
+    result_summary = {"upserted": 0, "total_for_territory": 0, "sample": []}
+    if ops:
+        try:
+            result = db.houses.bulk_write(ops, ordered=False)
+            result_summary["upserted"] = int(getattr(result, "upserted_count", 0) or 0)
+            print(f"[HOUSES] bulk upsert complete. upserted={result_summary['upserted']}")
+        except Exception as e:
+            # DuplicateKeyError is fine due to unique index; bulk_write may raise only if fatal
+            print(f"[HOUSES] bulk upsert encountered error: {e}")
 
+    # Recompute summary for this territory
+    total = db.houses.count_documents({"territory_id": ObjectId(territory_id)})
+    sample_cursor = db.houses.find(
+        {"territory_id": ObjectId(territory_id)},
+        {"_id": 0, "address": 1, "city": 1, "state": 1, "zip": 1, "loc.coordinates": 1}
+    ).limit(20)
 
-# --- NEW: OSM / Overpass helper ---------------------------------------------
+    sample = []
+    for d in sample_cursor:
+        coords = d.get("loc", {}).get("coordinates", [None, None])
+        sample.append({
+            "address": d.get("address", ""),
+            "city": d.get("city", ""),
+            "state": d.get("state", ""),
+            "zip": d.get("zip", ""),
+            "lon": coords[0],
+            "lat": coords[1],
+        })
+
+    db.territories.update_one(
+        {"_id": ObjectId(territory_id)},
+        {
+            "$set": {
+                "houses_count": total,
+                "houses_sample": sample,           # lightweight preview for UI
+                "houses_last_refreshed_at": datetime.utcnow()
+            }
+        }
+    )
+
+    result_summary["total_for_territory"] = total
+    result_summary["sample"] = sample
+    return result_summary
+
+# -------------------------------
+# OSM / Overpass helper
+# -------------------------------
 import requests
 from time import sleep
 
@@ -400,3 +422,103 @@ def _fetch_osm_addresses_in_polygon(ring_lonlat, timeout_s=25):
         })
 
     return out
+
+# -------------------------------
+# Route: Fetch houses in area (with optional persistence)
+# -------------------------------
+@api_territories_bp.route("/api/houses-in-area", methods=["POST"])
+@require_auth
+@csrf.exempt
+def houses_in_area():
+    print("\n=== [POST] /api/houses-in-area called ===")
+    body = request.get_json(silent=True) or {}
+    print(f"[HOUSES] Input: {body}")
+
+    polygon = body.get("polygon")  # preferred: [[lon,lat], ...]
+    circle  = body.get("circle")   # optional: {"center":[lon,lat], "radius": miles}
+    limit   = min(int(body.get("limit", 800)), 2000)
+
+    if polygon and circle:
+        return jsonify({"error": "Provide either 'polygon' or 'circle', not both"}), 400
+    if not polygon and not circle:
+        return jsonify({"error": "Provide 'polygon' (preferred) or 'circle'"}), 400
+
+    try:
+        if polygon:
+            ring = [list(map(float, pt)) for pt in polygon]
+            items = _fetch_osm_addresses_in_polygon(ring)
+        else:
+            # Optional: circle path via Overpass by approximating a polygon
+            center = circle["center"]  # [lon,lat]
+            radius_mi = float(circle["radius"])
+
+            import math
+            def circle_to_ring(lon, lat, radius_miles, steps=36):
+                R = 3959.0  # miles
+                ang = radius_miles / R
+                ring = []
+                lat0 = math.radians(lat)
+                lon0 = math.radians(lon)
+                for k in range(steps):
+                    bearing = 2*math.pi*k/steps
+                    lat1 = math.asin(math.sin(lat0)*math.cos(ang) +
+                                     math.cos(lat0)*math.sin(ang)*math.cos(bearing))
+                    lon1 = lon0 + math.atan2(math.sin(bearing)*math.sin(ang)*math.cos(lat0),
+                                             math.cos(ang)-math.sin(lat0)*math.sin(lat1))
+                    ring.append([math.degrees(lon1), math.degrees(lat1)])
+                return ring
+
+            ring = circle_to_ring(center[0], center[1], radius_mi, steps=36)
+            items = _fetch_osm_addresses_in_polygon(ring)
+
+        # Trim if needed
+        if len(items) > limit:
+            items = items[:limit]
+
+        print(f"[HOUSES] Returning {len(items)} item(s) from OSM")
+        for i, h in enumerate(items[:5], 1):
+            print(f"[HOUSES] #{i}: {h.get('address','')} {h.get('city','')} {h.get('state','')} {h.get('zip','')} @ ({h.get('lat'):.5f}, {h.get('lon'):.5f})")
+
+        # ------------------ optional persistence ------------------
+        persist = bool(body.get("persist", False))
+        territory_id = body.get("territory_id")
+
+        result_summary = None
+        if persist:
+            if not territory_id:
+                return jsonify({"error": "territory_id_required_when_persisting"}), 400
+
+            try:
+                db = get_db()
+            except Exception as e:
+                print(f"[HOUSES ERROR] DB handle unavailable: {e}")
+                return jsonify({"error": "Server DB misconfigured"}), 500
+
+            try:
+                result_summary = _persist_houses_to_territory(
+                    db=db,
+                    user_id=request.user.get("sub"),
+                    territory_id=territory_id,
+                    items=items
+                )
+            except ValueError as ve:
+                if str(ve) == "territory_not_found_or_forbidden":
+                    return jsonify({"error": "territory_not_found_or_forbidden"}), 403
+                print(f"[HOUSES ERROR] persist value error: {ve}")
+                result_summary = {"error": "persist_failed"}
+            except Exception as e:
+                print(f"[HOUSES ERROR] persist failed: {e}")
+                result_summary = {"error": "persist_failed"}
+
+        payload = {"items": items}
+        if result_summary is not None:
+            payload["persist_result"] = result_summary
+
+        return jsonify(payload), 200
+
+    except requests.HTTPError as e:
+        print(f"[HOUSES ERROR] Overpass HTTP error: {e}")
+        return jsonify({"error": "Overpass unavailable"}), 502
+    except Exception as e:
+        print(f"[HOUSES ERROR] {e}")
+        return jsonify({"error": str(e)}), 400
