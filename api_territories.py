@@ -226,141 +226,64 @@ def list_territories():
 @csrf.exempt
 def houses_in_area():
     print("\n=== [POST] /api/houses-in-area called ===")
-    try:
-        db = get_db()
-    except Exception as e:
-        print(f"[HOUSES ERROR] DB handle unavailable: {e}")
-        return jsonify({"error": "Server DB misconfigured"}), 500
-
     body = request.get_json(silent=True) or {}
     print(f"[HOUSES] Input: {body}")
 
-    # Ensure geospatial index exists (no-op if already present)
-    _ensure_houses_geo_index(db)
-
-    # You can cap results to keep payload small
-    LIMIT = min(int(body.get("limit", 500)), 1000)
-
-    # Two modes: circle OR polygon
-    circle = body.get("circle")
+    # Prefer polygon for “territory” fetch; circle still supported if you want your old mode
     polygon = body.get("polygon")
+    circle  = body.get("circle")
+    limit   = min(int(body.get("limit", 800)), 2000)
 
-    if circle and polygon:
-        print("[HOUSES ERROR] Both 'circle' and 'polygon' provided — ambiguous.")
-        return jsonify({"error": "Provide either 'circle' or 'polygon', not both"}), 400
+    if polygon and circle:
+        return jsonify({"error": "Provide either 'polygon' or 'circle', not both"}), 400
+    if not polygon and not circle:
+        return jsonify({"error": "Provide 'polygon' (preferred) or 'circle'"}), 400
 
-    query = None
-
-    if circle:
-        try:
-            center = circle["center"]  # [lon, lat]
-            radius_miles = float(circle["radius"])
-            if not (isinstance(center, list) and len(center) == 2):
-                raise ValueError("circle.center must be [lon, lat]")
-            EARTH_RADIUS_MILES = 3959.0
-            radius_radians = radius_miles / EARTH_RADIUS_MILES
-
-            query = {
-                "loc": {
-                    "$geoWithin": {
-                        "$centerSphere": [center, radius_radians]
-                    }
-                }
-            }
-            print(f"[HOUSES] Circle query center={center} radius_mi={radius_miles} (~{radius_radians:.6f} rad)")
-
-        except Exception as e:
-            print(f"[HOUSES ERROR] Bad circle payload: {e}")
-            return jsonify({"error": f"Invalid circle: {e}"}), 400
-
-    elif polygon:
-        try:
-            # polygon is [[lon, lat], ...]
-            if not (isinstance(polygon, list) and len(polygon) >= 3):
-                raise ValueError("polygon must be an array of [lon,lat] with >= 3 vertices")
-
-            ring = [list(map(float, pt)) for pt in polygon]
-            if len(ring) < 3:
-                raise ValueError("polygon needs at least 3 vertices")
-
-            # Ensure closed ring
-            print(f"[HOUSES] Polygon received with {len(ring)} points; ensuring closed ring")
-            ring = ensure_closed_ring(ring)
-            if not ring:
-                raise ValueError("invalid polygon ring")
-
-            # GeoJSON polygon requires an array of linear rings
-            geom = {
-                "type": "Polygon",
-                "coordinates": [ring]  # outer ring only (no holes)
-            }
-
-            # Use 2dsphere geometry query
-            query = {
-                "loc": {
-                    "$geoWithin": {
-                        "$geometry": geom
-                    }
-                }
-            }
-            print(f"[HOUSES] Polygon query prepared. Ring length={len(ring)} (closed)")
-
-        except Exception as e:
-            print(f"[HOUSES ERROR] Bad polygon payload: {e}")
-            return jsonify({"error": f"Invalid polygon: {e}"}), 400
-
-    else:
-        print("[HOUSES ERROR] Missing 'circle' or 'polygon'")
-        return jsonify({"error": "Provide 'circle' or 'polygon' in the request body"}), 400
-
-    # Execute query
     try:
-        cursor = db.houses.find(query).limit(LIMIT)
-        items = list(cursor)
-        print(f"[HOUSES] Matched {len(items)} house(s)")
+        if polygon:
+            # polygon is [[lon,lat], ...]; we’ll pass it straight to OSM helper
+            ring = [list(map(float, pt)) for pt in polygon]
+            items = _fetch_osm_addresses_in_polygon(ring)
+        else:
+            # Optional: circle path via Overpass (slower to emulate; you can approximate with polygon)
+            center = circle["center"]  # [lon,lat]
+            radius_mi = float(circle["radius"])
+            # Create a rough N-gon around the circle for Overpass
+            import math
+            def circle_to_ring(lon, lat, radius_miles, steps=36):
+                R = 3959.0  # miles
+                ang = radius_miles / R
+                ring = []
+                lat0 = math.radians(lat)
+                lon0 = math.radians(lon)
+                for k in range(steps):
+                    bearing = 2*math.pi*k/steps
+                    lat1 = math.asin(math.sin(lat0)*math.cos(ang) +
+                                     math.cos(lat0)*math.sin(ang)*math.cos(bearing))
+                    lon1 = lon0 + math.atan2(math.sin(bearing)*math.sin(ang)*math.cos(lat0),
+                                             math.cos(ang)-math.sin(lat0)*math.sin(lat1))
+                    ring.append([math.degrees(lon1), math.degrees(lat1)])
+                return ring
+            ring = circle_to_ring(center[0], center[1], radius_mi, steps=36)
+            items = _fetch_osm_addresses_in_polygon(ring)
+
+        # Trim if needed
+        if len(items) > limit:
+            items = items[:limit]
+
+        print(f"[HOUSES] Returning {len(items)} item(s) from OSM")
+        # Small preview in logs
+        for i, h in enumerate(items[:5], 1):
+            print(f"[HOUSES] #{i}: {h.get('address','')} {h.get('city','')} {h.get('state','')} {h.get('zip','')} @ ({h.get('lat'):.5f}, {h.get('lon'):.5f})")
+
+        return jsonify(items), 200
+
+    except requests.HTTPError as e:
+        print(f"[HOUSES ERROR] Overpass HTTP error: {e}")
+        return jsonify({"error": "Overpass unavailable"}), 502
     except Exception as e:
-        print(f"[HOUSES ERROR] Mongo query failed: {e}")
-        return jsonify({"error": "Database query failed"}), 500
-
-    # Transform docs → client shape the iOS expects (lat/lon + minimal metadata)
-    out = []
-    for i, d in enumerate(items, 1):
-        _id = str(d.get("_id", ""))
-        addr = d.get("address") or d.get("addr") or ""
-        city = d.get("city") or ""
-        state = d.get("state") or ""
-        zipc = d.get("zip") or d.get("zipcode") or ""
-
-        lat = None
-        lon = None
-        if isinstance(d.get("loc"), dict):
-            coords = d["loc"].get("coordinates")
-            if isinstance(coords, list) and len(coords) == 2:
-                lon, lat = float(coords[0]), float(coords[1])
-        # (Optional) fallback if your schema has separate fields:
-        if lat is None or lon is None:
-            if "lat" in d and "lon" in d:
-                lat = float(d["lat"])
-                lon = float(d["lon"])
-
-        if lat is None or lon is None:
-            print(f"[HOUSES][WARN] Skipping _id={_id} — missing coordinates")
-            continue
-
-        out.append({
-            "_id": _id,
-            "address": addr,
-            "city": city,
-            "state": state,
-            "zip": zipc,
-            "lat": lat,
-            "lon": lon,
-        })
-        if i <= 5:  # small preview
-            print(f"[HOUSES] #{i}: {_id} {addr} {city} {state} {zipc} @ ({lat:.5f}, {lon:.5f})")
-
-    return jsonify(out), 200
-
+        print(f"[HOUSES ERROR] {e}")
+        return jsonify({"error": str(e)}), 400
 
 def _ensure_houses_geo_index(db):
     """
@@ -374,3 +297,106 @@ def _ensure_houses_geo_index(db):
         print("[HOUSES] 2dsphere index on 'loc' ensured")
     except Exception as e:
         print(f"[HOUSES WARN] Could not create 2dsphere index: {e}")
+
+
+
+
+
+
+
+# --- NEW: OSM / Overpass helper ---------------------------------------------
+import requests
+from time import sleep
+
+OVERPASS_URL = "https://overpass-api.de/api/interpreter"  # public endpoint; consider hosting your own later
+
+def _ring_lonlat_to_overpass_poly(ring_lonlat):
+    """
+    Overpass 'poly' expects: 'lat lon lat lon ...' (note: LAT first).
+    We accept [[lon,lat], ...] (your client format), ensure closed ring,
+    then return the single string.
+    """
+    if not ring_lonlat or len(ring_lonlat) < 3:
+        return None
+    if ring_lonlat[0] != ring_lonlat[-1]:
+        ring_lonlat = ring_lonlat + [ring_lonlat[0]]
+    parts = []
+    for lon, lat in ring_lonlat:
+        parts.append(f"{float(lat):.7f} {float(lon):.7f}")
+    return " ".join(parts)
+
+def _fetch_osm_addresses_in_polygon(ring_lonlat, timeout_s=25):
+    """
+    Query Overpass for any node/way/relation that has address tags within the polygon.
+    We return a list of dicts: { address, city, state, zip, lat, lon } best-effort.
+    """
+    poly = _ring_lonlat_to_overpass_poly(ring_lonlat)
+    if not poly:
+        raise ValueError("Invalid ring_lonlat for Overpass")
+
+    # Overpass QL: select anything with addr:* tags inside the polygon
+    # 'out center' gives us coordinates for ways/relations (nodes already have lat/lon)
+    ql = f"""
+    [out:json][timeout:{timeout_s}];
+    (
+      node["addr:housenumber"](poly:"{poly}");
+      way["addr:housenumber"](poly:"{poly}");
+      relation["addr:housenumber"](poly:"{poly}");
+    );
+    out center tags;
+    """
+    headers = {
+        # Be polite (Overpass requires a descriptive UA). You can add your email.
+        "User-Agent": "CFAC/1.0 (houses-in-area) contact: support@cfautocare.biz"
+    }
+
+    # Simple retry for 429/5xx
+    for attempt in range(3):
+        r = requests.post(OVERPASS_URL, data={"data": ql}, headers=headers, timeout=timeout_s + 5)
+        if r.status_code == 429 or r.status_code >= 500:
+            sleep(1 + attempt * 2)
+            continue
+        r.raise_for_status()
+        break
+
+    data = r.json()
+    elements = data.get("elements", [])
+
+    out = []
+    for el in elements:
+        tags = el.get("tags", {})
+        # Coordinates
+        if el.get("type") == "node":
+            lat = el.get("lat")
+            lon = el.get("lon")
+        else:
+            # way/relation: prefer 'center' (provided by 'out center')
+            c = el.get("center") or {}
+            lat = c.get("lat")
+            lon = c.get("lon")
+
+        if lat is None or lon is None:
+            continue
+
+        # Build a nice address line (best-effort from common OSM tags)
+        number = tags.get("addr:housenumber")
+        street = tags.get("addr:street") or tags.get("addr:road")
+        unit   = tags.get("addr:unit")
+        city   = tags.get("addr:city") or tags.get("addr:town") or tags.get("addr:village") or ""
+        state  = tags.get("addr:state") or ""
+        zipc   = tags.get("addr:postcode") or ""
+
+        line = " ".join(filter(None, [number, street]))
+        if unit:
+            line += f", Unit {unit}"
+
+        out.append({
+            "address": line,
+            "city": city,
+            "state": state,
+            "zip": zipc,
+            "lat": float(lat),
+            "lon": float(lon),
+        })
+
+    return out
