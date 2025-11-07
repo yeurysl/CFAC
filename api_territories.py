@@ -220,11 +220,157 @@ def list_territories():
     return jsonify(items), 200
 
 
+#//////////////////////////////////////// FETCH HOUSES 
 @api_territories_bp.route("/api/houses-in-area", methods=["POST"])
 @require_auth
 @csrf.exempt
 def houses_in_area():
     print("\n=== [POST] /api/houses-in-area called ===")
+    try:
+        db = get_db()
+    except Exception as e:
+        print(f"[HOUSES ERROR] DB handle unavailable: {e}")
+        return jsonify({"error": "Server DB misconfigured"}), 500
+
     body = request.get_json(silent=True) or {}
     print(f"[HOUSES] Input: {body}")
-    return jsonify({"ok": True, "message": "stub"}), 200
+
+    # Ensure geospatial index exists (no-op if already present)
+    _ensure_houses_geo_index(db)
+
+    # You can cap results to keep payload small
+    LIMIT = min(int(body.get("limit", 500)), 1000)
+
+    # Two modes: circle OR polygon
+    circle = body.get("circle")
+    polygon = body.get("polygon")
+
+    if circle and polygon:
+        print("[HOUSES ERROR] Both 'circle' and 'polygon' provided — ambiguous.")
+        return jsonify({"error": "Provide either 'circle' or 'polygon', not both"}), 400
+
+    query = None
+
+    if circle:
+        try:
+            center = circle["center"]  # [lon, lat]
+            radius_miles = float(circle["radius"])
+            if not (isinstance(center, list) and len(center) == 2):
+                raise ValueError("circle.center must be [lon, lat]")
+            EARTH_RADIUS_MILES = 3959.0
+            radius_radians = radius_miles / EARTH_RADIUS_MILES
+
+            query = {
+                "loc": {
+                    "$geoWithin": {
+                        "$centerSphere": [center, radius_radians]
+                    }
+                }
+            }
+            print(f"[HOUSES] Circle query center={center} radius_mi={radius_miles} (~{radius_radians:.6f} rad)")
+
+        except Exception as e:
+            print(f"[HOUSES ERROR] Bad circle payload: {e}")
+            return jsonify({"error": f"Invalid circle: {e}"}), 400
+
+    elif polygon:
+        try:
+            # polygon is [[lon, lat], ...]
+            if not (isinstance(polygon, list) and len(polygon) >= 3):
+                raise ValueError("polygon must be an array of [lon,lat] with >= 3 vertices")
+
+            ring = [list(map(float, pt)) for pt in polygon]
+            if len(ring) < 3:
+                raise ValueError("polygon needs at least 3 vertices")
+
+            # Ensure closed ring
+            print(f"[HOUSES] Polygon received with {len(ring)} points; ensuring closed ring")
+            ring = ensure_closed_ring(ring)
+            if not ring:
+                raise ValueError("invalid polygon ring")
+
+            # GeoJSON polygon requires an array of linear rings
+            geom = {
+                "type": "Polygon",
+                "coordinates": [ring]  # outer ring only (no holes)
+            }
+
+            # Use 2dsphere geometry query
+            query = {
+                "loc": {
+                    "$geoWithin": {
+                        "$geometry": geom
+                    }
+                }
+            }
+            print(f"[HOUSES] Polygon query prepared. Ring length={len(ring)} (closed)")
+
+        except Exception as e:
+            print(f"[HOUSES ERROR] Bad polygon payload: {e}")
+            return jsonify({"error": f"Invalid polygon: {e}"}), 400
+
+    else:
+        print("[HOUSES ERROR] Missing 'circle' or 'polygon'")
+        return jsonify({"error": "Provide 'circle' or 'polygon' in the request body"}), 400
+
+    # Execute query
+    try:
+        cursor = db.houses.find(query).limit(LIMIT)
+        items = list(cursor)
+        print(f"[HOUSES] Matched {len(items)} house(s)")
+    except Exception as e:
+        print(f"[HOUSES ERROR] Mongo query failed: {e}")
+        return jsonify({"error": "Database query failed"}), 500
+
+    # Transform docs → client shape the iOS expects (lat/lon + minimal metadata)
+    out = []
+    for i, d in enumerate(items, 1):
+        _id = str(d.get("_id", ""))
+        addr = d.get("address") or d.get("addr") or ""
+        city = d.get("city") or ""
+        state = d.get("state") or ""
+        zipc = d.get("zip") or d.get("zipcode") or ""
+
+        lat = None
+        lon = None
+        if isinstance(d.get("loc"), dict):
+            coords = d["loc"].get("coordinates")
+            if isinstance(coords, list) and len(coords) == 2:
+                lon, lat = float(coords[0]), float(coords[1])
+        # (Optional) fallback if your schema has separate fields:
+        if lat is None or lon is None:
+            if "lat" in d and "lon" in d:
+                lat = float(d["lat"])
+                lon = float(d["lon"])
+
+        if lat is None or lon is None:
+            print(f"[HOUSES][WARN] Skipping _id={_id} — missing coordinates")
+            continue
+
+        out.append({
+            "_id": _id,
+            "address": addr,
+            "city": city,
+            "state": state,
+            "zip": zipc,
+            "lat": lat,
+            "lon": lon,
+        })
+        if i <= 5:  # small preview
+            print(f"[HOUSES] #{i}: {_id} {addr} {city} {state} {zipc} @ ({lat:.5f}, {lon:.5f})")
+
+    return jsonify(out), 200
+
+
+def _ensure_houses_geo_index(db):
+    """
+    Ensure a 2dsphere index on 'loc'. This is idempotent (Mongo no-ops if exists).
+    Call on first request to be safe.
+    """
+    try:
+        # if you also query by user_id/owner, consider a compound index:
+        # db.houses.create_index([("user_id", 1), ("loc", "2dsphere")])
+        db.houses.create_index([("loc", "2dsphere")])
+        print("[HOUSES] 2dsphere index on 'loc' ensured")
+    except Exception as e:
+        print(f"[HOUSES WARN] Could not create 2dsphere index: {e}")
