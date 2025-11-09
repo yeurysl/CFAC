@@ -258,18 +258,25 @@ def _normalize_house_for_db(h, user_id, territory_id):
         "created_at": datetime.utcnow(),
     }
 
+
+
 def _persist_houses_to_territory(db, user_id, territory_id, items):
     """
     Upsert houses under `houses` collection and update a summary onto the territory.
+    Also:
+      - attaches house_id (string) to each item in `items`
+      - stores house_id in territories.houses_sample
     """
     _ensure_houses_indexes(db)
 
+    terr_oid = ObjectId(territory_id)
+
     # Verify the territory belongs to the user
-    terr = db.territories.find_one({"_id": ObjectId(territory_id), "user_id": user_id})
+    terr = db.territories.find_one({"_id": terr_oid, "user_id": user_id})
     if not terr:
         raise ValueError("territory_not_found_or_forbidden")
 
-    # Prepare bulk upserts
+    # -------------------- bulk upserts --------------------
     ops = []
     for h in items:
         doc = _normalize_house_for_db(h, user_id, territory_id)
@@ -290,31 +297,63 @@ def _persist_houses_to_territory(db, user_id, territory_id, items):
             # DuplicateKeyError is fine due to unique index; bulk_write may raise only if fatal
             print(f"[HOUSES] bulk upsert encountered error: {e}")
 
-    # Recompute summary for this territory
-    total = db.houses.count_documents({"territory_id": ObjectId(territory_id)})
+    # -------------------- attach house_id to items --------------------
+    # Build a lookup from (lat,lon) -> house_id for all houses in this territory
+    id_lookup = {}
+    all_cursor = db.houses.find(
+        {"territory_id": terr_oid},
+        {"_id": 1, "loc.coordinates": 1}
+    )
+
+    for d in all_cursor:
+        coords = d.get("loc", {}).get("coordinates", [None, None])
+        if coords and coords[0] is not None and coords[1] is not None:
+            lon, lat = coords
+            key = (round(float(lat), 6), round(float(lon), 6))
+            id_lookup[key] = str(d["_id"])
+
+    # Mutate `items` in-place to include house_id
+    for h in items:
+        try:
+            lat = float(h.get("lat"))
+            lon = float(h.get("lon"))
+        except (TypeError, ValueError):
+            continue
+        key = (round(lat, 6), round(lon, 6))
+        house_id = id_lookup.get(key)
+        if house_id:
+            h["house_id"] = house_id
+
+    # -------------------- recompute summary for this territory --------------------
+    total = db.houses.count_documents({"territory_id": terr_oid})
+
     sample_cursor = db.houses.find(
-        {"territory_id": ObjectId(territory_id)},
-        {"_id": 0, "address": 1, "city": 1, "state": 1, "zip": 1, "loc.coordinates": 1}
+        {"territory_id": terr_oid},
+        {"_id": 1, "address": 1, "city": 1, "state": 1, "zip": 1, "loc.coordinates": 1}
     ).limit(20)
 
     sample = []
     for d in sample_cursor:
         coords = d.get("loc", {}).get("coordinates", [None, None])
+        lon = coords[0] if len(coords) > 0 else None
+        lat = coords[1] if len(coords) > 1 else None
+
         sample.append({
+            "house_id": str(d["_id"]),          # 🔹 add house_id here
             "address": d.get("address", ""),
             "city": d.get("city", ""),
             "state": d.get("state", ""),
             "zip": d.get("zip", ""),
-            "lon": coords[0],
-            "lat": coords[1],
+            "lon": lon,
+            "lat": lat,
         })
 
     db.territories.update_one(
-        {"_id": ObjectId(territory_id)},
+        {"_id": terr_oid},
         {
             "$set": {
                 "houses_count": total,
-                "houses_sample": sample,           # lightweight preview for UI
+                "houses_sample": sample,           # lightweight preview for UI, now with house_id
                 "houses_last_refreshed_at": datetime.utcnow()
             }
         }
@@ -323,6 +362,9 @@ def _persist_houses_to_territory(db, user_id, territory_id, items):
     result_summary["total_for_territory"] = total
     result_summary["sample"] = sample
     return result_summary
+
+
+
 
 # -------------------------------
 # OSM / Overpass helper
