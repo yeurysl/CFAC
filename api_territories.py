@@ -255,7 +255,7 @@ def _normalize_house_for_db(h, user_id, territory_id):
         "zip": h.get("zip") or "",
         "loc": {"type": "Point", "coordinates": [lon, lat]},
         "source": "osm",
-        _normalize_house_for_db,
+        "response": "awaiting response",
         "created_at": datetime.utcnow(),
     }
 
