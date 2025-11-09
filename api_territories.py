@@ -522,3 +522,20 @@ def houses_in_area():
     except Exception as e:
         print(f"[HOUSES ERROR] {e}")
         return jsonify({"error": str(e)}), 400
+
+@api_territories_bp.route("/api/track-responses", methods=["POST"])
+@require_auth
+@csrf.exempt
+def track_responses():
+    """
+    Stub endpoint for tracking responses on houses/territories.
+    No features implemented yet.
+    """
+    print("\n=== [POST] /api/track-responses called ===")
+    body = request.get_json(silent=True) or {}
+    print(f"[TRACK RESPONSES] Input (stub only): {body}")
+
+    return jsonify({
+        "ok": True,
+        "message": "track_responses stub endpoint – no features implemented yet"
+    }), 200
