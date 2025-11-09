@@ -347,6 +347,7 @@ def _persist_houses_to_territory(db, user_id, territory_id, items):
             "zip": d.get("zip", ""),
             "lon": lon,
             "lat": lat,
+            "response": d.get("response", "awaiting response"), 
         })
 
     db.territories.update_one(
