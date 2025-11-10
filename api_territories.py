@@ -572,14 +572,84 @@ def houses_in_area():
 @csrf.exempt
 def track_responses():
     """
-    Stub endpoint for tracking responses on houses/territories.
-    No features implemented yet.
+    Update the 'response' field for a specific house, and sync it into the
+    territory's houses_sample (if present).
+    Expected JSON body:
+      {
+        "house_id": "<string Mongo _id>",
+        "response": "<string response label>"
+      }
     """
     print("\n=== [POST] /api/track-responses called ===")
     body = request.get_json(silent=True) or {}
-    print(f"[TRACK RESPONSES] Input (stub only): {body}")
+    print(f"[TRACK RESPONSES] Input: {body}")
+
+    house_id_str = body.get("house_id")
+    response_value = body.get("response")
+
+    if not house_id_str or not response_value:
+        print("[TRACK RESPONSES] Missing house_id or response")
+        return jsonify({"error": "house_id_and_response_required"}), 400
+
+    try:
+        house_oid = ObjectId(house_id_str)
+    except Exception:
+        print(f"[TRACK RESPONSES] Invalid house_id: {house_id_str}")
+        return jsonify({"error": "invalid_house_id"}), 400
+
+    # Get DB
+    try:
+        db = get_db()
+    except Exception as e:
+        print(f"[TRACK RESPONSES ERROR] DB handle unavailable: {e}")
+        return jsonify({"error": "Server DB misconfigured"}), 500
+
+    user_id = request.user.get("sub")
+
+    # 1) Update the house doc (ensure it belongs to this user)
+    print(f"[TRACK RESPONSES] Updating house {_id} for user {user_id}")
+    house_update_res = db.houses.update_one(
+        {"_id": house_oid, "user_id": user_id},
+        {
+            "$set": {
+                "response": response_value,
+                "updated_at": datetime.utcnow()
+            }
+        }
+    )
+
+    if house_update_res.matched_count == 0:
+        print("[TRACK RESPONSES] house_not_found_or_forbidden")
+        return jsonify({"error": "house_not_found_or_forbidden"}), 404
+
+    # 2) Fetch territory_id for this house
+    house_doc = db.houses.find_one(
+        {"_id": house_oid},
+        {"territory_id": 1}
+    )
+    terr_oid = house_doc.get("territory_id") if house_doc else None
+
+    # 3) Update the corresponding entry in territories.houses_sample (if present)
+    if terr_oid:
+        terr_update_res = db.territories.update_one(
+            {
+                "_id": terr_oid,
+                "user_id": user_id,
+                "houses_sample.house_id": house_id_str
+            },
+            {
+                "$set": {
+                    "houses_sample.$.response": response_value,
+                    "houses_last_refreshed_at": datetime.utcnow()
+                }
+            }
+        )
+        print(f"[TRACK RESPONSES] Territory sample update matched={terr_update_res.matched_count}, modified={terr_update_res.modified_count}")
+    else:
+        print("[TRACK RESPONSES] No territory_id found on house document")
 
     return jsonify({
         "ok": True,
-        "message": "track_responses stub endpoint – no features implemented yet"
+        "house_id": house_id_str,
+        "response": response_value
     }), 200
