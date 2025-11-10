@@ -567,17 +567,24 @@ def houses_in_area():
         print(f"[HOUSES ERROR] {e}")
         return jsonify({"error": str(e)}), 400
 
+
+
 @api_territories_bp.route("/api/track-responses", methods=["POST"])
 @require_auth
 @csrf.exempt
 def track_responses():
     """
-    Update the 'response' field for a specific house, and sync it into the
-    territory's houses_sample (if present).
-    Expected JSON body:
+    Update the 'response' field for a specific house.
+    Steps:
+      1) Use authenticated user_id.
+      2) Find territory that belongs to this user AND contains this house_id in houses_sample.
+      3) Update:
+         - houses.response
+         - territories.houses_sample.$.response
+    Expected JSON:
       {
         "house_id": "<string Mongo _id>",
-        "response": "<string response label>"
+        "response": "<string label>"
       }
     """
     print("\n=== [POST] /api/track-responses called ===")
@@ -606,10 +613,29 @@ def track_responses():
 
     user_id = request.user.get("sub")
 
-    # 1) Update the house doc (ensure it belongs to this user)
-    print(f"[TRACK RESPONSES] Updating house {_id} for user {user_id}")
+    # 1) Find the territory for this user that contains this house_id in houses_sample
+    terr = db.territories.find_one(
+        {
+            "user_id": user_id,
+            "houses_sample.house_id": house_id_str
+        },
+        {"_id": 1}
+    )
+
+    if not terr:
+        print("[TRACK RESPONSES] No territory found for this user with that house_id")
+        return jsonify({"error": "territory_or_house_not_found"}), 404
+
+    terr_oid = terr["_id"]
+    print(f"[TRACK RESPONSES] Found territory {terr_oid} for user {user_id} and house_id {house_id_str}")
+
+    # 2) Update the house document (if it exists) for this user+territory
     house_update_res = db.houses.update_one(
-        {"_id": house_oid, "user_id": user_id},
+        {
+            "_id": house_oid,
+            "user_id": user_id,
+            "territory_id": terr_oid
+        },
         {
             "$set": {
                 "response": response_value,
@@ -617,39 +643,29 @@ def track_responses():
             }
         }
     )
+    print(f"[TRACK RESPONSES] House update matched={house_update_res.matched_count}, modified={house_update_res.modified_count}")
 
-    if house_update_res.matched_count == 0:
-        print("[TRACK RESPONSES] house_not_found_or_forbidden")
-        return jsonify({"error": "house_not_found_or_forbidden"}), 404
-
-    # 2) Fetch territory_id for this house
-    house_doc = db.houses.find_one(
-        {"_id": house_oid},
-        {"territory_id": 1}
-    )
-    terr_oid = house_doc.get("territory_id") if house_doc else None
-
-    # 3) Update the corresponding entry in territories.houses_sample (if present)
-    if terr_oid:
-        terr_update_res = db.territories.update_one(
-            {
-                "_id": terr_oid,
-                "user_id": user_id,
-                "houses_sample.house_id": house_id_str
-            },
-            {
-                "$set": {
-                    "houses_sample.$.response": response_value,
-                    "houses_last_refreshed_at": datetime.utcnow()
-                }
+    # 3) Update the matching entry in territories.houses_sample
+    terr_update_res = db.territories.update_one(
+        {
+            "_id": terr_oid,
+            "user_id": user_id,
+            "houses_sample.house_id": house_id_str
+        },
+        {
+            "$set": {
+                "houses_sample.$.response": response_value,
+                "houses_last_refreshed_at": datetime.utcnow()
             }
-        )
-        print(f"[TRACK RESPONSES] Territory sample update matched={terr_update_res.matched_count}, modified={terr_update_res.modified_count}")
-    else:
-        print("[TRACK RESPONSES] No territory_id found on house document")
+        }
+    )
+    print(f"[TRACK RESPONSES] Territory sample update matched={terr_update_res.matched_count}, modified={terr_update_res.modified_count}")
 
     return jsonify({
         "ok": True,
         "house_id": house_id_str,
         "response": response_value
     }), 200
+
+
+
