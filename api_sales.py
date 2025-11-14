@@ -1263,3 +1263,145 @@ def houses_in_area():
     for h in houses:
         h["_id"] = str(h["_id"])
     return jsonify(houses)
+
+
+
+#////////SIGNUP ROUTE////////////////////////////////////////////////
+
+
+from datetime import timedelta  # you already import datetime; this just adds timedelta
+
+
+def create_jwt_for_user(user_doc):
+    """
+    Create a JWT for a user document.
+    Encodes: sub (user id), email, role/user_type, and 30-day expiry.
+    """
+    payload = {
+        "sub": str(user_doc["_id"]),
+        "email": user_doc.get("email"),
+        "role": user_doc.get("user_type", "sales"),
+        "exp": datetime.utcnow() + timedelta(days=30)
+    }
+
+    # Try app config first; fall back to Config if needed
+    secret = current_app.config.get("JWT_SECRET") or getattr(Config, "JWT_SECRET", None)
+    if not secret:
+        current_app.logger.error("[SALES REGISTER] JWT_SECRET not configured.")
+        raise RuntimeError("JWT secret not configured")
+
+    token = jwt.encode(payload, secret, algorithm="HS256")
+    if isinstance(token, bytes):
+        token = token.decode("utf-8")
+    return token
+
+
+@api_sales_bp.route('/sales/register', methods=['POST'])
+def register_sales_user():
+    """
+    Quick sales signup endpoint for the Sales app.
+
+    Body JSON:
+    {
+      "email": "...",
+      "password": "...",
+      "full_name": "...",
+      "username": "...",   # optional but nice to have
+      "phone": "..."       # optional
+    }
+
+    - Saves directly into db.users with user_type = "sales"
+    - Marks approved = True (MVP, no manual approval step)
+    - Returns a JWT so the app can immediately authenticate.
+    """
+    data = request.get_json() or {}
+    current_app.logger.info(f"[SALES REGISTER] Incoming data: {data}")
+
+    email     = (data.get("email") or "").strip().lower()
+    username  = (data.get("username") or "").strip()
+    password  = (data.get("password") or "").strip()
+    full_name = (data.get("full_name") or "").strip()
+    phone     = (data.get("phone") or "").strip()
+
+    # ---- basic validation ----
+    errors = {}
+    if not email:
+        errors["email"] = "Email is required."
+    elif not is_valid_email(email):
+        errors["email"] = "Invalid email format."
+
+    if not full_name:
+        errors["full_name"] = "Full name is required."
+
+    if not password or len(password) < 8:
+        errors["password"] = "Password must be at least 8 characters long."
+
+    if errors:
+        current_app.logger.error(f"[SALES REGISTER] Validation errors: {errors}")
+        return jsonify({"ok": False, "errors": errors}), 400
+
+    # DB handles
+    db = current_app.config.get("MONGO_CLIENT")
+    if db is None:
+        current_app.logger.error("[SALES REGISTER] MONGO_CLIENT not configured")
+        return jsonify({"error": "Database connection not configured"}), 500
+
+    users_collection = db.users
+    users_to_approve = db.users_to_approve  # to prevent duplicate emails
+
+    # ---- prevent duplicate emails (in both users and users_to_approve) ----
+    existing_user = users_collection.find_one({"email": email})
+    existing_pending = users_to_approve.find_one({"email": email})
+
+    if existing_user or existing_pending:
+        msg = f"Email '{email}' already exists (or is pending approval)."
+        current_app.logger.error(f"[SALES REGISTER] {msg}")
+        return jsonify({"ok": False, "error": "email_in_use", "message": msg}), 409
+
+    # ---- hash password ----
+    try:
+        hashed_pw = bcrypt.generate_password_hash(password).decode("utf-8")
+    except Exception as e:
+        current_app.logger.error(f"[SALES REGISTER] Error hashing password: {e}")
+        return jsonify({"error": "Internal error while processing password."}), 500
+
+    # ---- build user document ----
+    user_doc = {
+        "email": email,
+        "username": username or email,    # default username = email if not provided
+        "password": hashed_pw,
+        "full_name": full_name,
+        "phone": phone,
+        "user_type": "sales",             # 🔹 important: mark as sales
+        "approved": True,                 # 🔹 for MVP, auto-approve sales reps
+        "creation_date": datetime.utcnow(),
+        "updated_date": datetime.utcnow()
+    }
+
+    try:
+        res = users_collection.insert_one(user_doc)
+        user_doc["_id"] = res.inserted_id
+        current_app.logger.info(f"[SALES REGISTER] Inserted sales user _id={user_doc['_id']}")
+    except Exception as e:
+        current_app.logger.error(f"[SALES REGISTER] Insert failed: {e}", exc_info=True)
+        return jsonify({"error": "Database insertion failed"}), 500
+
+    # ---- create JWT so sales app can authenticate immediately ----
+    try:
+        token = create_jwt_for_user(user_doc)
+    except Exception as e:
+        current_app.logger.error(f"[SALES REGISTER] Failed to create JWT: {e}", exc_info=True)
+        return jsonify({"error": "Failed to create JWT for user"}), 500
+
+    return jsonify({
+        "ok": True,
+        "token": token,
+        "user": {
+            "id": str(user_doc["_id"]),
+            "email": user_doc["email"],
+            "full_name": user_doc["full_name"],
+            "username": user_doc["username"],
+            "phone": user_doc.get("phone", ""),
+            "user_type": user_doc.get("user_type", "sales")
+        }
+    }), 201
