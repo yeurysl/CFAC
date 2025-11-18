@@ -1317,14 +1317,25 @@ def register_sales_user():
     - Marks approved = True (MVP, no manual approval step)
     - Returns a JWT so the app can immediately authenticate.
     """
+    import os  # for checking env vars in debug logs
+
+    current_app.logger.info("========== [SALES REGISTER] Handler entered ==========")
+
     data = request.get_json() or {}
-    current_app.logger.info(f"[SALES REGISTER] Incoming data: {data}")
+    current_app.logger.info(f"[SALES REGISTER] Raw incoming JSON data: {repr(data)}")
 
     email     = (data.get("email") or "").strip().lower()
     username  = (data.get("username") or "").strip()
     password  = (data.get("password") or "").strip()
     full_name = (data.get("full_name") or "").strip()
     phone     = (data.get("phone") or "").strip()
+
+    current_app.logger.info(
+        "[SALES REGISTER] Parsed fields -> "
+        f"email={repr(email)}, username={repr(username)}, "
+        f"full_name={repr(full_name)}, phone={repr(phone)}, "
+        f"password_length={len(password)}"
+    )
 
     # ---- basic validation ----
     errors = {}
@@ -1339,12 +1350,16 @@ def register_sales_user():
     if not password or len(password) < 8:
         errors["password"] = "Password must be at least 8 characters long."
 
+    current_app.logger.info(f"[SALES REGISTER] Validation result errors={errors}")
+
     if errors:
-        current_app.logger.error(f"[SALES REGISTER] Validation errors: {errors}")
+        current_app.logger.error(f"[SALES REGISTER] Validation errors encountered, aborting: {errors}")
         return jsonify({"ok": False, "errors": errors}), 400
 
     # DB handles
     db = current_app.config.get("MONGO_CLIENT")
+    current_app.logger.info(f"[SALES REGISTER] MONGO_CLIENT from config: {repr(db)}")
+
     if db is None:
         current_app.logger.error("[SALES REGISTER] MONGO_CLIENT not configured")
         return jsonify({"error": "Database connection not configured"}), 500
@@ -1352,9 +1367,21 @@ def register_sales_user():
     users_collection = db.users
     users_to_approve = db.users_to_approve  # to prevent duplicate emails
 
+    current_app.logger.info(
+        "[SALES REGISTER] Got collections -> "
+        f"users_collection={repr(users_collection)}, "
+        f"users_to_approve={repr(users_to_approve)}"
+    )
+
     # ---- prevent duplicate emails (in both users and users_to_approve) ----
+    current_app.logger.info(f"[SALES REGISTER] Checking for existing user with email={repr(email)}")
     existing_user = users_collection.find_one({"email": email})
     existing_pending = users_to_approve.find_one({"email": email})
+    current_app.logger.info(
+        "[SALES REGISTER] Duplicate check -> "
+        f"existing_user_found={bool(existing_user)}, "
+        f"existing_pending_found={bool(existing_pending)}"
+    )
 
     if existing_user or existing_pending:
         msg = f"Email '{email}' already exists (or is pending approval)."
@@ -1362,10 +1389,15 @@ def register_sales_user():
         return jsonify({"ok": False, "error": "email_in_use", "message": msg}), 409
 
     # ---- hash password ----
+    current_app.logger.info("[SALES REGISTER] Starting password hashing...")
     try:
         hashed_pw = bcrypt.generate_password_hash(password).decode("utf-8")
+        current_app.logger.info(
+            "[SALES REGISTER] Password hashing successful. "
+            f"Hashed password length={len(hashed_pw)}"
+        )
     except Exception as e:
-        current_app.logger.error(f"[SALES REGISTER] Error hashing password: {e}")
+        current_app.logger.error(f"[SALES REGISTER] Error hashing password: {e}", exc_info=True)
         return jsonify({"error": "Internal error while processing password."}), 500
 
     # ---- build user document ----
@@ -1375,58 +1407,103 @@ def register_sales_user():
         "password": hashed_pw,
         "full_name": full_name,
         "phone": phone,
-        "user_type": "sales",             # 🔹 important: mark as sales
-        "approved": True,                 # 🔹 for MVP, auto-approve sales reps
+        "user_type": "sales",             # mark as sales
+        "approved": True,                 # for MVP, auto-approve sales reps
         "creation_date": datetime.utcnow(),
         "updated_date": datetime.utcnow()
     }
 
+    # Log user_doc without the password hash
+    log_safe_user_doc = {k: v for k, v in user_doc.items() if k != "password"}
+    current_app.logger.info(f"[SALES REGISTER] Built user_doc (excluding password): {repr(log_safe_user_doc)}")
+
     try:
+        current_app.logger.info("[SALES REGISTER] Attempting to insert user_doc into users_collection...")
         res = users_collection.insert_one(user_doc)
         user_doc["_id"] = res.inserted_id
-        current_app.logger.info(f"[SALES REGISTER] Inserted sales user _id={user_doc['_id']}")
+        current_app.logger.info(
+            f"[SALES REGISTER] Inserted sales user successfully. _id={user_doc['_id']}, "
+            f"inserted_id_type={type(user_doc['_id'])}"
+        )
     except Exception as e:
         current_app.logger.error(f"[SALES REGISTER] Insert failed: {e}", exc_info=True)
         return jsonify({"error": "Database insertion failed"}), 500
 
     # ---- create JWT so sales app can authenticate immediately ----
+    current_app.logger.info("[SALES REGISTER] Starting JWT creation for new user...")
     try:
         token = create_jwt_for_user(user_doc)
+        current_app.logger.info(
+            "[SALES REGISTER] JWT created successfully. "
+            f"Token_type={type(token)}, token_preview={repr(str(token)[:30]) + '...'}"
+        )
     except Exception as e:
         current_app.logger.error(f"[SALES REGISTER] Failed to create JWT: {e}", exc_info=True)
         return jsonify({"error": "Failed to create JWT for user"}), 500
 
     # ---- send emails (non-blocking for the client) ----
     try:
-        # 1) Email the new sales user
-        send_sales_signup_user_email(user_doc)
+        current_app.logger.info("[SALES REGISTER][EMAIL] Entering email-sending block...")
 
+        # Check what sender is configured at this point
+        sender_cfg = current_app.config.get("POSTMARK_SENDER_EMAIL")
+        sender_env = os.getenv("POSTMARK_SENDER_EMAIL")
+        current_app.logger.info(
+            "[SALES REGISTER][EMAIL] POSTMARK_SENDER_EMAIL values -> "
+            f"config={repr(sender_cfg)}, env={repr(sender_env)}"
+        )
+
+        current_app.logger.info(
+            "[SALES REGISTER][EMAIL] user_doc for email (safe, no password): "
+            f"{repr(log_safe_user_doc)}"
+        )
+
+        # 1) Email the new sales user
+        current_app.logger.info("[SALES REGISTER][EMAIL] Calling send_sales_signup_user_email(user_doc)...")
+        send_sales_signup_user_email(user_doc)
+        current_app.logger.info("[SALES REGISTER][EMAIL] send_sales_signup_user_email() returned without exception.")
 
         # 2) Find all admins to notify
+        current_app.logger.info("[SALES REGISTER][EMAIL] Querying admins for notification...")
         admin_cursor = users_collection.find({
             "user_type": {"$in": ["admin", "super_admin"]},
             "approved": True,
             "email": {"$ne": None}
         })
 
-        admin_emails = [u["email"] for u in admin_cursor if u.get("email")]
+        admin_list = list(admin_cursor)
+        current_app.logger.info(
+            f"[SALES REGISTER][EMAIL] Raw admin docs fetched: count={len(admin_list)}"
+        )
+
+        admin_emails = [u.get("email") for u in admin_list if u.get("email")]
+        current_app.logger.info(
+            f"[SALES REGISTER][EMAIL] Filtered admin_emails list: {repr(admin_emails)}"
+        )
+
         if admin_emails:
-            send_sales_signup_admin_notifications(
-                admin_emails=admin_emails,
-                new_user={
-                    "full_name": full_name,
-                    "email": email,
-                    "phone": phone,
-                    "created_at": user_doc["creation_date"],
-                },
+            current_app.logger.info(
+                "[SALES REGISTER][EMAIL] Admin emails found. "
+                "Calling send_sales_signup_admin_notifications(admin_emails, user_doc)..."
             )
+            # Make sure this matches the helper signature: (admin_emails, sales_user)
+            send_sales_signup_admin_notifications(admin_emails, user_doc)
+            current_app.logger.info(
+                "[SALES REGISTER][EMAIL] send_sales_signup_admin_notifications() "
+                "returned without exception."
+            )
+        else:
+            current_app.logger.info("[SALES REGISTER][EMAIL] No admin emails found to notify.")
 
     except Exception as e:
         # Don’t break registration if email sending fails
-        current_app.logger.error(f"[SALES REGISTER] Failed to send registration emails: {e}", exc_info=True)
+        current_app.logger.error(
+            "[SALES REGISTER] Failed to send registration emails (exception below):",
+            exc_info=True
+        )
 
     # ---- final response ----
-    return jsonify({
+    response_payload = {
         "ok": True,
         "token": token,
         "user": {
@@ -1437,7 +1514,12 @@ def register_sales_user():
             "phone": user_doc.get("phone", ""),
             "user_type": user_doc.get("user_type", "sales")
         }
-    }), 201
+    }
+    current_app.logger.info(f"[SALES REGISTER] Final response payload (no password/JWT body): "
+                            f"user={repr(response_payload['user'])}")
+    current_app.logger.info("========== [SALES REGISTER] Handler exiting successfully ==========")
+
+    return jsonify(response_payload), 201
 
 
 
