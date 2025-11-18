@@ -837,3 +837,161 @@ def send_ios_push_notification(tech_id, order_id, device_token, message):
     except Exception as e:
         current_app.logger.error(f"Error sending iOS push notification: {str(e)}")
         return {"error": str(e)}
+
+
+
+
+
+
+# =========================
+#  SALES APP REGISTRATION
+# =========================
+
+def send_sales_signup_user_email(sales_user: dict):
+    """
+    Sends a welcome email to the newly registered sales user.
+    Expects a user_doc dict with at least: email, full_name.
+    """
+    from flask import current_app  # ensure we have it in this scope too
+
+    recipient_email = sales_user.get("email")
+    full_name = sales_user.get("full_name", "there")
+
+    if not recipient_email:
+        current_app.logger.error("[SALES SIGNUP EMAIL] Sales user has no email; skipping user welcome email.")
+        return
+
+    sender_email = current_app.config.get("POSTMARK_SENDER_EMAIL") or os.getenv("POSTMARK_SENDER_EMAIL")
+    if not sender_email:
+        current_app.logger.error("[SALES SIGNUP EMAIL] POSTMARK_SENDER_EMAIL not configured; cannot send user welcome email.")
+        return
+
+    subject = "Welcome to CFAC Sales"
+    text_body = (
+        f"Hi {full_name},\n\n"
+        "Thanks for signing up as a sales rep with Central Florida Auto Care.\n"
+        "You can now log into the sales app and start booking details for customers.\n\n"
+        "If you have any questions, just reply to this email.\n\n"
+        "- CFAC Team"
+    )
+
+    html_body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Welcome to CFAC Sales</title>
+    </head>
+    <body style="font-family: Arial, sans-serif; background-color:#f4f4f4; padding:20px;">
+        <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 3px rgba(0,0,0,0.1);">
+            <div style="background:#07173d;color:#ffffff;padding:20px;text-align:center;">
+                <h1 style="margin:0;font-size:22px;">Welcome to CFAC Sales</h1>
+            </div>
+            <div style="padding:20px;color:#333333;">
+                <p>Hi {full_name},</p>
+                <p>Thanks for signing up as a sales rep with <strong>Central Florida Auto Care</strong> 🚗✨.</p>
+                <p>You can now log into the sales app and start booking details for customers.</p>
+                <p>If you have any questions, just reply to this email.</p>
+                <p style="margin-top:20px;">– CFAC Team</p>
+            </div>
+            <div style="background:#f1f1f1;padding:12px;text-align:center;font-size:12px;color:#666666;">
+                &copy; {datetime.utcnow().year} Central Florida Auto Care LLC. All rights reserved.
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+    try:
+        send_postmark_email(
+            subject=subject,
+            to_email=recipient_email,
+            from_email=sender_email,
+            text_body=text_body,
+            html_body=html_body
+        )
+        current_app.logger.info(f"[SALES SIGNUP EMAIL] Welcome email sent to {recipient_email}")
+    except Exception as e:
+        current_app.logger.error(f"[SALES SIGNUP EMAIL] Failed to send welcome email to {recipient_email}: {e}")
+
+
+def send_sales_signup_admin_notifications(admin_emails, sales_user: dict):
+    """
+    Sends notification emails to all admins when a new sales user signs up.
+    admin_emails: list of email strings
+    sales_user: dict with full_name, email, phone, creation_date, etc.
+    """
+    from flask import current_app  # ensure we have it
+
+    if not admin_emails:
+        current_app.logger.info("[SALES SIGNUP EMAIL] No admin emails provided; skipping admin notifications.")
+        return
+
+    sender_email = current_app.config.get("POSTMARK_SENDER_EMAIL") or os.getenv("POSTMARK_SENDER_EMAIL")
+    if not sender_email:
+        current_app.logger.error("[SALES SIGNUP EMAIL] POSTMARK_SENDER_EMAIL not configured; cannot send admin notifications.")
+        return
+
+    full_name = sales_user.get("full_name", "Unknown")
+    email = sales_user.get("email", "Unknown")
+    phone = sales_user.get("phone", "N/A")
+    created_at = sales_user.get("creation_date")
+    created_str = created_at.isoformat() if isinstance(created_at, datetime) else str(created_at)
+
+    subject = f"New Sales Rep Registered: {full_name}"
+
+    # Simple text body as fallback
+    text_body = (
+        "A new sales user has registered in the CFAC system.\n\n"
+        f"Name: {full_name}\n"
+        f"Email: {email}\n"
+        f"Phone: {phone}\n"
+        f"Created at (UTC): {created_str}\n\n"
+        "They were automatically marked as approved=True by the sales register API."
+    )
+
+    # HTML body
+    html_body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>New Sales Rep Registered</title>
+    </head>
+    <body style="font-family: Arial, sans-serif; background-color:#f4f4f4; padding:20px;">
+        <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 3px rgba(0,0,0,0.1);">
+            <div style="background:#07173d;color:#ffffff;padding:20px;text-align:center;">
+                <h1 style="margin:0;font-size:22px;">New Sales Rep Registered</h1>
+            </div>
+            <div style="padding:20px;color:#333333;">
+                <p>A new <strong>sales user</strong> just registered in the CFAC system.</p>
+                <ul>
+                    <li><strong>Name:</strong> {full_name}</li>
+                    <li><strong>Email:</strong> {email}</li>
+                    <li><strong>Phone:</strong> {phone}</li>
+                    <li><strong>Created at (UTC):</strong> {created_str}</li>
+                </ul>
+                <p>They were automatically marked as <code>approved=True</code> by the sales register API.</p>
+            </div>
+            <div style="background:#f1f1f1;padding:12px;text-align:center;font-size:12px;color:#666666;">
+                &copy; {datetime.utcnow().year} Central Florida Auto Care LLC. All rights reserved.
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+    for admin_email in admin_emails:
+        if not admin_email:
+            continue
+        try:
+            send_postmark_email(
+                subject=subject,
+                to_email=admin_email,
+                from_email=sender_email,
+                text_body=text_body,
+                html_body=html_body
+            )
+            current_app.logger.info(f"[SALES SIGNUP EMAIL] Admin notification sent to {admin_email}")
+        except Exception as e:
+            current_app.logger.error(f"[SALES SIGNUP EMAIL] Failed to send admin notification to {admin_email}: {e}")

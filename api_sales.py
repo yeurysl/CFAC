@@ -1267,6 +1267,11 @@ def houses_in_area():
 
 
 #////////SIGNUP ROUTE////////////////////////////////////////////////
+from notis import (
+    send_sales_signup_user_email,
+    send_sales_signup_admin_notifications,
+)
+
 
 
 from datetime import timedelta  # you already import datetime; this just adds timedelta
@@ -1294,6 +1299,7 @@ def create_jwt_for_user(user_doc):
     if isinstance(token, bytes):
         token = token.decode("utf-8")
     return token
+
 
 
 @api_sales_bp.route('/sales/register', methods=['POST'])
@@ -1393,6 +1399,38 @@ def register_sales_user():
         current_app.logger.error(f"[SALES REGISTER] Failed to create JWT: {e}", exc_info=True)
         return jsonify({"error": "Failed to create JWT for user"}), 500
 
+    # ---- send emails (non-blocking for the client) ----
+    try:
+        # 1) Email the new sales user
+        send_sales_signup_user_email(
+            to_email=email,
+            full_name=full_name,
+        )
+
+        # 2) Find all admins to notify
+        admin_cursor = users_collection.find({
+            "user_type": {"$in": ["admin", "super_admin"]},
+            "approved": True,
+            "email": {"$ne": None}
+        })
+
+        admin_emails = [u["email"] for u in admin_cursor if u.get("email")]
+        if admin_emails:
+            send_sales_signup_admin_email(
+                admin_emails=admin_emails,
+                new_user={
+                    "full_name": full_name,
+                    "email": email,
+                    "phone": phone,
+                    "created_at": user_doc["creation_date"],
+                },
+            )
+
+    except Exception as e:
+        # Don’t break registration if email sending fails
+        current_app.logger.error(f"[SALES REGISTER] Failed to send registration emails: {e}", exc_info=True)
+
+    # ---- final response ----
     return jsonify({
         "ok": True,
         "token": token,
@@ -1405,3 +1443,6 @@ def register_sales_user():
             "user_type": user_doc.get("user_type", "sales")
         }
     }), 201
+
+
+
