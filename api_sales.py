@@ -1267,10 +1267,7 @@ def houses_in_area():
 
 
 #////////SIGNUP ROUTE////////////////////////////////////////////////
-from notis import (
-    send_sales_signup_user_email,
-    send_sales_signup_admin_notifications,
-)
+from notis import send_sales_signup_user_email, send_sales_signup_admin_notifications
 
 
 
@@ -1402,10 +1399,8 @@ def register_sales_user():
     # ---- send emails (non-blocking for the client) ----
     try:
         # 1) Email the new sales user
-        send_sales_signup_user_email(
-            to_email=email,
-            full_name=full_name,
-        )
+        send_sales_signup_user_email(user_doc)
+
 
         # 2) Find all admins to notify
         admin_cursor = users_collection.find({
@@ -1416,7 +1411,7 @@ def register_sales_user():
 
         admin_emails = [u["email"] for u in admin_cursor if u.get("email")]
         if admin_emails:
-            send_sales_signup_admin_email(
+            send_sales_signup_admin_notifications(
                 admin_emails=admin_emails,
                 new_user={
                     "full_name": full_name,
