@@ -1467,8 +1467,11 @@ def register_sales_user():
         current_app.logger.info("[SALES REGISTER][EMAIL] Querying admins for notification...")
         admin_cursor = users_collection.find({
             "user_type": {"$in": ["admin", "super_admin"]},
-            "approved": True,
-            "email": {"$ne": None}
+            "email": {"$ne": None},
+            "$or": [
+                {"approved": True},
+                {"approved": {"$exists": False}}
+            ]
         })
 
         admin_list = list(admin_cursor)
