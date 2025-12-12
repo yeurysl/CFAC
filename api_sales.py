@@ -1298,13 +1298,13 @@ def delete_territory_sales(territory_id):
     territories_collection = db.territories
 
     current_app.logger.info(
-        f"[Territories][DELETE] Attempting delete for territory_id={territory_id}, owner_id={user_id}"
+        f"[Territories][DELETE] Attempting delete for territory_id={territory_id}, user_id={user_id}"
     )
 
     try:
         result = territories_collection.delete_one({
             "_id": ObjectId(territory_id),
-            "owner_id": user_id   # ensure this user owns the territory
+            "user_id": user_id   # ensure this user owns the territory
         })
     except Exception as e:
         current_app.logger.error(f"[Territories][DELETE] Error during delete: {e}", exc_info=True)
@@ -1312,7 +1312,7 @@ def delete_territory_sales(territory_id):
 
     if result.deleted_count == 0:
         current_app.logger.error(
-            f"[Territories][DELETE] No territory deleted for id={territory_id} and owner_id={user_id}"
+            f"[Territories][DELETE] No territory deleted for id={territory_id} and user_id={user_id}"
         )
         return jsonify({"error": "Territory not found or unauthorized"}), 404
 
