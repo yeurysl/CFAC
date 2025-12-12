@@ -1265,6 +1265,75 @@ def houses_in_area():
     return jsonify(houses)
 
 
+@api_sales_bp.route("/territories/<territory_id>", methods=["DELETE"])
+def delete_territory_sales(territory_id):
+    """
+    Delete a territory by id for the logged-in user.
+    """
+    current_app.logger.info(f"[Territories][DELETE] /api/territories/{territory_id} called")
+
+    # --- Auth, same pattern as /orders ---
+    auth_header = request.headers.get('Authorization', '')
+    if not auth_header.startswith("Bearer "):
+        current_app.logger.error("[Territories][DELETE] Missing or invalid Authorization header")
+        return jsonify({"error": "Missing or invalid Authorization header."}), 401
+
+    token = auth_header.replace("Bearer ", "").strip()
+    secret_key = current_app.config.get('JWT_SECRET')
+    if not secret_key:
+        current_app.logger.error("[Territories][DELETE] JWT_SECRET not configured")
+        return jsonify({"error": "Server misconfiguration: missing JWT secret."}), 500
+
+    user_id = decode_jwt(token, secret_key)
+    if not user_id:
+        current_app.logger.error("[Territories][DELETE] Invalid or expired token")
+        return jsonify({"error": "Invalid or expired token"}), 401
+
+    # --- DB handles ---
+    db = current_app.config.get("MONGO_CLIENT")
+    if db is None:
+        current_app.logger.error("[Territories][DELETE] MONGO_CLIENT not configured")
+        return jsonify({"error": "Database connection not configured"}), 500
+
+    territories_collection = db.territories
+
+    current_app.logger.info(
+        f"[Territories][DELETE] Attempting delete for territory_id={territory_id}, owner_id={user_id}"
+    )
+
+    try:
+        result = territories_collection.delete_one({
+            "_id": ObjectId(territory_id),
+            "owner_id": user_id   # ensure this user owns the territory
+        })
+    except Exception as e:
+        current_app.logger.error(f"[Territories][DELETE] Error during delete: {e}", exc_info=True)
+        return jsonify({"error": "Failed to delete territory"}), 500
+
+    if result.deleted_count == 0:
+        current_app.logger.error(
+            f"[Territories][DELETE] No territory deleted for id={territory_id} and owner_id={user_id}"
+        )
+        return jsonify({"error": "Territory not found or unauthorized"}), 404
+
+    current_app.logger.info(
+        f"[Territories][DELETE] Territory {territory_id} deleted successfully for user {user_id}"
+    )
+    return jsonify({"message": "Territory deleted successfully"}), 200
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #////////SIGNUP ROUTE////////////////////////////////////////////////
 from notis import send_sales_signup_user_email, send_sales_signup_admin_notifications
