@@ -1265,64 +1265,134 @@ def houses_in_area():
     return jsonify(houses)
 
 
+
+
+
+
 @api_sales_bp.route("/territories/<territory_id>", methods=["DELETE"])
 def delete_territory_sales(territory_id):
     """
-    Delete a territory by id for the logged-in user.
+    DELETE a territory by ID — EXTREME PRINT VERSION (no loggers).
     """
-    current_app.logger.info(f"[Territories][DELETE] /api/territories/{territory_id} called")
 
-    # --- Auth, same pattern as /orders ---
+    print("\n" + "="*80)
+    print("[DELETE][START] DELETE /api/territories/{}".format(territory_id))
+    print("="*80)
+
+    # -------------------------------------------------------------------------
+    # 1. PRINT ALL HEADERS
+    # -------------------------------------------------------------------------
+    print("\n[DELETE] Incoming Request Headers:")
+    for k, v in request.headers.items():
+        print(f"   {k}: {v}")
+
+    # -------------------------------------------------------------------------
+    # 2. Extract Authorization header
+    # -------------------------------------------------------------------------
     auth_header = request.headers.get('Authorization', '')
+    print(f"\n[DELETE] Raw Authorization header: '{auth_header}'")
+
     if not auth_header.startswith("Bearer "):
-        current_app.logger.error("[Territories][DELETE] Missing or invalid Authorization header")
-        return jsonify({"error": "Missing or invalid Authorization header."}), 401
+        print("[DELETE][ERROR] Authorization header missing or invalid format.")
+        return jsonify({"error": "Missing or invalid Authorization header"}), 401
 
     token = auth_header.replace("Bearer ", "").strip()
-    secret_key = current_app.config.get('JWT_SECRET')
+    print(f"[DELETE] Extracted token (first 20 chars): {token[:20]}...")
+
+    # -------------------------------------------------------------------------
+    # 3. Decode token
+    # -------------------------------------------------------------------------
+    secret_key = current_app.config.get("JWT_SECRET")
+    print(f"[DELETE] JWT_SECRET loaded? {bool(secret_key)}")
+
     if not secret_key:
-        current_app.logger.error("[Territories][DELETE] JWT_SECRET not configured")
-        return jsonify({"error": "Server misconfiguration: missing JWT secret."}), 500
+        print("[DELETE][ERROR] No JWT_SECRET in config")
+        return jsonify({"error": "Missing JWT secret"}), 500
 
     user_id = decode_jwt(token, secret_key)
+    print(f"[DELETE] Decoded token → user_id = {user_id}")
+
     if not user_id:
-        current_app.logger.error("[Territories][DELETE] Invalid or expired token")
+        print("[DELETE][ERROR] Token invalid or expired")
         return jsonify({"error": "Invalid or expired token"}), 401
 
-    # --- DB handles ---
+    # -------------------------------------------------------------------------
+    # 4. DB connection
+    # -------------------------------------------------------------------------
     db = current_app.config.get("MONGO_CLIENT")
+    print(f"[DELETE] DB loaded? {db is not None}")
+
     if db is None:
-        current_app.logger.error("[Territories][DELETE] MONGO_CLIENT not configured")
-        return jsonify({"error": "Database connection not configured"}), 500
+        print("[DELETE][ERROR] Database not configured")
+        return jsonify({"error": "Database not configured"}), 500
 
     territories_collection = db.territories
 
-    current_app.logger.info(
-        f"[Territories][DELETE] Attempting delete for territory_id={territory_id}, user_id={user_id}"
-    )
-
+    # -------------------------------------------------------------------------
+    # 5. Convert ID to ObjectId
+    # -------------------------------------------------------------------------
     try:
-        result = territories_collection.delete_one({
-            "_id": ObjectId(territory_id),
-            "user_id": user_id   # ensure this user owns the territory
-        })
+        converted_id = ObjectId(territory_id)
+        print(f"[DELETE] Converted territory_id '{territory_id}' → ObjectId")
     except Exception as e:
-        current_app.logger.error(f"[Territories][DELETE] Error during delete: {e}", exc_info=True)
+        print(f"[DELETE][ERROR] Invalid ObjectId: {e}")
+        return jsonify({"error": "Invalid territory ID format"}), 400
+
+    # -------------------------------------------------------------------------
+    # 6. Check existence BEFORE deletion
+    # -------------------------------------------------------------------------
+    print("\n[DELETE] Checking if territory exists BEFORE delete…")
+
+    doc_before = territories_collection.find_one({
+        "_id": converted_id,
+        "user_id": user_id
+    })
+
+    if doc_before:
+        print("[DELETE] FOUND document before deletion:")
+        print(doc_before)
+    else:
+        print("[DELETE][WARN] No matching document found before deletion (may be wrong user or wrong ID).")
+
+    # -------------------------------------------------------------------------
+    # 7. Print DELETE query exactly
+    # -------------------------------------------------------------------------
+    delete_query = {
+        "_id": converted_id,
+        "user_id": user_id
+    }
+    print(f"\n[DELETE] Running delete_one with query: {delete_query}")
+
+    # -------------------------------------------------------------------------
+    # 8. Perform delete
+    # -------------------------------------------------------------------------
+    try:
+        result = territories_collection.delete_one(delete_query)
+        print(f"[DELETE] delete_one().deleted_count = {result.deleted_count}")
+    except Exception as e:
+        print("[DELETE][EXCEPTION] Exception during delete_one():")
+        print(e)
         return jsonify({"error": "Failed to delete territory"}), 500
 
+    # -------------------------------------------------------------------------
+    # 9. Handle failed delete
+    # -------------------------------------------------------------------------
     if result.deleted_count == 0:
-        current_app.logger.error(
-            f"[Territories][DELETE] No territory deleted for id={territory_id} and user_id={user_id}"
-        )
+        print("\n[DELETE][FAIL] Nothing deleted!")
+        print("Possible reasons:")
+        print("  - Territory does NOT belong to this user")
+        print("  - ID does not exist")
+        print("  - ID was wrong or malformed")
+        print("  - User mismatch")
         return jsonify({"error": "Territory not found or unauthorized"}), 404
 
-    current_app.logger.info(
-        f"[Territories][DELETE] Territory {territory_id} deleted successfully for user {user_id}"
-    )
+    # -------------------------------------------------------------------------
+    # 10. Success
+    # -------------------------------------------------------------------------
+    print(f"\n[DELETE][SUCCESS] Territory {territory_id} deleted for user {user_id}")
+    print("="*80 + "\n")
+
     return jsonify({"message": "Territory deleted successfully"}), 200
-
-
-
 
 
 
