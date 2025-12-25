@@ -995,3 +995,189 @@ def send_sales_signup_admin_notifications(admin_emails, sales_user: dict):
             current_app.logger.info(f"[SALES SIGNUP EMAIL] Admin notification sent to {admin_email}")
         except Exception as e:
             current_app.logger.error(f"[SALES SIGNUP EMAIL] Failed to send admin notification to {admin_email}: {e}")
+
+
+
+
+import os
+from bson.objectid import ObjectId
+from datetime import datetime
+from flask import current_app
+
+def notify_admins_new_order(order_id: str):
+    try:
+        print("[ADMIN NEW ORDER] start", order_id)
+
+        orders_collection = current_app.config.get("ORDERS_COLLECTION")
+        users_collection  = current_app.config.get("USERS_COLLECTION")
+
+        if not orders_collection:
+            print("[ADMIN NEW ORDER] ORDERS_COLLECTION missing")
+            return
+        if not users_collection:
+            print("[ADMIN NEW ORDER] USERS_COLLECTION missing")
+            return
+
+        order = orders_collection.find_one({"_id": ObjectId(order_id)})
+        if not order:
+            print("[ADMIN NEW ORDER] order not found", order_id)
+            return
+
+        admins = list(users_collection.find({"user_type": "admin"}, {"email": 1}))
+        admin_emails = [a.get("email", "").strip() for a in admins if a.get("email")]
+
+        print("[ADMIN NEW ORDER] admins found:", len(admin_emails), admin_emails)
+
+        if not admin_emails:
+            print("[ADMIN NEW ORDER] no admin emails found")
+            return
+
+        sender_email = current_app.config.get("POSTMARK_SENDER_EMAIL") or os.getenv("POSTMARK_SENDER_EMAIL")
+        if not sender_email:
+            print("[ADMIN NEW ORDER] sender email missing (POSTMARK_SENDER_EMAIL)")
+            return
+
+        guest_name = order.get("guest_name", "Guest")
+        guest_email = order.get("guest_email", "N/A")
+        service_date = order.get("service_date", "N/A")
+        final_price = order.get("final_price", "N/A")
+        travel_fee = order.get("travel_fee", 0)
+        salesperson = order.get("salesperson", "N/A")
+
+        down_url = order.get("downpayment_checkout_url", "")
+        rem_url  = order.get("remaining_balance_checkout_url", "")
+
+        subject = f"New Order Created: {guest_name} (${final_price})"
+
+        text_body = (
+            f"New order created.\n\n"
+            f"Order ID: {order_id}\n"
+            f"Guest: {guest_name}\n"
+            f"Guest Email: {guest_email}\n"
+            f"Service Date: {service_date}\n"
+            f"Final Price: {final_price}\n"
+            f"Travel Fee: {travel_fee}\n"
+            f"Salesperson: {salesperson}\n\n"
+            f"Downpayment URL:\n{down_url}\n\n"
+            f"Remaining Balance URL:\n{rem_url}\n"
+        )
+
+        html_body = f"""
+        <h2>New Order Created</h2>
+        <ul>
+            <li><strong>Order ID:</strong> {order_id}</li>
+            <li><strong>Guest:</strong> {guest_name}</li>
+            <li><strong>Guest Email:</strong> {guest_email}</li>
+            <li><strong>Service Date:</strong> {service_date}</li>
+            <li><strong>Final Price:</strong> {final_price}</li>
+            <li><strong>Travel Fee:</strong> {travel_fee}</li>
+            <li><strong>Salesperson:</strong> {salesperson}</li>
+        </ul>
+        <p><strong>Downpayment Link:</strong><br/><a href="{down_url}">{down_url}</a></p>
+        <p><strong>Remaining Balance Link:</strong><br/><a href="{rem_url}">{rem_url}</a></p>
+        <p style="color:#777;font-size:12px;">UTC: {datetime.utcnow().isoformat()}</p>
+        """
+
+        for admin_email in admin_emails:
+            print("[ADMIN NEW ORDER] sending to", admin_email)
+            send_postmark_email(
+                subject=subject,
+                to_email=admin_email,
+                from_email=sender_email,
+                text_body=text_body,
+                html_body=html_body
+            )
+            print("[ADMIN NEW ORDER] sent to", admin_email)
+
+    except Exception as e:
+        print("[ADMIN NEW ORDER] ERROR:", str(e))
+
+
+
+def notify_salesperson_new_order_push(order_id: str):
+    """
+    Push notify the salesperson (if they have a device token) that a new order was created.
+    Does NOT raise.
+    """
+    try:
+        orders_collection = current_app.config.get("ORDERS_COLLECTION")
+        users_collection = current_app.config.get("USERS_COLLECTION")
+        device_tokens_collection = current_app.config.get("DEVICE_TOKENS_COLLECTION")
+
+        if not orders_collection or not users_collection or not device_tokens_collection:
+            current_app.logger.error("[SALES PUSH] Missing collections in config")
+            return
+
+        order = orders_collection.find_one({"_id": ObjectId(order_id)})
+        if not order:
+            current_app.logger.error(f"[SALES PUSH] Order not found: {order_id}")
+            return
+
+        salesperson_id = order.get("salesperson")
+        if not salesperson_id:
+            current_app.logger.info("[SALES PUSH] Order has no salesperson; skipping.")
+            return
+
+        # device token lookup (your current pattern is user_id stored as string)
+        token_record = device_tokens_collection.find_one({"user_id": str(salesperson_id)})
+        if not token_record or not token_record.get("device_token"):
+            current_app.logger.info(f"[SALES PUSH] No device token for salesperson {salesperson_id}")
+            return
+
+        device_token = token_record["device_token"]
+
+        guest_name = order.get("guest_name", "Guest")
+        final_price = order.get("final_price", "")
+        msg = f"New order created: {guest_name} (${final_price}). Tap to view."
+
+        # IMPORTANT:
+        # If sales app uses a DIFFERENT bundle id than the tech app,
+        # you need a variant of send_ios_push_notification that uses the sales bundle topic.
+        # For now we reuse your existing function but with a sales topic override.
+        response = send_ios_push_notification_sales(
+            user_id=str(salesperson_id),
+            order_id=order_id,
+            device_token=device_token,
+            message=msg
+        )
+
+        current_app.logger.info(f"[SALES PUSH] Sent to salesperson {salesperson_id}: {response}")
+
+    except Exception as e:
+        current_app.logger.error(f"[SALES PUSH] fatal: {e}", exc_info=True)
+
+
+def send_ios_push_notification_sales(user_id, order_id, device_token, message):
+    """
+    Sends an iOS push notification to the Sales app bundle.
+    """
+    cert_b64 = os.environ.get("APNS_CERT_B64")
+    if not cert_b64:
+        current_app.logger.error("[SALES PUSH] APNS_CERT_B64 missing")
+        return {"error": "APNS certificate not configured"}
+
+    try:
+        cert_content = base64.b64decode(cert_b64)
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pem") as temp_cert:
+            temp_cert.write(cert_content)
+            temp_cert_path = temp_cert.name
+
+        payload = Payload(
+            alert={"title": "New Order Created", "body": message},
+            sound="default",
+            badge=1,
+            custom={"order_id": order_id, "type": "order_created"}  # <— helpful for deep linking
+        )
+
+        client = APNsClient(temp_cert_path, use_sandbox=True, use_alternative_port=False)
+
+        # CHANGE THIS to your SALES app bundle id:
+        topic = "com.Centralfloridaautocare.cfacios"  # <--- update to your actual bundle id
+
+        response = client.send_notification(device_token, payload, topic=topic)
+        os.remove(temp_cert_path)
+        return response
+
+    except Exception as e:
+        current_app.logger.error(f"[SALES PUSH] Error: {str(e)}")
+        return {"error": str(e)}

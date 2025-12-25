@@ -148,58 +148,80 @@ def get_services():
 
 
 
-
+from notis import notify_admins_new_order, notify_salesperson_new_order_push
 
 @api_sales_bp.route('/guest_order', methods=['POST'])
 def create_order():
+    current_app.logger.info("GUEST_ORDER ROUTE VERSION = 2025-12-25_v3 (with admin notify)")
+
+    orders_collection = current_app.config.get('ORDERS_COLLECTION')
+    if orders_collection is None:
+        return jsonify({"error": "Orders collection not configured."}), 500
+
+    order_data = request.get_json(silent=True)
+    if not order_data:
+        return jsonify({"error": "Invalid or missing JSON data."}), 400
+
+    # ---------- NORMALIZE / DEFAULTS ----------
+    order_data["is_guest"] = True
+
+    if "creation_date" not in order_data:
+        order_data["creation_date"] = datetime.utcnow()
+
     try:
-        current_app.logger.info("Received a new order POST request.")
-        orders_collection = current_app.config.get('ORDERS_COLLECTION')
-        if orders_collection is None:
-            current_app.logger.error("Orders collection not configured.")
-            return jsonify({"error": "Orders collection not configured."}), 500
+        final_price_for_fee = float(order_data.get("final_price", 0))
+    except (ValueError, TypeError):
+        final_price_for_fee = 0.0
 
-        order_data = request.get_json()
-        if order_data is None:
-            current_app.logger.error("No JSON data found.")
-            return jsonify({"error": "Invalid or missing JSON data."}), 400
+    # Travel fee logic
+    order_data["travel_fee"] = 25.0 if final_price_for_fee < 90 else 0.0
 
-        # Set the 'is_guest' key to 'yes' for all guest orders.
-        order_data["is_guest"] = True
+    # Setup state
+    order_data["setup_status"] = "creating"   # creating | ready | failed
+    order_data["setup_error"] = None
+    order_data["updated_date"] = datetime.utcnow()
 
-        # Validate and set default values
-        current_app.logger.info(f"Order data received: {order_data}")
-        if "creation_date" not in order_data:
-            order_data["creation_date"] = datetime.utcnow()
+    # ---------- INSERT ORDER ----------
+    try:
+        insert_result = orders_collection.insert_one(order_data)
+        order_id = str(insert_result.inserted_id)
+    except Exception:
+        return jsonify({"error": "Failed to create order in database."}), 500
 
-        # --- New: Calculate travel fee ---
+    def fail_and_return(message: str, details: str):
+        # avoid dumping huge/secret details back to client
+        safe_details = (details or "")[:500]
+
         try:
-            final_price = float(order_data.get("final_price", 0))
-        except (ValueError, TypeError):
-            final_price = 0.0
+            orders_collection.update_one(
+                {"_id": ObjectId(order_id)},
+                {"$set": {
+                    "setup_status": "failed",
+                    "setup_error": f"{message}: {safe_details}",
+                    "updated_date": datetime.utcnow()
+                }}
+            )
+        except Exception:
+            pass
 
-        # If final price is under $90, apply a $25 travel fee.
-        if final_price < 90:
-            order_data["travel_fee"] = 25.0
-        else:
-            order_data["travel_fee"] = 0.0
-        # -----------------------------------
+        return jsonify({
+            "message": "Order created, but setup failed.",
+            "order_id": order_id,
+            "setup_status": "failed",
+            "error": message
+        }), 201
 
-        # Insert the order into the database.
-        result = orders_collection.insert_one(order_data)
-        order_id = str(result.inserted_id)
-        current_app.logger.info(f"Order inserted with id: {order_id}")
+    # ---------- STRIPE + EMAIL ----------
+    try:
+        if "final_price" not in order_data:
+            raise ValueError("Missing final_price")
 
         final_price = float(order_data["final_price"])
+        downpayment_amount = int(final_price * 100 * 0.40)
+        remaining_amount = int(final_price * 100 * 0.60)
 
-        # Calculate down payment and remaining balance
-        downpayment_amount = int(final_price * 100 * 0.40)  # 40% of the total price
-        remaining_amount = int(final_price * 100 * 0.60)  # Remaining 60%
+        stripe.api_key = current_app.config["STRIPE_SECRET_KEY"]
 
-        # Set Stripe API key
-        stripe.api_key = current_app.config['STRIPE_SECRET_KEY']
-
-        # Create the PaymentIntent for the down payment (40%)
         downpayment_intent = stripe.PaymentIntent.create(
             amount=downpayment_amount,
             currency="usd",
@@ -207,13 +229,21 @@ def create_order():
             metadata={"order_id": order_id, "payment_type": "downpayment"}
         )
 
-        # Create the PaymentIntent for the remaining balance (60%)
         remaining_intent = stripe.PaymentIntent.create(
             amount=remaining_amount,
             currency="usd",
             payment_method_types=["card"],
             metadata={"order_id": order_id, "payment_type": "remaining_balance"},
-            capture_method="manual"  # Manual capture, this will allow charging later
+            capture_method="manual"
+        )
+
+        success_url = current_app.config.get(
+            "CHECKOUT_SUCCESS_URL",
+            "https://www.cfautocare.biz/payment_success?session_id={CHECKOUT_SESSION_ID}"
+        )
+        cancel_url = current_app.config.get(
+            "CHECKOUT_CANCEL_URL",
+            "https://www.cfautocare.biz/payment_cancel"
         )
 
         downpayment_checkout_session = stripe.checkout.Session.create(
@@ -221,76 +251,111 @@ def create_order():
             line_items=[{
                 "price_data": {
                     "currency": "usd",
-                    "product_data": {
-                        "name": f"Down Payment for Order #{order_id}",
-                    },
+                    "product_data": {"name": f"Down Payment for Order #{order_id}"},
                     "unit_amount": downpayment_amount,
                 },
                 "quantity": 1,
             }],
             customer_email=order_data.get("guest_email"),
-            success_url=current_app.config.get("CHECKOUT_SUCCESS_URL", "https://cfautocare.biz/payment_success?session_id={CHECKOUT_SESSION_ID}"),
-            cancel_url=current_app.config.get("CHECKOUT_CANCEL_URL", "https://cfautocare.biz/payment_cancel"),
-            payment_intent_data={
-                "metadata": {"order_id": order_id, "payment_type": "downpayment"}
-            },
+            success_url=success_url,
+            cancel_url=cancel_url,
+            payment_intent_data={"metadata": {"order_id": order_id, "payment_type": "downpayment"}},
             mode="payment"
         )
 
-        # Create a Stripe Checkout session for the remaining balance
         remaining_checkout_session = stripe.checkout.Session.create(
             payment_method_types=["card"],
             line_items=[{
                 "price_data": {
                     "currency": "usd",
-                    "product_data": {
-                        "name": f"Remaining Balance for Order #{order_id}",
-                    },
+                    "product_data": {"name": f"Remaining Balance for Order #{order_id}"},
                     "unit_amount": remaining_amount,
                 },
                 "quantity": 1,
             }],
             customer_email=order_data.get("guest_email"),
-            success_url=current_app.config.get("CHECKOUT_SUCCESS_URL", "https://cfautocare.biz/payment_success"),
-            cancel_url=current_app.config.get("CHECKOUT_CANCEL_URL", "https://cfautocare.biz"),
-            payment_intent_data={
-                "metadata": {"order_id": order_id, "payment_type": "remaining_balance"}
-            },
+            success_url=success_url,
+            cancel_url=cancel_url,
+            payment_intent_data={"metadata": {"order_id": order_id, "payment_type": "remaining_balance"}},
             mode="payment"
         )
 
-        # Update the order with PaymentIntent info (down payment and remaining balance)
-        update_data = {
-            "payment_intent_downpayment": downpayment_intent.id,
-            "client_secret_downpayment": downpayment_intent.client_secret,
-            "payment_intent_remaining_balance": remaining_intent.id,
-            "client_secret_remaining_balance": remaining_intent.client_secret,
-            "downpayment_checkout_url": downpayment_checkout_session.url,
-            "remaining_balance_checkout_url": remaining_checkout_session.url,
-            "payment_status": "Pending", 
-            "has_downpayment_collected": "no"  # We'll update this after the down payment is collected
-        }
-        orders_collection.update_one({"_id": ObjectId(order_id)}, {"$set": update_data})
+        # Save Stripe metadata first
+        orders_collection.update_one(
+            {"_id": ObjectId(order_id)},
+            {"$set": {
+                "payment_intent_downpayment": downpayment_intent.id,
+                "client_secret_downpayment": downpayment_intent.client_secret,
+                "payment_intent_remaining_balance": remaining_intent.id,
+                "client_secret_remaining_balance": remaining_intent.client_secret,
+                "downpayment_checkout_url": downpayment_checkout_session.url,
+                "remaining_balance_checkout_url": remaining_checkout_session.url,
+                "payment_status": order_data.get("payment_status", "Pending"),
+                "has_downpayment_collected": "no",
+                "updated_date": datetime.utcnow()
+            }}
+        )
 
-        # Call the send_payment_links function from notis.py
+        # Send customer payment links
         result = send_payment_links(order_id)
+        try:
+            status_code = result[1]
+        except Exception:
+            status_code = 500
 
-        # Check if sending payment links was successful
-        if result[1] != 200:
-            current_app.logger.error(f"Failed to send payment links: {result[0]}")
-            return jsonify({"error": "Failed to send payment links"}), 500
+        if status_code != 200:
+            try:
+                orders_collection.update_one(
+                    {"_id": ObjectId(order_id)},
+                    {"$set": {
+                        "setup_status": "failed",
+                        "setup_error": f"Failed to send payment links: {str(result)[:500]}",
+                        "updated_date": datetime.utcnow()
+                    }}
+                )
+            except Exception:
+                pass
+
+            return jsonify({
+                "message": "Order created, Stripe ready, but email failed.",
+                "order_id": order_id,
+                "setup_status": "failed",
+                "downpayment_checkout_url": downpayment_checkout_session.url,
+                "remaining_balance_checkout_url": remaining_checkout_session.url
+            }), 201
+
+        # Mark ready only after email succeeds
+        orders_collection.update_one(
+            {"_id": ObjectId(order_id)},
+            {"$set": {
+                "setup_status": "ready",
+                "setup_error": None,
+                "updated_date": datetime.utcnow()
+            }}
+        )
+
+        # Fire-and-forget notifications (now that it's truly ready)
+        try:
+            print("[DEBUG] calling notify_admins_new_order", order_id)
+            notify_admins_new_order(order_id)
+        except Exception:
+            current_app.logger.error("notify_admins_new_order failed", exc_info=True)
+
+        try:
+            notify_salesperson_new_order_push(order_id)
+        except Exception:
+            current_app.logger.error("notify_salesperson_new_order_push failed", exc_info=True)
 
         return jsonify({
-            "message": "Order created successfully and payment links sent to customer!"
+            "message": "Order created successfully.",
+            "order_id": order_id,
+            "setup_status": "ready",
+            "downpayment_checkout_url": downpayment_checkout_session.url,
+            "remaining_balance_checkout_url": remaining_checkout_session.url
         }), 201
-    
-    
 
     except Exception as e:
-        current_app.logger.error(f"Error creating order: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
-
-
+        return fail_and_return("Setup failed", str(e))
 
 
 
