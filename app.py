@@ -87,6 +87,11 @@ def create_app():
     client = MongoClient(mongodb_uri, tls=True, tlsAllowInvalidCertificates=True)
     db = client["cfacdb"]
     app.config["MONGO_CLIENT"] = db  
+    # Collections (used throughout routes + notis.py)
+    app.config["USERS_COLLECTION"] = db.users
+    app.config["ORDERS_COLLECTION"] = db.orders
+    app.config["DEVICE_TOKENS_COLLECTION"] = db.device_tokens
+
     init_db(app)
 
     # Register Blueprints
