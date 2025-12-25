@@ -932,56 +932,55 @@ import pymongo
 from flask import request, jsonify, current_app
 from datetime import datetime
 
+from flask import request, jsonify, current_app
+from datetime import datetime
+import pymongo
+from flask_jwt_extended import jwt_required, get_jwt_identity  # if you use this
+
 @api_sales_bp.route("/register_device_token", methods=["POST"])
+@jwt_required()
 def register_device_token_sales():
-    data = request.get_json()
-    if not data or "device_token" not in data:
-        current_app.logger.error("No device token provided in the request.")
-        return jsonify({"error": "No device token provided"}), 400
+    data = request.get_json(silent=True) or {}
+    device_token = (data.get("device_token") or "").strip()
 
-    device_token = data["device_token"]
-    user_id = data.get("user_id")
-
-    # Validate
     if not device_token or len(device_token) < 10:
-        current_app.logger.error("Invalid device token provided.")
+        current_app.logger.error("[TOKEN] Invalid device token provided.")
         return jsonify({"error": "Invalid device token provided"}), 400
 
-    db = current_app.config.get('MONGO_CLIENT')
+    user_id = get_jwt_identity()  # should be "6920ee036a3f06566a80240e"
+    if not user_id:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    db = current_app.config.get("MONGO_CLIENT")
     if db is None:
-        current_app.logger.error("Database connection not configured!")
+        current_app.logger.error("[TOKEN] Database connection not configured!")
         return jsonify({"error": "Database connection error"}), 500
 
     device_tokens_collection = db.device_tokens
 
     try:
-        # Use upsert: update if document with user_id exists, otherwise insert a new one.
         result = device_tokens_collection.update_one(
-            {"user_id": user_id},  # Query by user_id
-            {
-                "$set": {
-                    "device_token": device_token,
-                    "updated_at": datetime.utcnow()
-                },
-                "$setOnInsert": {
-                    "created_at": datetime.utcnow()
-                }
+            {"user_id": str(user_id)},
+            {"$set": {
+                "user_id": str(user_id),
+                "device_token": device_token,
+                "updated_at": datetime.utcnow()
+            },
+             "$setOnInsert": {"created_at": datetime.utcnow()}
             },
             upsert=True
         )
 
-        if result.upserted_id:
-            # Means a new doc was created
-            current_app.logger.info(f"Inserted device token for user {user_id}, _id={result.upserted_id}")
-            return jsonify({"status": "success", "inserted_id": str(result.upserted_id)}), 201
-        else:
-            # Means an existing doc was updated
-            current_app.logger.info(f"Updated device token for user {user_id}.")
-            return jsonify({"status": "success", "message": "Token updated"}), 200
+        current_app.logger.info("[TOKEN] upsert ok user_id=%s matched=%s modified=%s upserted=%s",
+                                str(user_id), result.matched_count, result.modified_count, result.upserted_id)
+
+        return jsonify({"status": "success"}), 200
 
     except pymongo.errors.PyMongoError as e:
-        current_app.logger.error(f"Error upserting device token: {str(e)}")
-        return jsonify({"error": "Database error", "details": str(e)}), 500
+        current_app.logger.error(f"[TOKEN] Error upserting device token: {str(e)}", exc_info=True)
+        return jsonify({"error": "Database error"}), 500
+
+
 @api_sales_bp.route("/sales/<salesman_id>/device_token", methods=["GET"])
 def retrieve_salesman_device_token(salesman_id):
     """
