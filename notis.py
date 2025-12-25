@@ -1143,7 +1143,12 @@ def notify_salesperson_new_order_push(order_id: str):
             message=msg
         )
 
-        current_app.logger.info(f"[SALES PUSH] Sent to salesperson {salesperson_id}: {response}")
+        current_app.logger.info(
+            "[SALES PUSH] collections: ORDERS=%s USERS=%s TOKENS=%s",
+            type(orders_collection).__name__ if orders_collection is not None else None,
+            type(users_collection).__name__ if users_collection is not None else None,
+            type(device_tokens_collection).__name__ if device_tokens_collection is not None else None,
+        )
 
     except Exception as e:
         current_app.logger.error(f"[SALES PUSH] fatal: {e}", exc_info=True)
