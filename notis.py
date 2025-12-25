@@ -1011,10 +1011,10 @@ def notify_admins_new_order(order_id: str):
         orders_collection = current_app.config.get("ORDERS_COLLECTION")
         users_collection  = current_app.config.get("USERS_COLLECTION")
 
-        if not orders_collection:
+        if orders_collection is None:
             print("[ADMIN NEW ORDER] ORDERS_COLLECTION missing")
             return
-        if not users_collection:
+        if users_collection is None:
             print("[ADMIN NEW ORDER] USERS_COLLECTION missing")
             return
 
@@ -1104,9 +1104,11 @@ def notify_salesperson_new_order_push(order_id: str):
         users_collection = current_app.config.get("USERS_COLLECTION")
         device_tokens_collection = current_app.config.get("DEVICE_TOKENS_COLLECTION")
 
-        if not orders_collection or not users_collection or not device_tokens_collection:
+        if orders_collection is None or users_collection is None or device_tokens_collection is None:
             current_app.logger.error("[SALES PUSH] Missing collections in config")
             return
+
+
 
         order = orders_collection.find_one({"_id": ObjectId(order_id)})
         if not order:
