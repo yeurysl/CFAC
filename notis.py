@@ -1093,7 +1093,6 @@ def notify_admins_new_order(order_id: str):
         print("[ADMIN NEW ORDER] ERROR:", str(e))
 
 
-
 def notify_salesperson_new_order_push(order_id: str):
     """
     Push notify the salesperson (if they have a device token) that a new order was created.
@@ -1104,55 +1103,66 @@ def notify_salesperson_new_order_push(order_id: str):
         users_collection = current_app.config.get("USERS_COLLECTION")
         device_tokens_collection = current_app.config.get("DEVICE_TOKENS_COLLECTION")
 
+        current_app.logger.info(
+            "[SALES PUSH] config presence: ORDERS=%s USERS=%s TOKENS=%s",
+            "yes" if orders_collection is not None else "NO",
+            "yes" if users_collection is not None else "NO",
+            "yes" if device_tokens_collection is not None else "NO",
+        )
+
         if orders_collection is None or users_collection is None or device_tokens_collection is None:
-            current_app.logger.error("[SALES PUSH] Missing collections in config")
+            current_app.logger.error(
+                "[SALES PUSH] Missing collections in config. ORDERS=%s USERS=%s TOKENS=%s",
+                orders_collection is not None,
+                users_collection is not None,
+                device_tokens_collection is not None,
+            )
             return
-
-
 
         order = orders_collection.find_one({"_id": ObjectId(order_id)})
         if not order:
-            current_app.logger.error(f"[SALES PUSH] Order not found: {order_id}")
+            current_app.logger.error("[SALES PUSH] Order not found: %s", order_id)
             return
 
         salesperson_id = order.get("salesperson")
         if not salesperson_id:
-            current_app.logger.info("[SALES PUSH] Order has no salesperson; skipping.")
+            current_app.logger.info("[SALES PUSH] Order has no salesperson; skipping. order_id=%s", order_id)
             return
 
-        # device token lookup (your current pattern is user_id stored as string)
+        # device token lookup (your pattern: user_id stored as string)
         token_record = device_tokens_collection.find_one({"user_id": str(salesperson_id)})
-        if not token_record or not token_record.get("device_token"):
-            current_app.logger.info(f"[SALES PUSH] No device token for salesperson {salesperson_id}")
+
+        if not token_record:
+            current_app.logger.info("[SALES PUSH] No token record found for salesperson %s", salesperson_id)
             return
 
-        device_token = token_record["device_token"]
+        device_token = token_record.get("device_token")
+        if not device_token:
+            current_app.logger.info("[SALES PUSH] Token record exists but device_token missing. salesperson=%s", salesperson_id)
+            return
 
         guest_name = order.get("guest_name", "Guest")
         final_price = order.get("final_price", "")
         msg = f"New order created: {guest_name} (${final_price}). Tap to view."
 
-        # IMPORTANT:
-        # If sales app uses a DIFFERENT bundle id than the tech app,
-        # you need a variant of send_ios_push_notification that uses the sales bundle topic.
-        # For now we reuse your existing function but with a sales topic override.
+        current_app.logger.info(
+            "[SALES PUSH] sending push. salesperson=%s token_prefix=%s order_id=%s",
+            salesperson_id,
+            str(device_token)[:10],
+            order_id,
+        )
+
         response = send_ios_push_notification_sales(
             user_id=str(salesperson_id),
             order_id=order_id,
             device_token=device_token,
-            message=msg
+            message=msg,
         )
 
-        current_app.logger.info(
-            "[SALES PUSH] collections: ORDERS=%s USERS=%s TOKENS=%s",
-            type(orders_collection).__name__ if orders_collection is not None else None,
-            type(users_collection).__name__ if users_collection is not None else None,
-            type(device_tokens_collection).__name__ if device_tokens_collection is not None else None,
-        )
+        current_app.logger.info("[SALES PUSH] APNs response: %s", response)
 
     except Exception as e:
-        current_app.logger.error(f"[SALES PUSH] fatal: {e}", exc_info=True)
-
+        current_app.logger.error("[SALES PUSH] fatal: %s", e, exc_info=True)
 
 def send_ios_push_notification_sales(user_id, order_id, device_token, message):
     """
