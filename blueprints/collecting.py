@@ -351,3 +351,5 @@ def update_order(order_id):
         flash('Payment not successful.', 'danger')
 
     return redirect(url_for('collecting.collecting_payments'))
+
+

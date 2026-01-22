@@ -74,8 +74,8 @@ def fetch_account_settings():
             # ✅ Securely create a Stripe link for updating existing account
             stripe_link = stripe.AccountLink.create(
                 account=stripe_account_id,
-                refresh_url="https://www.cfautocare.biz/account-settings",  # redirect if cancelled
-                return_url="https://www.cfautocare.biz/account-settings",   # redirect after completion
+                refresh_url="https://www.cfautocare.biz/careers",  # redirect if cancelled
+                return_url="https://www.cfautocare.biz/careers",   # redirect after completion
                 type="account_onboarding"  # "account_update" is preferred if you just want to update bank info
             )
             account_settings["stripe_update_url"] = stripe_link.url
