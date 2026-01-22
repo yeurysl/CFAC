@@ -190,7 +190,7 @@ def reset_password_confirm():
         print("[DEBUG] Missing token or new_password!")
         return jsonify({"error": "Token and new password are required"}), 400
 
-    token = data["token"]
+    token = data.get("reset_token_input")
     new_password = data["new_password"]
 
     if not token or not new_password:
