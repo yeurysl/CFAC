@@ -172,6 +172,8 @@ from flask import Blueprint, request, jsonify, current_app
 from werkzeug.security import generate_password_hash
 from datetime import datetime
 
+from flask_bcrypt import Bcrypt
+bcrypt = Bcrypt()
 
 
 @csrf.exempt
@@ -220,7 +222,7 @@ def reset_password_confirm():
         return jsonify({"error": "Invalid or expired token"}), 400
 
     # Hash the new password
-    hashed_password = generate_password_hash(new_password)
+    hashed_password = bcrypt.generate_password_hash(new_password).decode('utf-8')
 
     # Update the user's password and remove the reset token
     users_collection.update_one(
