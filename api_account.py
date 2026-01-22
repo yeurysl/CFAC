@@ -123,11 +123,8 @@ def update_account_settings():
 
 
 
-
-
-# app.py or blueprints/admin.py (where you handle account routes)
-from flask import Blueprint, request, jsonify
-from notis import send_reset_email  # Function to email reset link
+from flask import Blueprint, request, jsonify, current_app
+from notis import send_reset_email  # Your email sending function
 import secrets
 from datetime import datetime, timedelta
 
@@ -143,23 +140,72 @@ def reset_password_request():
         return jsonify({"error": "Email is required"}), 400
 
     email = data["email"].strip().lower()
-    user = User.get_by_email(email)  # Your method to get a user
+    users_collection = current_app.config.get("USERS_COLLECTION")
+
+    # Find the user in MongoDB
+    user = users_collection.find_one({"email": email})
 
     if not user:
-        # Avoid leaking which emails exist
+        # Always return 200 to prevent email enumeration
         return jsonify({"message": "If an account exists for this email, a reset link has been sent."}), 200
 
     # Generate a secure random token
     reset_token = secrets.token_urlsafe(32)
-    expires_at = datetime.utcnow() + timedelta(hours=1)  # valid for 1 hour
+    expires_at = datetime.utcnow() + timedelta(hours=1)  # Token valid for 1 hour
 
-    # Save the token and expiry to the user (adjust based on your DB)
-    user.reset_token = reset_token
-    user.reset_token_expiry = expires_at
-    user.save()
+    # Update the user document with the reset token and expiry
+    users_collection.update_one(
+        {"_id": user["_id"]},
+        {"$set": {
+            "reset_token": reset_token,
+            "reset_token_expiry": expires_at
+        }}
+    )
 
     # Send reset email
     reset_link = f"https://www.cfautocare.biz/reset-password?token={reset_token}"
-    send_reset_email(user.email, reset_link)
+    send_reset_email(user["email"], reset_link)
 
     return jsonify({"message": "If an account exists for this email, a reset link has been sent."}), 200
+
+
+from flask import Blueprint, request, jsonify, current_app
+from werkzeug.security import generate_password_hash
+from datetime import datetime
+
+account_bp = Blueprint("account", __name__, url_prefix="/api/account")
+
+@account_bp.route("/reset-password/confirm", methods=["POST"])
+def reset_password_confirm():
+    """
+    Confirm a password reset using a token and set a new password.
+    """
+    data = request.get_json()
+    if not data or "token" not in data or "new_password" not in data:
+        return jsonify({"error": "Token and new password are required"}), 400
+
+    token = data["token"]
+    new_password = data["new_password"]
+
+    users_collection = current_app.config.get("USERS_COLLECTION")
+
+    # Find the user with the valid token
+    user = users_collection.find_one({
+        "reset_token": token,
+        "reset_token_expiry": {"$gt": datetime.utcnow()}  # token must not be expired
+    })
+
+    if not user:
+        return jsonify({"error": "Invalid or expired token"}), 400
+
+    # Hash the new password
+    hashed_password = generate_password_hash(new_password)
+
+    # Update the user's password and remove the reset token
+    users_collection.update_one(
+        {"_id": user["_id"]},
+        {"$set": {"password": hashed_password},
+         "$unset": {"reset_token": "", "reset_token_expiry": ""}}
+    )
+
+    return jsonify({"message": "Password has been reset successfully."}), 200
