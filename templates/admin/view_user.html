@@ -11,11 +11,11 @@
         </div>
         <div class="card-body">
             <!-- User's Name -->
-            <h5 class="card-title">Name: {{ user.name }}</h5>
+            <h5 class="card-title">Name: {{ user.full_name }}</h5>
             
             <!-- Additional User Information -->
             <p><strong>User Type:</strong> {{ user.user_type }}</p>
-            <p><strong>Phone Number:</strong> {{ user.phone_number }}</p>
+            <p><strong>Phone Number:</strong> {{ user.phone }}</p>
             
             <!-- Creation Date -->
             {% if user.creation_date %}

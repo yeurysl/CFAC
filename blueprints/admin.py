@@ -7,6 +7,7 @@ from datetime import datetime
 import math
 from zoneinfo import ZoneInfo
 import logging
+from app import bcrypt
 
 # Import your custom decorator for admin access
 from decorators import admin_required
@@ -941,3 +942,56 @@ def visitor_hits(visitor_id):
             LIMIT 500;             -- safety cap
         """, (visitor_id,)).fetchall()
     return render_template('admin/_visitor_hits.html', hits=hits)
+
+
+
+from forms import AddUserForm
+import secrets
+from werkzeug.security import generate_password_hash
+
+
+
+
+
+
+
+@admin_bp.route("/users/add", methods=["GET", "POST"])
+@login_required
+def add_user():
+    form = AddUserForm()
+    users_collection = current_app.config['USERS_COLLECTION']
+
+    if form.validate_on_submit():
+        email = form.email.data.lower() if form.email.data else None
+        phone = form.phone.data if form.phone.data else None
+        username = form.username.data
+
+        # Check duplicates
+        if email and users_collection.find_one({"email": email}):
+            flash("Email already exists.", "danger")
+            return redirect(url_for("admin.add_user"))
+
+        if users_collection.find_one({"username": username}):
+            flash("Username already exists.", "danger")
+            return redirect(url_for("admin.add_user"))
+
+        # Generate a random dummy password
+        dummy_password = secrets.token_urlsafe(12)
+        hashed_password = generate_password_hash(dummy_password)
+
+        # Insert user
+        users_collection.insert_one({
+            "full_name": form.full_name.data,
+            "username": username,
+            "email": email,
+            "phone": phone,
+            "password": hashed_password,
+            "user_type": form.user_type.data,
+            "creation_date": datetime.utcnow()
+        })
+
+        flash(f"User added successfully! (Password is generated automatically)", "success")
+        return redirect(url_for("admin.manage_users"))
+
+    return render_template("admin/add_user.html", form=form)
+

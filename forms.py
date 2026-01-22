@@ -360,3 +360,35 @@ class UpdateCompensationStatusForm(FlaskForm):
     employee_type = HiddenField(validators=[DataRequired()])
     new_status = HiddenField(validators=[DataRequired()])
     submit = SubmitField('Update Status')
+
+
+
+
+
+
+class AddUserForm(FlaskForm):
+    full_name = StringField("Full Name", validators=[DataRequired()])
+    username = StringField("Username", validators=[DataRequired()])
+    email = StringField("Email", validators=[Optional(), Email()])
+    phone = StringField("Phone", validators=[Optional()])
+    user_type = SelectField(
+        "User Type",
+        choices=[("customer", "Customer"), ("sales", "Sales"), ("tech", "Tech"), ("admin", "Admin")],
+        validators=[DataRequired()]
+    )
+    submit = SubmitField("Add User")
+
+    # Custom validation: must provide either email OR phone
+    def validate(self, extra_validators=None):
+        if not super().validate(extra_validators):
+            return False
+        if not self.email.data and not self.phone.data:
+            msg = "You must provide either an email or a phone number."
+            self.email.errors.append(msg)
+            self.phone.errors.append(msg)
+            return False
+        return True
+
+
+
+

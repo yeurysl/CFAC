@@ -7,6 +7,13 @@
 <div class="container mt-3">
     <h1 class="mb-4">User Management</h1>
 
+
+    <a href="{{ url_for('admin.add_user') }}" class="btn btn-success">
+        <i class="bi bi-person-plus"></i> Add User
+    </a>
+
+
+
     <!-- Filter and Sort Form -->
     <form method="GET" action="{{ url_for('admin.manage_users') }}" class="mb-4">
         <div class="row">
