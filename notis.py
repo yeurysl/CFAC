@@ -1213,7 +1213,7 @@ def send_reset_email(to_email: str, reset_link: str):
         print(f"[send_reset_email] Sending email to {to_email} with link {reset_link}")
         client = PostmarkClient(server_token=POSTMARK_SERVER_TOKEN)
         response = client.emails.send(
-            From="support@cfautocare.biz",
+            From="yeurys@cfautocare.biz",
             To=to_email,
             Subject="CFAC Password Reset",
             HtmlBody=f"""
