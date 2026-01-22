@@ -32,24 +32,25 @@ def get_user_from_token(token):
         current_app.logger.error(f"[Account] Token decoding error: {e}")
         return None
 
-
+import stripe
 
 @api_account_bp.route('/', methods=['GET'])
 def fetch_account_settings():
     current_app.logger.info("[Account][GET] /api/account endpoint hit")
 
-    # Get the Authorization header
+    # Authorization header
     auth_header = request.headers.get('Authorization', '')
     if not auth_header.startswith('Bearer '):
         current_app.logger.error("[Account][GET] Missing or invalid Authorization header")
         return jsonify({"error": "Missing or invalid Authorization header"}), 401
     
-    token = auth_header.replace("Bearer ", "").strip()
+    token = auth_header.replace('Bearer ', '').strip()
     user = get_user_from_token(token)
     if not user:
         current_app.logger.error("[Account][GET] Invalid token or user not found")
         return jsonify({"error": "Invalid token or user not found."}), 404
 
+    # Basic account info
     address = user.get("address") or {}
     account_settings = {
         "name": user.get("full_name", ""),
@@ -64,26 +65,24 @@ def fetch_account_settings():
             "zip_code": address.get("zip_code", "")
         },
         "stripe_account_id": user.get("stripe_account_id", None),
-        "stripe_update_url": None  # placeholder for update link
+        "stripe_update_url": None
     }
 
     stripe_account_id = user.get("stripe_account_id")
     if stripe_account_id:
         try:
-            # Create a link for the user to update their Stripe account info
+            # ✅ Securely create a Stripe link for updating existing account
             stripe_link = stripe.AccountLink.create(
                 account=stripe_account_id,
-                refresh_url="https://www.cfautocare.biz/account-settings",  # redirect if they cancel
+                refresh_url="https://www.cfautocare.biz/account-settings",  # redirect if cancelled
                 return_url="https://www.cfautocare.biz/account-settings",   # redirect after completion
-                type="account_onboarding"  # use onboarding type for update as well
+                type="account_onboarding"  # "account_update" is preferred if you just want to update bank info
             )
             account_settings["stripe_update_url"] = stripe_link.url
+            current_app.logger.info(f"[Account][GET] Stripe link created for user {user.get('_id')}")
         except Exception as e:
-            current_app.logger.error(f"[Account][GET] Stripe link error: {e}")
+            current_app.logger.error(f"[Account][GET] Failed to create Stripe link: {e}")
             account_settings["stripe_update_url"] = None
-
-    current_app.logger.info(f"[Account][GET] Returning account settings for user: {user.get('_id')}")
-    print("Account settings response:", account_settings)
 
     return jsonify(account_settings), 200
 
