@@ -732,3 +732,15 @@ def guest_stripe_checkout(order_id: str) -> Response:
 @core_bp.route('/guest/thank-you')
 def guest_thank_you():
     return render_template('guest_thank_you.html')
+
+
+
+
+
+
+from flask import render_template, request
+
+@core_bp.route("/reset-password")
+def reset_password_page():
+    token = request.args.get("token", "")
+    return render_template("reset_password.html", token=token)
