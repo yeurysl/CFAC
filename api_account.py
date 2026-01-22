@@ -128,9 +128,8 @@ from notis import send_reset_email  # Your email sending function
 import secrets
 from datetime import datetime, timedelta
 
-account_bp = Blueprint("account", __name__, url_prefix="/api/account")
 
-@account_bp.route("/reset-password", methods=["POST"])
+@api_account_bp.route("/reset-password", methods=["POST"])
 def reset_password_request():
     """
     Request a password reset link to be sent to the user's email.
@@ -173,9 +172,8 @@ from flask import Blueprint, request, jsonify, current_app
 from werkzeug.security import generate_password_hash
 from datetime import datetime
 
-account_bp = Blueprint("account", __name__, url_prefix="/api/account")
 
-@account_bp.route("/reset-password/confirm", methods=["POST"])
+@api_account_bp.route("/reset-password/confirm", methods=["POST"])
 def reset_password_confirm():
     """
     Confirm a password reset using a token and set a new password.
