@@ -128,7 +128,7 @@ from notis import send_reset_email  # Your email sending function
 import secrets
 from datetime import datetime, timedelta
 
-
+@csrf.exempt
 @api_account_bp.route("/reset-password", methods=["POST"])
 def reset_password_request():
     """
@@ -172,6 +172,7 @@ from flask import Blueprint, request, jsonify, current_app
 from werkzeug.security import generate_password_hash
 from datetime import datetime
 
+@csrf.exempt
 
 @api_account_bp.route("/reset-password/confirm", methods=["POST"])
 def reset_password_confirm():
