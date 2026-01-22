@@ -1206,10 +1206,10 @@ def send_ios_push_notification_sales(user_id, order_id, device_token, message):
 from postmarker.core import PostmarkClient
 import os
 
-POSTMARK_API_KEY = os.environ.get("POSTMARK_API_KEY")
+POSTMARK_SERVER_TOKEN = os.environ.get("POSTMARK_SERVER_TOKEN")
 
 def send_reset_email(to_email: str, reset_link: str):
-    client = PostmarkClient(server_token=POSTMARK_API_KEY)
+    client = PostmarkClient(server_token=POSTMARK_SERVER_TOKEN)
     client.emails.send(
         From="support@cfautocare.biz",  # Make sure this is verified in Postmark
         To=to_email,
