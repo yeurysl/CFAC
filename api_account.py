@@ -33,6 +33,7 @@ def get_user_from_token(token):
         return None
 
 
+
 @api_account_bp.route('/', methods=['GET'])
 def fetch_account_settings():
     current_app.logger.info("[Account][GET] /api/account endpoint hit")
@@ -59,18 +60,42 @@ def fetch_account_settings():
         "name": user.get("full_name", ""),
         "email": user.get("email", ""),
         "phone_number": user.get("phone") or "",
+        "username": user.get("username", ""),
+        "user_type": user.get("user_type", ""),
         "address": {
             "street_address": address.get("street_address", ""),
             "city": address.get("city", ""),
             "country": address.get("country", ""),
             "zip_code": address.get("zip_code", "")
-        }
+        },
+        "stripe_account_id": user.get("stripe_account_id", None),
+        "bank_info": None  # placeholder
     }
+
+    # Fetch bank info from Stripe if account exists
+    stripe_account_id = user.get("stripe_account_id")
+    if stripe_account_id:
+        try:
+            stripe_account = stripe.Account.retrieve(stripe_account_id)
+            if stripe_account.external_accounts.data:
+                bank = stripe_account.external_accounts.data[0]  # get first bank account
+                account_settings["bank_info"] = {
+                    "bank_name": getattr(bank, "bank_name", ""),
+                    "last4": getattr(bank, "last4", ""),
+                    "status": "Verified" if stripe_account.charges_enabled else "Pending"
+                }
+            else:
+                account_settings["bank_info"] = {"status": "No bank connected"}
+        except Exception as e:
+            current_app.logger.error(f"[Account][GET] Stripe fetch error: {e}")
+            account_settings["bank_info"] = {"status": "Error fetching bank info"}
 
     current_app.logger.info(f"[Account][GET] Returning account settings for user: {user.get('_id')}")
     print("Account settings response:", account_settings)
 
     return jsonify(account_settings), 200
+
+
 
 
 @csrf.exempt
