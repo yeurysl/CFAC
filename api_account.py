@@ -172,19 +172,25 @@ from flask import Blueprint, request, jsonify, current_app
 from werkzeug.security import generate_password_hash
 from datetime import datetime
 
-@csrf.exempt
 
+@csrf.exempt
 @api_account_bp.route("/reset-password/confirm", methods=["POST"])
 def reset_password_confirm():
     """
     Confirm a password reset using a token and set a new password.
     """
     data = request.get_json()
+    print("[DEBUG] Received data:", data)  # <-- new
+
     if not data or "token" not in data or "new_password" not in data:
+        print("[DEBUG] Missing token or new_password!")  # <-- new
         return jsonify({"error": "Token and new password are required"}), 400
 
     token = data["token"]
     new_password = data["new_password"]
+
+    print("[DEBUG] Token:", token)
+    print("[DEBUG] New password length:", len(new_password))
 
     users_collection = current_app.config.get("USERS_COLLECTION")
 
@@ -195,6 +201,7 @@ def reset_password_confirm():
     })
 
     if not user:
+        print("[DEBUG] Invalid or expired token!")  # <-- new
         return jsonify({"error": "Invalid or expired token"}), 400
 
     # Hash the new password
@@ -207,4 +214,10 @@ def reset_password_confirm():
          "$unset": {"reset_token": "", "reset_token_expiry": ""}}
     )
 
+    print("[DEBUG] Password reset successful for user:", user["_id"])  # <-- new
     return jsonify({"message": "Password has been reset successfully."}), 200
+
+
+
+
+
