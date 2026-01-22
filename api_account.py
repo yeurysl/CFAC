@@ -173,6 +173,10 @@ from werkzeug.security import generate_password_hash
 from datetime import datetime
 
 
+from flask import request, jsonify, current_app
+from werkzeug.security import generate_password_hash
+from datetime import datetime
+
 @csrf.exempt
 @api_account_bp.route("/reset-password/confirm", methods=["POST"])
 def reset_password_confirm():
@@ -180,10 +184,10 @@ def reset_password_confirm():
     Confirm a password reset using a token and set a new password.
     """
     data = request.get_json()
-    print("[DEBUG] Received data:", data)  # <-- new
+    print("[DEBUG] Received data:", data)
 
     if not data or "token" not in data or "new_password" not in data:
-        print("[DEBUG] Missing token or new_password!")  # <-- new
+        print("[DEBUG] Missing token or new_password!")
         return jsonify({"error": "Token and new password are required"}), 400
 
     token = data["token"]
@@ -201,7 +205,17 @@ def reset_password_confirm():
     })
 
     if not user:
-        print("[DEBUG] Invalid or expired token!")  # <-- new
+        # Print all users with their reset tokens and expiry (safe for debugging)
+        all_users = list(users_collection.find(
+            {}, {"email": 1, "reset_token": 1, "reset_token_expiry": 1}
+        ))
+        for u in all_users:
+            u["_id"] = str(u["_id"])
+            if "reset_token_expiry" in u:
+                u["reset_token_expiry"] = str(u["reset_token_expiry"])
+        print("[DEBUG] Current reset tokens in DB:", all_users)
+
+        print("[DEBUG] Invalid or expired token!")
         return jsonify({"error": "Invalid or expired token"}), 400
 
     # Hash the new password
@@ -214,7 +228,7 @@ def reset_password_confirm():
          "$unset": {"reset_token": "", "reset_token_expiry": ""}}
     )
 
-    print("[DEBUG] Password reset successful for user:", user["_id"])  # <-- new
+    print("[DEBUG] Password reset successful for user:", str(user["_id"]))
     return jsonify({"message": "Password has been reset successfully."}), 200
 
 
