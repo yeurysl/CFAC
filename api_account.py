@@ -193,6 +193,10 @@ def reset_password_confirm():
     token = data["token"]
     new_password = data["new_password"]
 
+    if not token or not new_password:
+        print("[DEBUG] Empty token or password!")
+        return jsonify({"error": "Token and new password cannot be empty"}), 400
+
     print("[DEBUG] Token:", token)
     print("[DEBUG] New password length:", len(new_password))
 
@@ -205,13 +209,13 @@ def reset_password_confirm():
     })
 
     if not user:
-        # Print all users with their reset tokens and expiry (safe for debugging)
+        # Debug: show all tokens currently in DB
         all_users = list(users_collection.find(
             {}, {"email": 1, "reset_token": 1, "reset_token_expiry": 1}
         ))
         for u in all_users:
             u["_id"] = str(u["_id"])
-            if "reset_token_expiry" in u:
+            if "reset_token_expiry" in u and u["reset_token_expiry"] is not None:
                 u["reset_token_expiry"] = str(u["reset_token_expiry"])
         print("[DEBUG] Current reset tokens in DB:", all_users)
 
@@ -228,9 +232,8 @@ def reset_password_confirm():
          "$unset": {"reset_token": "", "reset_token_expiry": ""}}
     )
 
-    print("[DEBUG] Password reset successful for user:", str(user["_id"]))
+    print(f"[DEBUG] Password reset successful for user: {user['email']} ({str(user['_id'])})")
     return jsonify({"message": "Password has been reset successfully."}), 200
-
 
 
 
