@@ -1209,16 +1209,21 @@ import os
 POSTMARK_SERVER_TOKEN = os.environ.get("POSTMARK_SERVER_TOKEN")
 
 def send_reset_email(to_email: str, reset_link: str):
-    client = PostmarkClient(server_token=POSTMARK_SERVER_TOKEN)
-    client.emails.send(
-        From="support@cfautocare.biz",  # Make sure this is verified in Postmark
-        To=to_email,
-        Subject="CFAC Password Reset",
-        HtmlBody=f"""
-        <p>Hello,</p>
-        <p>Click the link below to reset your password. This link expires in 1 hour.</p>
-        <p><a href="{reset_link}">Reset Password</a></p>
-        <p>If you didn't request this, ignore this email.</p>
-        """,
-        TextBody=f"Hello,\nUse this link to reset your password: {reset_link}\nLink expires in 1 hour."
-    )
+    try:
+        print(f"[send_reset_email] Sending email to {to_email} with link {reset_link}")
+        client = PostmarkClient(server_token=POSTMARK_SERVER_TOKEN)
+        response = client.emails.send(
+            From="support@cfautocare.biz",
+            To=to_email,
+            Subject="CFAC Password Reset",
+            HtmlBody=f"""
+            <p>Hello,</p>
+            <p>Click the link below to reset your password. This link expires in 1 hour.</p>
+            <p><a href="{reset_link}">Reset Password</a></p>
+            <p>If you didn't request this, ignore this email.</p>
+            """,
+            TextBody=f"Hello,\nUse this link to reset your password: {reset_link}\nLink expires in 1 hour."
+        )
+        print(f"[send_reset_email] Postmark response: {response}")
+    except Exception as e:
+        print(f"[send_reset_email] Error sending email: {e}")
