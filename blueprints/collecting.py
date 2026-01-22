@@ -351,3 +351,64 @@ def update_order(order_id):
         flash('Payment not successful.', 'danger')
 
     return redirect(url_for('collecting.collecting_payments'))
+
+
+
+@collecting_bp.route("/stripe/connect/onboard", methods=["GET"])
+@login_required
+def stripe_connect_onboard():
+    users = current_app.config["USERS_COLLECTION"]
+    user = users.find_one({"_id": ObjectId(current_user.id)})
+
+    if not user:
+        return "User not found", 404
+
+    stripe.api_key = current_app.config["STRIPE_SECRET_KEY"]
+
+    stripe_account_id = user.get("stripe_account_id")
+
+    # 1️⃣ Create Stripe Express account if missing
+    if not stripe_account_id:
+        account = stripe.Account.create(
+            type="express",
+            country="US",
+            email=user["email"],
+            capabilities={
+                "transfers": {"requested": True}
+            }
+        )
+
+        stripe_account_id = account.id
+
+        users.update_one(
+            {"_id": user["_id"]},
+            {"$set": {"stripe_account_id": stripe_account_id}}
+        )
+
+    # 2️⃣ Create onboarding link
+    account_link = stripe.AccountLink.create(
+        account=stripe_account_id,
+        refresh_url="https://www.cfautocare.biz/payments/stripe/refresh",
+        return_url="https://www.cfautocare.biz/payments/stripe/complete",
+        type="account_onboarding"
+    )
+
+    # 3️⃣ Redirect to Stripe
+    return redirect(account_link.url)
+
+
+
+@collecting_bp.route("/stripe/complete")
+@login_required
+def stripe_complete():
+    users = current_app.config["USERS_COLLECTION"]
+
+    users.update_one(
+        {"_id": ObjectId(current_user.id)},
+        {"$set": {"stripe_onboarded": True}}
+    )
+
+    return """
+    <h2>Bank account connected</h2>
+    <p>You may now close this window and return to the app.</p>
+    """
