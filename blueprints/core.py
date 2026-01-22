@@ -4,6 +4,7 @@ from flask_login import login_required, logout_user, current_user, login_user
 from bson.objectid import ObjectId, InvalidId
 from datetime import datetime
 import re
+from extensions import csrf  
 import json
 from dateutil.parser import parse 
 import stripe
@@ -750,38 +751,32 @@ def reset_password_page():
 
 
 
-@core_bp.route("/stripe/connect/onboard", methods=["GET"])
-@login_required
+@csrf.exempt
+@core_bp.route("/stripe/connect/onboard", methods=["GET", "POST"])
 def stripe_connect_onboard():
-    users = current_app.config["USERS_COLLECTION"]
-    user = users.find_one({"_id": ObjectId(current_user.id)})
+    # Get user ID from query param or header (sent by mobile)
+    user_id = request.args.get("user_id")  # or request.headers.get("X-User-ID")
+    if not user_id:
+        return "Missing user_id", 400
 
+    users = current_app.config["USERS_COLLECTION"]
+    user = users.find_one({"_id": ObjectId(user_id)})
     if not user:
         return "User not found", 404
 
     stripe.api_key = current_app.config["STRIPE_SECRET_KEY"]
 
     stripe_account_id = user.get("stripe_account_id")
-
-    # 1️⃣ Create Stripe Express account if missing
     if not stripe_account_id:
         account = stripe.Account.create(
             type="express",
             country="US",
             email=user["email"],
-            capabilities={
-                "transfers": {"requested": True}
-            }
+            capabilities={"transfers": {"requested": True}}
         )
-
         stripe_account_id = account.id
+        users.update_one({"_id": user["_id"]}, {"$set": {"stripe_account_id": stripe_account_id}})
 
-        users.update_one(
-            {"_id": user["_id"]},
-            {"$set": {"stripe_account_id": stripe_account_id}}
-        )
-
-    # 2️⃣ Create onboarding link
     account_link = stripe.AccountLink.create(
         account=stripe_account_id,
         refresh_url="https://www.cfautocare.biz/payments/stripe/refresh",
@@ -789,22 +784,23 @@ def stripe_connect_onboard():
         type="account_onboarding"
     )
 
-    # 3️⃣ Redirect to Stripe
-    return redirect(account_link.url)
+    # Instead of redirect, return JSON for mobile:
+    return {"stripe_onboarding_url": account_link.url}
 
 
 
-@core_bp.route("/stripe/complete")
-@login_required
+
+@csrf.exempt
+@core_bp.route("/stripe/complete", methods=["GET", "POST"])
 def stripe_complete():
+    user_id = request.args.get("user_id")
+    if not user_id:
+        return {"error": "Missing user_id"}, 400
+
     users = current_app.config["USERS_COLLECTION"]
+    users.update_one({"_id": ObjectId(user_id)}, {"$set": {"stripe_onboarded": True}})
 
-    users.update_one(
-        {"_id": ObjectId(current_user.id)},
-        {"$set": {"stripe_onboarded": True}}
-    )
-
-    return """
-    <h2>Bank account connected</h2>
-    <p>You may now close this window and return to the app.</p>
-    """
+    return {
+        "status": "connected",
+        "message": "Bank account connected. You may now close this window."
+    }
