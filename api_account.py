@@ -54,12 +54,19 @@ def fetch_account_settings():
         return jsonify({"error": "Invalid token or user not found."}), 404
 
     # Prepare account settings data
+    address = user.get("address") or {}
     account_settings = {
-        "name": user.get("name", ""),
+        "name": user.get("full_name", ""),
         "email": user.get("email", ""),
-        "phone_number": user.get("phone_number", ""),
-        "address": user.get("address", {})
+        "phone_number": user.get("phone") or "",
+        "address": {
+            "street_address": address.get("street_address", ""),
+            "city": address.get("city", ""),
+            "country": address.get("country", ""),
+            "zip_code": address.get("zip_code", "")
+        }
     }
+
     current_app.logger.info(f"[Account][GET] Returning account settings for user: {user.get('_id')}")
     print("Account settings response:", account_settings)
 
