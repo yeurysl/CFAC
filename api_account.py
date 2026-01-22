@@ -226,9 +226,11 @@ def debug_tokens():
     users_collection = current_app.config.get("USERS_COLLECTION")
     users = list(users_collection.find({}, {"email": 1, "reset_token": 1, "reset_token_expiry": 1}))
 
-    # Convert ObjectId to string
+    # Convert ObjectId and datetime to strings
     for user in users:
         user["_id"] = str(user["_id"])
+        if "reset_token_expiry" in user and user["reset_token_expiry"] is not None:
+            user["reset_token_expiry"] = user["reset_token_expiry"].isoformat()
     
     print("[DEBUG] All tokens:", users)
     return jsonify(users)
