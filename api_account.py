@@ -173,9 +173,6 @@ from werkzeug.security import generate_password_hash
 from datetime import datetime
 
 
-from flask import request, jsonify, current_app
-from werkzeug.security import generate_password_hash
-from datetime import datetime
 
 @csrf.exempt
 @api_account_bp.route("/reset-password/confirm", methods=["POST"])
@@ -186,7 +183,7 @@ def reset_password_confirm():
     data = request.get_json()
     print("[DEBUG] Received data:", data)
 
-    if not data or "token" not in data or "new_password" not in data:
+    if not data or "reset_token_input" not in data or "new_password" not in data:
         print("[DEBUG] Missing token or new_password!")
         return jsonify({"error": "Token and new password are required"}), 400
 
@@ -234,7 +231,6 @@ def reset_password_confirm():
 
     print(f"[DEBUG] Password reset successful for user: {user['email']} ({str(user['_id'])})")
     return jsonify({"message": "Password has been reset successfully."}), 200
-
 
 
 
