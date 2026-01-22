@@ -40,21 +40,16 @@ def fetch_account_settings():
 
     # Get the Authorization header
     auth_header = request.headers.get('Authorization', '')
-    current_app.logger.debug(f"[Account][GET] Raw Authorization header: {auth_header}")
     if not auth_header.startswith('Bearer '):
         current_app.logger.error("[Account][GET] Missing or invalid Authorization header")
         return jsonify({"error": "Missing or invalid Authorization header"}), 401
     
-    # Extract token
     token = auth_header.replace("Bearer ", "").strip()
-    current_app.logger.debug(f"[Account][GET] Extracted token: {token}")
-
     user = get_user_from_token(token)
     if not user:
         current_app.logger.error("[Account][GET] Invalid token or user not found")
         return jsonify({"error": "Invalid token or user not found."}), 404
 
-    # Prepare account settings data
     address = user.get("address") or {}
     account_settings = {
         "name": user.get("full_name", ""),
@@ -69,26 +64,23 @@ def fetch_account_settings():
             "zip_code": address.get("zip_code", "")
         },
         "stripe_account_id": user.get("stripe_account_id", None),
-        "bank_info": None  # placeholder
+        "stripe_update_url": None  # placeholder for update link
     }
 
-    # Fetch bank info from Stripe if account exists
     stripe_account_id = user.get("stripe_account_id")
     if stripe_account_id:
         try:
-            stripe_account = stripe.Account.retrieve(stripe_account_id)
-            if stripe_account.external_accounts.data:
-                bank = stripe_account.external_accounts.data[0]  # get first bank account
-                account_settings["bank_info"] = {
-                    "bank_name": getattr(bank, "bank_name", ""),
-                    "last4": getattr(bank, "last4", ""),
-                    "status": "Verified" if stripe_account.charges_enabled else "Pending"
-                }
-            else:
-                account_settings["bank_info"] = {"status": "No bank connected"}
+            # Create a link for the user to update their Stripe account info
+            stripe_link = stripe.AccountLink.create(
+                account=stripe_account_id,
+                refresh_url="https://www.cfautocare.biz/account-settings",  # redirect if they cancel
+                return_url="https://www.cfautocare.biz/account-settings",   # redirect after completion
+                type="account_onboarding"  # use onboarding type for update as well
+            )
+            account_settings["stripe_update_url"] = stripe_link.url
         except Exception as e:
-            current_app.logger.error(f"[Account][GET] Stripe fetch error: {e}")
-            account_settings["bank_info"] = {"status": "Error fetching bank info"}
+            current_app.logger.error(f"[Account][GET] Stripe link error: {e}")
+            account_settings["stripe_update_url"] = None
 
     current_app.logger.info(f"[Account][GET] Returning account settings for user: {user.get('_id')}")
     print("Account settings response:", account_settings)
