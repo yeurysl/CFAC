@@ -225,5 +225,10 @@ def reset_password_confirm():
 def debug_tokens():
     users_collection = current_app.config.get("USERS_COLLECTION")
     users = list(users_collection.find({}, {"email": 1, "reset_token": 1, "reset_token_expiry": 1}))
+
+    # Convert ObjectId to string
+    for user in users:
+        user["_id"] = str(user["_id"])
+    
     print("[DEBUG] All tokens:", users)
     return jsonify(users)
