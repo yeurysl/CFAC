@@ -1198,3 +1198,27 @@ def send_ios_push_notification_sales(user_id, order_id, device_token, message):
     except Exception as e:
         current_app.logger.error(f"[SALES PUSH] Error: {str(e)}")
         return {"error": str(e)}
+
+
+
+
+
+from postmarker.core import PostmarkClient
+import os
+
+POSTMARK_API_KEY = os.environ.get("POSTMARK_API_KEY")
+
+def send_reset_email(to_email: str, reset_link: str):
+    client = PostmarkClient(server_token=POSTMARK_API_KEY)
+    client.emails.send(
+        From="support@cfautocare.biz",  # Make sure this is verified in Postmark
+        To=to_email,
+        Subject="CFAC Password Reset",
+        HtmlBody=f"""
+        <p>Hello,</p>
+        <p>Click the link below to reset your password. This link expires in 1 hour.</p>
+        <p><a href="{reset_link}">Reset Password</a></p>
+        <p>If you didn't request this, ignore this email.</p>
+        """,
+        TextBody=f"Hello,\nUse this link to reset your password: {reset_link}\nLink expires in 1 hour."
+    )

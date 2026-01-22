@@ -120,3 +120,46 @@ def update_account_settings():
         print("Error updating account:", e)
         current_app.logger.error(f"[Account][PUT] Error updating account settings: {e}")
         return jsonify({"error": "Failed to update settings."}), 500
+
+
+
+
+
+# app.py or blueprints/admin.py (where you handle account routes)
+from flask import Blueprint, request, jsonify
+from notis import send_reset_email  # Function to email reset link
+import secrets
+from datetime import datetime, timedelta
+
+account_bp = Blueprint("account", __name__, url_prefix="/api/account")
+
+@account_bp.route("/reset-password", methods=["POST"])
+def reset_password_request():
+    """
+    Request a password reset link to be sent to the user's email.
+    """
+    data = request.get_json()
+    if not data or "email" not in data:
+        return jsonify({"error": "Email is required"}), 400
+
+    email = data["email"].strip().lower()
+    user = User.get_by_email(email)  # Your method to get a user
+
+    if not user:
+        # Avoid leaking which emails exist
+        return jsonify({"message": "If an account exists for this email, a reset link has been sent."}), 200
+
+    # Generate a secure random token
+    reset_token = secrets.token_urlsafe(32)
+    expires_at = datetime.utcnow() + timedelta(hours=1)  # valid for 1 hour
+
+    # Save the token and expiry to the user (adjust based on your DB)
+    user.reset_token = reset_token
+    user.reset_token_expiry = expires_at
+    user.save()
+
+    # Send reset email
+    reset_link = f"https://www.cfautocare.biz/reset-password?token={reset_token}"
+    send_reset_email(user.email, reset_link)
+
+    return jsonify({"message": "If an account exists for this email, a reset link has been sent."}), 200

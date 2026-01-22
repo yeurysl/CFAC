@@ -948,8 +948,42 @@ def visitor_hits(visitor_id):
 from forms import AddUserForm
 import secrets
 from werkzeug.security import generate_password_hash
+from twilio.rest import Client
+
+import os
+from twilio.rest import Client
+from postmarker.core import PostmarkClient
 
 
+
+
+import os
+from twilio.rest import Client
+from postmarker.core import PostmarkClient
+
+def send_credentials(user_email=None, user_phone=None, password=None):
+    # Send SMS if phone is provided
+    if user_phone:
+        account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
+        auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
+        twilio_number = os.environ.get("TWILIO_PHONE_NUMBER")
+        
+        client = Client(account_sid, auth_token)
+        client.messages.create(
+            body=f"Your account has been created. Your password is: {password}",
+            from_=twilio_number,
+            to=user_phone
+        )
+    
+    # Send email if email is provided
+    if user_email:
+        postmark_client = PostmarkClient(server_token=os.environ.get("POSTMARK_SERVER_TOKEN"))
+        postmark_client.emails.send(
+            From=os.environ.get("POSTMARK_SENDER_EMAIL"),
+            To=user_email,
+            Subject="Your New Account Credentials",
+            TextBody=f"Your account has been created.\n\nPassword: {password}"
+        )
 
 
 
@@ -966,32 +1000,41 @@ def add_user():
         phone = form.phone.data if form.phone.data else None
         username = form.username.data
 
+        # Ensure at least one contact method
+        if not email and not phone:
+            flash("You must provide either an email or a phone number.", "danger")
+            return redirect(url_for("admin.add_user"))
+
         # Check duplicates
         if email and users_collection.find_one({"email": email}):
             flash("Email already exists.", "danger")
             return redirect(url_for("admin.add_user"))
-
-        if users_collection.find_one({"username": username}):
+        if username and users_collection.find_one({"username": username}):
             flash("Username already exists.", "danger")
             return redirect(url_for("admin.add_user"))
 
-        # Generate a random dummy password
-        dummy_password = secrets.token_urlsafe(12)
-        hashed_password = generate_password_hash(dummy_password)
+        # Generate dummy password
+        import secrets
+        dummy_password = secrets.token_urlsafe(8)
+        hashed_password = bcrypt.generate_password_hash(dummy_password).decode("utf-8")
 
         # Insert user
         users_collection.insert_one({
-            "full_name": form.full_name.data,
-            "username": username,
             "email": email,
             "phone": phone,
+            "username": username,
+            "full_name": form.full_name.data,
             "password": hashed_password,
             "user_type": form.user_type.data,
             "creation_date": datetime.utcnow()
         })
 
-        flash(f"User added successfully! (Password is generated automatically)", "success")
+        # Send credentials
+        send_credentials(user_email=email, user_phone=phone, password=dummy_password)
+
+        flash("User added successfully! Credentials sent.", "success")
         return redirect(url_for("admin.manage_users"))
 
     return render_template("admin/add_user.html", form=form)
+
 
