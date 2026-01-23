@@ -1,0 +1,63 @@
+<!-- templates/admin/add_customer.html -->
+{% extends 'base.html' %}
+
+{% block title %}Add Customer{% endblock %}
+
+{% block content %}
+<div class="container mt-3">
+    <h1 class="mb-4">Add Customer</h1>
+
+    <form method="POST" action="{{ url_for('admin.add_customer') }}">
+        {{ form.hidden_tag() }}
+
+        <!-- Full Name -->
+        <div class="mb-3">
+            <label for="full_name" class="form-label">Full Name</label>
+            {{ form.full_name(class="form-control", id="full_name", placeholder="Enter full name") }}
+        </div>
+
+        <!-- Email -->
+        <div class="mb-3">
+            <label for="email" class="form-label">Email</label>
+            {{ form.email(class="form-control", id="email", placeholder="Enter email") }}
+        </div>
+
+        <!-- Phone -->
+        <div class="mb-3">
+            <label for="phone" class="form-label">Phone</label>
+            {{ form.phone(class="form-control", id="phone", placeholder="Enter phone number") }}
+        </div>
+
+        <!-- Address -->
+        <h5>Address</h5>
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label for="street_address" class="form-label">Street</label>
+                {{ form.street_address(class="form-control", id="street_address") }}
+            </div>
+            <div class="col-md-3">
+                <label for="city" class="form-label">City</label>
+                {{ form.city(class="form-control", id="city") }}
+            </div>
+            <div class="col-md-3">
+                <label for="zip_code" class="form-label">Zip Code</label>
+                {{ form.zip_code(class="form-control", id="zip_code") }}
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label for="country" class="form-label">Country</label>
+            {{ form.country(class="form-control", id="country") }}
+        </div>
+
+        <!-- Car Size -->
+        <div class="mb-3">
+            <label for="car_size" class="form-label">Car Size</label>
+            {{ form.car_size(class="form-select", id="car_size") }}
+        </div>
+
+        <button type="submit" class="btn btn-success">Add Customer</button>
+        <a href="{{ url_for('admin.manage_users') }}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+{% endblock %}

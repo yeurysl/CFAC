@@ -13,7 +13,7 @@ from app import bcrypt
 from decorators import admin_required
 
 # Import your forms
-from forms import DeleteOrderForm, EditOrderForm, UpdateCompensationStatusForm
+from forms import DeleteOrderForm, EditOrderForm, UpdateCompensationStatusForm, AddCustomerForm
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -1036,5 +1036,132 @@ def add_user():
         return redirect(url_for("admin.manage_users"))
 
     return render_template("admin/add_user.html", form=form)
+
+
+
+
+
+
+@admin_bp.route("/customers/add", methods=["GET", "POST"])
+@login_required
+@admin_required
+def add_customer():
+    form = AddCustomerForm()
+    users_collection = current_app.config["USERS_COLLECTION"]
+
+    if form.validate_on_submit():
+        email = form.email.data.lower().strip() if form.email.data else None
+        phone = form.phone.data.strip() if form.phone.data else None
+
+        # Require at least one contact method
+        if not email and not phone:
+            flash("Customer must have an email or phone number.", "danger")
+            return redirect(url_for("admin.add_customer"))
+
+        # Duplicate checks (same logic as add_user)
+        if email and users_collection.find_one({"email": email}):
+            flash("A customer with this email already exists.", "danger")
+            return redirect(url_for("admin.add_customer"))
+
+        # Generate password (customers may log in later)
+        temp_password = secrets.token_urlsafe(10)
+        hashed_password = bcrypt.generate_password_hash(temp_password).decode("utf-8")
+
+        customer_doc = {
+            "full_name": form.full_name.data.strip(),
+            "email": email,
+            "phone": phone,
+            "password": hashed_password,
+            "user_type": "customer",
+            "address": {
+                "street_address": form.street_address.data,
+                "city": form.city.data,
+                "zip_code": form.zip_code.data,
+                "country": form.country.data
+            },
+            "car_size": form.car_size.data,
+            "creation_date": datetime.utcnow()
+        }
+
+        result = users_collection.insert_one(customer_doc)
+
+        current_app.logger.info(
+            f"Customer created by admin. _id={result.inserted_id}, email={email}"
+        )
+
+        # Optional: send credentials if email/phone exists
+        send_credentials(
+            user_email=email,
+            user_phone=phone,
+            password=temp_password
+        )
+
+        flash("Customer added successfully.", "success")
+        return redirect(url_for("admin.manage_users"))
+
+    return render_template("admin/add_customer.html", form=form)
+
+
+
+@admin_bp.route('/customers/<customer_id>')
+@login_required
+@admin_required
+def view_customer(customer_id):
+    # -------------------------------------------------------------------------
+    # 1. Get the DB client and collection
+    # -------------------------------------------------------------------------
+    db = current_app.config.get("MONGO_CLIENT")
+    if db is None:
+        current_app.logger.error("[VIEW CUSTOMER] MONGO_CLIENT not configured")
+        flash("Database not configured", "danger")
+        return redirect(url_for('admin.manage_users'))
+
+    users_collection = db.users
+    orders_collection = db.orders
+
+    # -------------------------------------------------------------------------
+    # 2. Fetch the customer document
+    # -------------------------------------------------------------------------
+    try:
+        customer = users_collection.find_one({
+            "_id": ObjectId(customer_id),
+            "user_type": "customer"
+        })
+    except Exception as e:
+        current_app.logger.error(f"[VIEW CUSTOMER] Exception fetching customer: {e}", exc_info=True)
+        flash("Failed to fetch customer", "danger")
+        return redirect(url_for('admin.manage_users'))
+
+    if not customer:
+        flash("Customer not found", "danger")
+        return redirect(url_for('admin.manage_users'))
+
+    # -------------------------------------------------------------------------
+    # 3. Fetch all orders for this customer
+    # -------------------------------------------------------------------------
+    try:
+        orders_cursor = orders_collection.find({
+            "customer_id": ObjectId(customer_id)
+        })
+        orders = list(orders_cursor)  # convert cursor to list for template
+    except Exception as e:
+        current_app.logger.error(f"[VIEW CUSTOMER] Exception fetching orders: {e}", exc_info=True)
+        orders = []
+
+    # -------------------------------------------------------------------------
+    # 4. Render the template
+    # -------------------------------------------------------------------------
+    return render_template(
+        'admin/view_customer.html',
+        customer=customer,
+        orders=orders
+    )
+
+
+
+
+
+
+
 
 

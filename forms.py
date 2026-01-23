@@ -392,3 +392,33 @@ class AddUserForm(FlaskForm):
 
 
 
+
+class AddCustomerForm(FlaskForm):
+    full_name = StringField("Full Name", validators=[DataRequired()])
+    email = StringField("Email", validators=[DataRequired(), Email()])
+    phone = StringField("Phone", validators=[Optional()])
+
+    # Address fields
+    street_address = StringField("Street Address", validators=[Optional()])
+    city = StringField("City", validators=[Optional()])
+    zip_code = StringField("Zip Code", validators=[Optional()])
+    country = StringField("Country", validators=[Optional()])
+
+    car_size = SelectField(
+        "Vehicle Size",
+        choices=[
+            ("coupe_2_seater", "Coupe (2 Seater)"),
+            ("hatch_2_door", "Hatchback (2 Door)"),
+            ("hatch_4_door", "Hatchback (4 Door)"),
+            ("sedan_2_door", "Sedan (2 Door)"),
+            ("sedan_4_door", "Sedan (4 Door)"),
+            ("truck_2_seater", "Truck (2 Seater)"),
+            ("truck_4_seater", "Truck (4 Seater)"),
+            ("suv_4_seater", "SUV (4 Seater)"),
+            ("suv_6_seater", "SUV (6 Seater)"),
+            ("minivan_6_seater", "Minivan (6 Seater)")
+        ],
+        validators=[DataRequired()]
+    )
+
+    submit = SubmitField("Add Customer")

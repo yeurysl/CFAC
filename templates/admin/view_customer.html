@@ -1,0 +1,51 @@
+<!-- templates/admin/view_customer.html -->
+
+{% extends 'base.html' %}
+
+{% block title %}View Customer{% endblock %}
+
+{% block content %}
+<div class="container mt-3">
+    <h1>Customer: {{ customer.full_name }}</h1>
+    <p><strong>Email:</strong> {{ customer.email }}</p>
+    <p><strong>Phone:</strong> {{ customer.phone }}</p>
+    <p><strong>Address:</strong>
+        {{ customer.address.street_address }}, 
+        {{ customer.address.city }}, 
+        {{ customer.address.zip_code }}, 
+        {{ customer.address.country }}
+    </p>
+    <p><strong>Car Size:</strong> {{ customer.car_size }}</p>
+    <p><strong>Joined:</strong> {{ customer.creation_date.strftime('%b %d, %Y') }}</p>
+
+    <hr>
+
+    <h3>Orders</h3>
+    {% if orders|length == 0 %}
+        <p class="text-muted">No orders yet.</p>
+    {% else %}
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Order ID</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}
+                    <tr>
+                        <td>{{ order._id }}</td>
+                        <td>{{ order.creation_date.strftime('%b %d, %Y') if order.creation_date else "N/A" }}</td>
+                        <td>{{ order.status | capitalize }}</td>
+                        <td>${{ order.total_price if order.total_price else "0.00" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
