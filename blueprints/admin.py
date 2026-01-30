@@ -1164,7 +1164,7 @@ def view_customer(customer_id):
 
 
 
-@admin_bp.route("/orders/create_order", methods=["GET"])
+@admin_bp.route("/create", methods=["GET"])
 def create_order_pageS():
-    return render_template("admin/orders/create_order.html")
+    return render_template("admin/create_order.html")
 StopIteration
