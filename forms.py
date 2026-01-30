@@ -1,6 +1,6 @@
 
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SubmitField, SelectField, HiddenField, SelectMultipleField, DateField, RadioField, BooleanField, DecimalField, TimeField, ValidationError
+from wtforms import StringField, PasswordField, SubmitField, SelectField, HiddenField, SelectMultipleField, DateField, RadioField, BooleanField, DecimalField, TimeField, ValidationError, FieldList, FormField, StringField, Form
 from wtforms.validators import DataRequired, Email, EqualTo, Length, Regexp, Optional, NumberRange
 from wtforms.widgets import ListWidget, CheckboxInput
 from utility import format_us_phone_number
@@ -391,6 +391,9 @@ class AddUserForm(FlaskForm):
 
 
 
+class VehicleForm(Form):
+    label = StringField("Label")
+    vehicle_size = SelectField("Vehicle Size", choices=[])
 
 
 class AddCustomerForm(FlaskForm):
@@ -404,21 +407,6 @@ class AddCustomerForm(FlaskForm):
     zip_code = StringField("Zip Code", validators=[Optional()])
     country = StringField("Country", validators=[Optional()])
 
-    car_size = SelectField(
-        "Vehicle Size",
-        choices=[
-            ("coupe_2_seater", "Coupe (2 Seater)"),
-            ("hatch_2_door", "Hatchback (2 Door)"),
-            ("hatch_4_door", "Hatchback (4 Door)"),
-            ("sedan_2_door", "Sedan (2 Door)"),
-            ("sedan_4_door", "Sedan (4 Door)"),
-            ("truck_2_seater", "Truck (2 Seater)"),
-            ("truck_4_seater", "Truck (4 Seater)"),
-            ("suv_4_seater", "SUV (4 Seater)"),
-            ("suv_6_seater", "SUV (6 Seater)"),
-            ("minivan_6_seater", "Minivan (6 Seater)")
-        ],
-        validators=[DataRequired()]
-    )
+
 
     submit = SubmitField("Add Customer")

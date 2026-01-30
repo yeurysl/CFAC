@@ -1,63 +1,75 @@
-<!-- templates/admin/add_customer.html -->
-{% extends 'base.html' %}
-
-{% block title %}Add Customer{% endblock %}
-
+{% extends "base.html" %}
 {% block content %}
-<div class="container mt-3">
-    <h1 class="mb-4">Add Customer</h1>
-
-    <form method="POST" action="{{ url_for('admin.add_customer') }}">
+<div class="container mt-4">
+    <h2>Add Customer</h2>
+    <form method="POST">
         {{ form.hidden_tag() }}
 
-        <!-- Full Name -->
+        <!-- ================= CUSTOMER INFO ================= -->
         <div class="mb-3">
-            <label for="full_name" class="form-label">Full Name</label>
-            {{ form.full_name(class="form-control", id="full_name", placeholder="Enter full name") }}
+            {{ form.full_name.label }}<br>
+            {{ form.full_name(class="form-control") }}
+        </div>
+        <div class="mb-3">
+            {{ form.email.label }}<br>
+            {{ form.email(class="form-control") }}
+        </div>
+        <div class="mb-3">
+            {{ form.phone.label }}<br>
+            {{ form.phone(class="form-control") }}
+        </div>
+        <div class="mb-3">
+            <strong>Address</strong><br>
+            {{ form.street_address(class="form-control mb-2", placeholder="Street") }}
+            {{ form.city(class="form-control mb-2", placeholder="City") }}
+            {{ form.zip_code(class="form-control mb-2", placeholder="ZIP") }}
+            {{ form.country(class="form-control", placeholder="Country") }}
         </div>
 
-        <!-- Email -->
-        <div class="mb-3">
-            <label for="email" class="form-label">Email</label>
-            {{ form.email(class="form-control", id="email", placeholder="Enter email") }}
-        </div>
-
-        <!-- Phone -->
-        <div class="mb-3">
-            <label for="phone" class="form-label">Phone</label>
-            {{ form.phone(class="form-control", id="phone", placeholder="Enter phone number") }}
-        </div>
-
-        <!-- Address -->
-        <h5>Address</h5>
-        <div class="row mb-3">
-            <div class="col-md-6">
-                <label for="street_address" class="form-label">Street</label>
-                {{ form.street_address(class="form-control", id="street_address") }}
+        <!-- ================= VEHICLE ================= -->
+        <div id="vehicles-wrapper">
+            <h5>Vehicles</h5>
+            <div class="row mb-2 vehicle-row">
+                <div class="col-md-6">
+                    <input type="text" name="vehicle_label" class="form-control" placeholder="Vehicle Label">
+                </div>
+                <div class="col-md-6">
+                    <select name="vehicle_size" class="form-select">
+                        <option value="">Select size</option>
+                        {% for size in VEHICLE_SIZES %}
+                            <option value="{{ size }}">{{ size | replace("_", " ") | title }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
             </div>
-            <div class="col-md-3">
-                <label for="city" class="form-label">City</label>
-                {{ form.city(class="form-control", id="city") }}
-            </div>
-            <div class="col-md-3">
-                <label for="zip_code" class="form-label">Zip Code</label>
-                {{ form.zip_code(class="form-control", id="zip_code") }}
-            </div>
         </div>
 
-        <div class="mb-3">
-            <label for="country" class="form-label">Country</label>
-            {{ form.country(class="form-control", id="country") }}
-        </div>
-
-        <!-- Car Size -->
-        <div class="mb-3">
-            <label for="car_size" class="form-label">Car Size</label>
-            {{ form.car_size(class="form-select", id="car_size") }}
-        </div>
-
-        <button type="submit" class="btn btn-success">Add Customer</button>
-        <a href="{{ url_for('admin.manage_users') }}" class="btn btn-secondary">Cancel</a>
+        <button type="button" class="btn btn-sm btn-secondary mb-3" id="add-vehicle-btn">Add Vehicle</button>
+        <br>
+        <button type="submit" class="btn btn-primary">Add Customer</button>
     </form>
 </div>
+
+<!-- ================= JS FOR ADDING VEHICLES ================= -->
+<script>
+document.getElementById("add-vehicle-btn").addEventListener("click", function() {
+    const wrapper = document.getElementById("vehicles-wrapper");
+    const newRow = document.createElement("div");
+    newRow.classList.add("row", "mb-2", "vehicle-row");
+    newRow.innerHTML = `
+        <div class="col-md-6">
+            <input type="text" name="vehicle_label" class="form-control" placeholder="Vehicle Label">
+        </div>
+        <div class="col-md-6">
+            <select name="vehicle_size" class="form-select">
+                <option value="">Select size</option>
+                {% for size in VEHICLE_SIZES %}
+                    <option value="{{ size }}">{{ size | replace("_", " ") | title }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    `;
+    wrapper.appendChild(newRow);
+});
+</script>
 {% endblock %}

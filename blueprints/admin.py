@@ -1041,7 +1041,6 @@ def add_user():
 
 
 
-
 @admin_bp.route("/customers/add", methods=["GET", "POST"])
 @login_required
 @admin_required
@@ -1049,57 +1048,77 @@ def add_customer():
     form = AddCustomerForm()
     users_collection = current_app.config["USERS_COLLECTION"]
 
+    # Hard-coded vehicle sizes
+    VEHICLE_SIZES = [
+        "coupe_2_seater",
+        "hatch_2_door",
+        "hatch_4_door",
+        "sedan_2_door",
+        "sedan_4_door",
+        "truck_2_seater",
+        "truck_4_seater",
+        "suv_4_seater",
+        "suv_6_seater",
+        "minivan_6_seater",
+    ]
+
     if form.validate_on_submit():
+        # Process email and phone
         email = form.email.data.lower().strip() if form.email.data else None
         phone = form.phone.data.strip() if form.phone.data else None
 
-        # Require at least one contact method
         if not email and not phone:
             flash("Customer must have an email or phone number.", "danger")
             return redirect(url_for("admin.add_customer"))
 
-        # Duplicate checks (same logic as add_user)
+        # Check for duplicate email
         if email and users_collection.find_one({"email": email}):
             flash("A customer with this email already exists.", "danger")
             return redirect(url_for("admin.add_customer"))
 
-        # Generate password (customers may log in later)
+        # Generate password for future login
         temp_password = secrets.token_urlsafe(10)
         hashed_password = bcrypt.generate_password_hash(temp_password).decode("utf-8")
 
+        # Process the first vehicle
+        vehicle_label = request.form.get("vehicle_label")
+        vehicle_size = request.form.get("vehicle_size")
+        vehicles = []
+
+        if vehicle_size:
+            vehicles.append({
+                "label": vehicle_label.strip() if vehicle_label else "Vehicle",
+                "vehicle_size": vehicle_size
+            })
+
+        # Build the customer document
         customer_doc = {
             "full_name": form.full_name.data.strip(),
             "email": email,
             "phone": phone,
             "password": hashed_password,
             "user_type": "customer",
+            "vehicles": vehicles,
+            "creation_date": datetime.utcnow(),
             "address": {
-                "street_address": form.street_address.data,
-                "city": form.city.data,
-                "zip_code": form.zip_code.data,
-                "country": form.country.data
-            },
-            "car_size": form.car_size.data,
-            "creation_date": datetime.utcnow()
+                "street_address": form.street_address.data.strip(),
+                "city": form.city.data.strip(),
+                "zip_code": form.zip_code.data.strip(),
+                "country": form.country.data.strip()
+            }
         }
 
-        result = users_collection.insert_one(customer_doc)
+        # Insert customer into the database
+        users_collection.insert_one(customer_doc)
 
-        current_app.logger.info(
-            f"Customer created by admin. _id={result.inserted_id}, email={email}"
-        )
-
-        # Optional: send credentials if email/phone exists
-        send_credentials(
-            user_email=email,
-            user_phone=phone,
-            password=temp_password
-        )
+        # Optional: send credentials via email/phone
+        send_credentials(user_email=email, user_phone=phone, password=temp_password)
 
         flash("Customer added successfully.", "success")
         return redirect(url_for("admin.manage_users"))
 
-    return render_template("admin/add_customer.html", form=form)
+    return render_template("admin/add_customer.html", form=form, VEHICLE_SIZES=VEHICLE_SIZES)
+
 
 
 
@@ -1150,15 +1169,15 @@ def view_customer(customer_id):
 
     # -------------------------------------------------------------------------
     # 4. Render the template
-    # -------------------------------------------------------------------------
+    # ----------------------
+    # ---------------------------------------------------
+    customer['_id'] = str(customer['_id'])
+
     return render_template(
         'admin/view_customer.html',
         customer=customer,
         orders=orders
     )
-
-
-
 
 
 
@@ -1174,20 +1193,119 @@ def create_order_page():
         return redirect(url_for("admin.admin_main"))
 
     users_collection = db.users
-
-    # Fetch ONLY customers
     customers_cursor = users_collection.find(
         {"user_type": "customer"},
         {
             "full_name": 1,
             "email": 1,
-            "phone": 1
+            "phone": 1,
+            "vehicles": 1
         }
     ).sort("full_name", 1)
-
     customers = list(customers_cursor)
+
+    # Example services structure (like your ServiceData in Swift)
+    services = [
+        {"key": "exterior_handwash", "label": "Exterior Handwash", "category": "Exterior", "priceByVehicleSize": {"sedan_4_door": {"price": 50, "completionTime": "30 minutes"}}},
+        {"key": "bug_tar_removal", "label": "Bug & Tar Removal", "category": "Exterior", "priceByVehicleSize": {"sedan_4_door": {"price": 30, "completionTime": "20 minutes"}}},
+        {"key": "interior_plastics_dry_detail", "label": "Interior Plastics Dry Detail", "category": "Interior", "priceByVehicleSize": {"sedan_4_door": {"price": 40, "completionTime": "25 minutes"}}},
+        # add all your services here
+        {"key": "truck_bed", "label": "Truck Bed Detail", "category": "Exterior", "priceByVehicleSize": {"truck_2_seater": {"price": 35, "completionTime": "15 minutes"}}}
+    ]
+
+    packages = [
+        {"name": "Full Exterior", "serviceKeys": ["exterior_handwash", "bug_tar_removal"]},
+        {"name": "Full Interior", "serviceKeys": ["interior_plastics_dry_detail"]},
+    ]
+
+    vehicle_sizes = [
+        "Coupe (2-Seater)", "Hatchback (2-Door)", "Hatchback (4-Door)",
+        "Minivan (6-Seater)", "Sedan (2-Door)", "Sedan (4-Seater)",
+        "SUV (4-Seater)", "SUV (6-Seater)", "Truck (2-Seater)", "Truck (4-Seater)"
+    ]
+
+    vehicle_size_mapping = {
+        "Coupe (2-Seater)": "coupe_2_seater",
+        "Hatchback (2-Door)": "hatch_2_door",
+        "Hatchback (4-Door)": "hatch_4_door",
+        "Minivan (6-Seater)": "minivan_6_seater",
+        "Sedan (2-Door)": "sedan_2_door",
+        "Sedan (4-Seater)": "sedan_4_door",
+        "SUV (4-Seater)": "suv_4_seater",
+        "SUV (6-Seater)": "suv_6_seater",
+        "Truck (2-Seater)": "truck_2_seater",
+        "Truck (4-Seater)": "truck_4_seater"
+    }
 
     return render_template(
         "admin/create_order.html",
-        customers=customers
+        customers=customers,
+        services=services,
+        packages=packages,
+        vehicle_sizes=vehicle_sizes,
+        vehicle_size_mapping=vehicle_size_mapping
     )
+
+
+
+
+from extensions import csrf  
+@admin_bp.route('/customers/<customer_id>/update', methods=['POST'])
+@login_required
+@admin_required
+@csrf.exempt
+def update_customer(customer_id):
+    db = current_app.config["MONGO_CLIENT"]
+    users = db.users
+
+    # Hard-coded vehicle sizes (must match the template)
+    VEHICLE_SIZES = [
+        "coupe_2_seater",
+        "hatch_2_door",
+        "hatch_4_door",
+        "sedan_2_door",
+        "sedan_4_door",
+        "truck_2_seater",
+        "truck_4_seater",
+        "suv_4_seater",
+        "suv_6_seater",
+        "minivan_6_seater",
+    ]
+
+    # Collect vehicles from form
+    vehicles = []
+    vehicle_labels = request.form.getlist("vehicle_label[]")
+    vehicle_sizes = request.form.getlist("vehicle_size[]")
+
+    for label, size in zip(vehicle_labels, vehicle_sizes):
+        if size:  # only include if a size is selected
+            vehicles.append({
+                "label": label.strip() if label else "Vehicle",
+                "vehicle_size": size
+            })
+
+    # Build update data
+    update_data = {
+        "full_name": request.form.get("full_name", "").strip(),
+        "email": request.form.get("email", "").strip() or None,
+        "phone": request.form.get("phone", "").strip() or None,
+        "vehicles": vehicles,
+        "address": {
+            "street_address": request.form.get("street_address", "").strip(),
+            "city": request.form.get("city", "").strip(),
+            "zip_code": request.form.get("zip_code", "").strip(),
+            "country": request.form.get("country", "").strip()
+        }
+    }
+
+    # Update the customer in the database
+    users.update_one(
+        {"_id": ObjectId(customer_id), "user_type": "customer"},
+        {"$set": update_data}
+    )
+
+    flash("Customer updated successfully", "success")
+    return redirect(url_for("admin.view_customer", customer_id=customer_id))
+
+
+

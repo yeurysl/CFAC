@@ -1,51 +1,171 @@
-<!-- templates/admin/view_customer.html -->
-
 {% extends 'base.html' %}
-
-{% block title %}View Customer{% endblock %}
+{% block title %}Edit Customer{% endblock %}
 
 {% block content %}
-<div class="container mt-3">
-    <h1>Customer: {{ customer.full_name }}</h1>
-    <p><strong>Email:</strong> {{ customer.email }}</p>
-    <p><strong>Phone:</strong> {{ customer.phone }}</p>
-    <p><strong>Address:</strong>
-        {{ customer.address.street_address }}, 
-        {{ customer.address.city }}, 
-        {{ customer.address.zip_code }}, 
-        {{ customer.address.country }}
-    </p>
-    <p><strong>Car Size:</strong> {{ customer.car_size }}</p>
-    <p><strong>Joined:</strong> {{ customer.creation_date.strftime('%b %d, %Y') }}</p>
 
-    <hr>
+{% set VEHICLE_SIZES = [
+    "coupe_2_seater",
+    "hatch_2_door",
+    "hatch_4_door",
+    "sedan_2_door",
+    "sedan_4_door",
+    "truck_2_seater",
+    "truck_4_seater",
+    "suv_4_seater",
+    "suv_6_seater",
+    "minivan_6_seater",
+] %}
 
-    <h3>Orders</h3>
-    {% if orders|length == 0 %}
-        <p class="text-muted">No orders yet.</p>
-    {% else %}
-        <div class="table-responsive">
-            <table class="table table-bordered table-striped">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Order ID</th>
-                        <th>Date</th>
-                        <th>Status</th>
-                        <th>Total</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for order in orders %}
-                    <tr>
-                        <td>{{ order._id }}</td>
-                        <td>{{ order.creation_date.strftime('%b %d, %Y') if order.creation_date else "N/A" }}</td>
-                        <td>{{ order.status | capitalize }}</td>
-                        <td>${{ order.total_price if order.total_price else "0.00" }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+<div class="container mt-4">
+
+    <!-- ================= HEADER ================= -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h2>{{ customer.full_name }}</h2>
+            <span class="badge bg-info text-dark">Customer</span>
         </div>
-    {% endif %}
+    </div>
+
+    <!-- ================= EDIT CUSTOMER FORM ================= -->
+<form method="POST" action="{{ url_for('admin.update_customer', customer_id=customer._id|string) }}">
+
+        <!-- ================= CUSTOMER INFO ================= -->
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">Customer Information</div>
+            <div class="card-body">
+                <div class="row">
+                    <!-- Email -->
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label"><strong>Email</strong></label>
+                        <input type="email" class="form-control" name="email" value="{{ customer.email or '' }}">
+                    </div>
+                    <!-- Phone -->
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label"><strong>Phone</strong></label>
+                        <input type="text" class="form-control" name="phone" value="{{ customer.phone or '' }}">
+                    </div>
+                    <!-- Address -->
+                    <div class="col-12 mb-3">
+                        <label class="form-label"><strong>Street Address</strong></label>
+                        <input type="text" class="form-control" name="street_address" value="{{ customer.address.street_address if customer.address else '' }}">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label"><strong>City</strong></label>
+                        <input type="text" class="form-control" name="city" value="{{ customer.address.city if customer.address else '' }}">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label"><strong>Zip Code</strong></label>
+                        <input type="text" class="form-control" name="zip_code" value="{{ customer.address.zip_code if customer.address else '' }}">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label"><strong>Country</strong></label>
+                        <input type="text" class="form-control" name="country" value="{{ customer.address.country if customer.address else '' }}">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= VEHICLES ================= -->
+        <div class="card mb-4">
+            <div class="card-header bg-dark text-white">Vehicles</div>
+            <div class="card-body" id="vehicles-wrapper">
+
+                {% if customer.vehicles %}
+                    {% for v in customer.vehicles %}
+                        <div class="row mb-3 vehicle-row">
+                            <div class="col-md-6">
+                                <label class="form-label">Vehicle Label</label>
+                                <input type="text" class="form-control" name="vehicle_label[]" value="{{ v.label }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Vehicle Size</label>
+                                <select class="form-select" name="vehicle_size[]">
+                                    <option value="">Select size</option>
+                                    {% for size in VEHICLE_SIZES %}
+                                        <option value="{{ size }}" {% if v.vehicle_size == size %}selected{% endif %}>
+                                            {{ size | replace("_", " ") | title }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted">No vehicles on file.</p>
+                {% endif %}
+
+            </div>
+
+            <!-- Button to add more vehicles -->
+            <button type="button" class="btn btn-sm btn-secondary mt-2" id="add-vehicle-btn">Add Vehicle</button>
+
+        </div>
+
+        <!-- ================= SAVE ================= -->
+        <div class="d-flex justify-content-end mb-4">
+            <button type="submit" class="btn btn-success">Save Changes</button>
+        </div>
+
+    </form>
+
+    <!-- ================= ORDERS (READ-ONLY) ================= -->
+    <div class="card">
+        <div class="card-header bg-secondary text-white">Orders</div>
+        <div class="card-body">
+            {% if orders|length == 0 %}
+                <p class="text-muted mb-0">No orders yet.</p>
+            {% else %}
+                <div class="table-responsive">
+                    <table class="table table-bordered table-striped">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Order ID</th>
+                                <th>Date</th>
+                                <th>Status</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for order in orders %}
+                                <tr>
+                                    <td>{{ order._id }}</td>
+                                    <td>{{ order.creation_date.strftime('%b %d, %Y') if order.creation_date else '—' }}</td>
+                                    <td><span class="badge bg-info text-dark">{{ order.status | default('unknown') | capitalize }}</span></td>
+                                    <td>${{ "%.2f"|format(order.total_price) if order.total_price else "0.00" }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
 </div>
+
+<!-- ================= DYNAMIC VEHICLE ADD JS ================= -->
+<script>
+document.getElementById("add-vehicle-btn").addEventListener("click", function() {
+    const wrapper = document.getElementById("vehicles-wrapper");
+    const newRow = document.createElement("div");
+    newRow.classList.add("row", "mb-3", "vehicle-row");
+
+    newRow.innerHTML = `
+        <div class="col-md-6">
+            <input type="text" name="vehicle_label[]" class="form-control" placeholder="Vehicle Label">
+        </div>
+        <div class="col-md-6">
+            <select name="vehicle_size[]" class="form-select">
+                <option value="">Select size</option>
+                {% for size in VEHICLE_SIZES %}
+                    <option value="{{ size }}">{{ size | replace("_", " ") | title }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    `;
+
+    wrapper.appendChild(newRow);
+});
+</script>
+
 {% endblock %}
