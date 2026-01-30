@@ -1164,4 +1164,6 @@ def view_customer(customer_id):
 
 
 
-
+@admin_bp.route("/orders/create", methods=["GET"])
+def create_order_page():
+    return render_template("admin/orders/create_order.html")
