@@ -1165,6 +1165,29 @@ def view_customer(customer_id):
 
 
 @admin_bp.route("/create", methods=["GET"])
+@login_required
+@admin_required
 def create_order_page():
-    return render_template("admin/create_order.html")
-StopIteration
+    db = current_app.config.get("MONGO_CLIENT")
+    if db is None:
+        flash("Database not configured", "danger")
+        return redirect(url_for("admin.admin_main"))
+
+    users_collection = db.users
+
+    # Fetch ONLY customers
+    customers_cursor = users_collection.find(
+        {"user_type": "customer"},
+        {
+            "full_name": 1,
+            "email": 1,
+            "phone": 1
+        }
+    ).sort("full_name", 1)
+
+    customers = list(customers_cursor)
+
+    return render_template(
+        "admin/create_order.html",
+        customers=customers
+    )

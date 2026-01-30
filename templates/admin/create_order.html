@@ -6,24 +6,22 @@
 
     <form>
         <!-- Customer Info -->
-        <h3>Customer Information</h3>
+        <h3>Customer</h3>
 
-        <div class="form-group">
-            <label>Full Name</label>
-            <input type="text" name="customer_name" class="form-control">
+     <div class="mb-3">
+            <label for="customer_id" class="form-label">Customer</label>
+            <select class="form-select" id="customer_id" name="customer_id" required>
+                <option value="">-- Select a customer --</option>
+
+                {% for customer in customers %}
+                    <option value="{{ customer._id }}">
+                        {{ customer.full_name }}
+                        {% if customer.email %} — {{ customer.email }}{% endif %}
+                        {% if customer.phone %} — {{ customer.phone }}{% endif %}
+                    </option>
+                {% endfor %}
+            </select>
         </div>
-
-        <div class="form-group">
-            <label>Email</label>
-            <input type="email" name="customer_email" class="form-control">
-        </div>
-
-        <div class="form-group">
-            <label>Phone</label>
-            <input type="text" name="customer_phone" class="form-control">
-        </div>
-
-        <hr>
 
         <!-- Service Info -->
         <h3>Service Details</h3>
