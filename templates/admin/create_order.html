@@ -1,96 +1,212 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container mt-4">
 
-<form method="POST" action="{{ url_for('admin.create_order_page') }}">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<div class="container mt-5">
+    <h1 class="mb-4">Create Order</h1>
 
-    <!-- Customer -->
-    <h3>Customer</h3>
-    <div class="mb-3">
-        <label class="form-label">Customer</label>
-        <select class="form-select" id="customer_id" name="customer_id" required>
-            <option value="">-- Select customer --</option>
-            {% for customer in customers %}
-                <option
-                    value="{{ customer._id }}"
-                    data-vehicles='{{ customer.vehicles | tojson | safe }}'>
-                    {{ customer.full_name }}
-                    {% if customer.email %} — {{ customer.email }}{% endif %}
-                    {% if customer.phone %} — {{ customer.phone }}{% endif %}
-                </option>
-            {% endfor %}
-        </select>
-    </div>
-
-    <!-- Vehicle -->
-    <div class="mb-3">
-        <label class="form-label">Vehicle</label>
-        <select id="vehicle_select" name="vehicle_id" class="form-select" required>
-            <option value="">-- Select vehicle --</option>
-        </select>
-    </div>
-
-    <!-- Services -->
-    <div class="mb-3">
-        <label>Services</label>
-        <div id="services_container">
-            {% for service in services %}
-                <div>
-                    <input
-                        type="checkbox"
-                        class="service_checkbox"
-                        data-key="{{ service.key }}"
-                        data-prices='{{ service.price_by_vehicle_size | tojson | safe }}'
-                    >
-                    {{ service.label }} ({{ service.category }})
-                </div>
-            {% endfor %}
+    <form action="/admin/create_order" method="POST">
+        <!-- Customer Dropdown -->
+        <div class="mb-3">
+            <label for="customer" class="form-label">Select Customer</label>
+            <select class="form-select" name="customer_id" id="customer" required>
+                <option value="" disabled selected>-- Choose a Customer --</option>
+                {% for customer in customers %}
+                    <option value="{{ customer.id }}" data-vehicles='{{ customer.vehicles | tojson }}' data-name="{{ customer.display_name }}">
+                        {{ customer.display_name }}
+                    </option>
+                {% endfor %}
+            </select>
         </div>
+
+        <!-- Vehicle Dropdown -->
+        <div class="mb-3">
+            <label for="vehicle" class="form-label">Select Vehicle</label>
+            <select class="form-select" name="vehicle_label" id="vehicle" required>
+                <option value="" disabled selected>-- Choose a Vehicle --</option>
+            </select>
+        </div>
+
+<!-- PACKAGE SELECTOR -->
+<div class="mb-4">
+    <label class="form-label fw-bold">Select a Package (optional)</label>
+    <div id="package-bubbles" class="d-flex flex-wrap gap-2">
+        <button type="button" class="btn btn-outline-primary package-btn" data-package="full_exterior">Full Exterior</button>
+        <button type="button" class="btn btn-outline-primary package-btn" data-package="full_interior">Full Interior</button>
+        <button type="button" class="btn btn-outline-primary package-btn" data-package="floors">Floors</button>
+        <button type="button" class="btn btn-outline-primary package-btn" data-package="carpets">Carpets</button>
     </div>
-
-    <!-- Hidden computed values -->
-    <input type="hidden" name="services" id="services_input">
-    <input type="hidden" name="total_cost" id="total_cost_input">
-    <input type="hidden" name="estimated_minutes" id="total_time_input">
-
-    <!-- Summary -->
-    <div class="mb-3">
-        <p>Total Cost: $<span id="total_cost">0.00</span></p>
-        <p>Estimated Time: <span id="total_time">0 min</span></p>
-    </div>
-
-    <button class="btn btn-primary">Create Order</button>
-</form>
 </div>
 
 
 
+        <!-- Services -->
+        <h2 class="mt-4">Available Services</h2>
+        <div id="services-list" class="row row-cols-1 row-cols-md-2 g-3"></div>
+
+        <!-- SUMMARY SECTION -->
+        <h2 class="mt-5">Order Summary</h2>
+        <div id="order-summary" class="card p-3 bg-light">
+            <p><strong>Customer:</strong> <span id="summary-customer">-</span></p>
+            <p><strong>Vehicle:</strong> <span id="summary-vehicle">-</span></p>
+            <p><strong>Selected Services:</strong></p>
+            <ul id="summary-services"></ul>
+            <p><strong>Total Price:</strong> $<span id="summary-total">0.00</span></p>
+        </div>
+
+        <button type="submit" class="btn btn-primary mt-4">Create Order</button>
+    </form>
+</div>
 
 <script>
-const customerSelect = document.getElementById("customer_id");
-const vehicleSelect = document.getElementById("vehicle_select");
+const customerSelect = document.getElementById('customer');
+const vehicleSelect = document.getElementById('vehicle');
+const servicesListDiv = document.getElementById('services-list');
 
-customerSelect.addEventListener("change", () => {
-    vehicleSelect.innerHTML = '<option value="">-- Select vehicle --</option>';
+// Summary elements
+const summaryCustomer = document.getElementById('summary-customer');
+const summaryVehicle = document.getElementById('summary-vehicle');
+const summaryServices = document.getElementById('summary-services');
+const summaryTotal = document.getElementById('summary-total');
 
-    const selectedOption = customerSelect.selectedOptions[0];
-    if (!selectedOption) return;
+// Services data from Flask
+const servicesData = {{ services | tojson }};
 
-    const vehicles = JSON.parse(selectedOption.dataset.vehicles || "[]");
+let selectedCustomerName = '';
+let selectedVehicleSize = '';
+let selectedVehicleLabel = '';
 
-    vehicles.forEach(vehicle => {
-        const opt = document.createElement("option");
-        opt.value = vehicle._id;
-        opt.textContent = `${vehicle.year} ${vehicle.make} ${vehicle.model} (${vehicle.size})`;
-        opt.dataset.size = vehicle.size;
+// Populate vehicles when customer is selected
+customerSelect.addEventListener('change', function() {
+    const selectedOption = this.options[this.selectedIndex];
+    const vehicles = JSON.parse(selectedOption.dataset.vehicles || '[]');
+    selectedCustomerName = selectedOption.dataset.name;
+
+    // Update summary
+    summaryCustomer.textContent = selectedCustomerName;
+    summaryVehicle.textContent = '-';
+    summaryServices.innerHTML = '';
+    summaryTotal.textContent = '0.00';
+
+    // Clear vehicle dropdown
+    vehicleSelect.innerHTML = '<option value="" disabled selected>-- Choose a Vehicle --</option>';
+    servicesListDiv.innerHTML = '';
+
+    // Populate vehicles
+    vehicles.forEach(v => {
+        const opt = document.createElement('option');
+        opt.value = v.vehicle_size;  // vehicle_size used for price lookup
+        opt.textContent = v.label + ' (' + v.vehicle_size.replace(/_/g, ' ') + ')';
+        opt.dataset.label = v.label;
         vehicleSelect.appendChild(opt);
     });
 });
+
+// Display services compatible with vehicle
+vehicleSelect.addEventListener('change', function() {
+    selectedVehicleSize = this.value;
+    selectedVehicleLabel = this.options[this.selectedIndex].dataset.label;
+
+    // Update summary
+    summaryVehicle.textContent = selectedVehicleLabel;
+    summaryServices.innerHTML = '';
+    summaryTotal.textContent = '0.00';
+
+    servicesListDiv.innerHTML = '';
+
+    servicesData.forEach(service => {
+        if (!service.active) return;
+        const priceInfo = service.price_by_vehicle_size[selectedVehicleSize];
+        if (priceInfo) {
+            const divCol = document.createElement('div');
+            divCol.className = 'col';
+
+            const card = document.createElement('div');
+            card.className = 'card h-100 shadow-sm';
+
+            const cardBody = document.createElement('div');
+            cardBody.className = 'card-body';
+
+            cardBody.innerHTML = `
+                <div class="form-check">
+                    <input class="form-check-input service-checkbox" type="checkbox" name="services[]" value="${service._id}" id="service-${service._id}" data-price="${priceInfo.price}" data-label="${service.label}">
+                    <label class="form-check-label fw-bold" for="service-${service._id}">
+                        ${service.label} (${service.category})
+                    </label>
+                </div>
+                <p class="mb-0 mt-2">Price: $${priceInfo.price} - ${priceInfo.completion_time}</p>
+            `;
+
+            card.appendChild(cardBody);
+            divCol.appendChild(card);
+            servicesListDiv.appendChild(divCol);
+        }
+    });
+
+    // Add event listeners to checkboxes for summary update
+    const checkboxes = document.querySelectorAll('.service-checkbox');
+    checkboxes.forEach(cb => {
+        cb.addEventListener('change', updateSummary);
+    });
+});
+
+// Update the summary section
+function updateSummary() {
+    const selected = document.querySelectorAll('.service-checkbox:checked');
+    summaryServices.innerHTML = '';
+    let total = 0;
+    selected.forEach(cb => {
+        const li = document.createElement('li');
+        li.textContent = cb.dataset.label + ' - $' + cb.dataset.price;
+        summaryServices.appendChild(li);
+        total += parseFloat(cb.dataset.price);
+    });
+    summaryTotal.textContent = total.toFixed(2);
+}
+
+
+
+
+
+// PACKAGE DEFINITIONS
+const packageOptions = {
+    "full_exterior": ["exterior_handwash", "bug_tar_removal", "tire_rim_detail"],
+    "full_interior": ["interior_plastics_dry_detail", "interior_plastics_wet_detail", "seats_dry_detail", "seats_wet_detail", "seats_shampoo"],
+    "floors": ["floors_dry_detail", "floors_wet_detail"],
+    "carpets": ["carpet_dry_detail", "carpet_wet_detail"]
+};
+
+const packageButtons = document.querySelectorAll('.package-btn');
+
+packageButtons.forEach(btn => {
+    btn.addEventListener('click', function() {
+        const selectedPackage = this.dataset.package;
+
+        // Highlight the selected bubble
+        packageButtons.forEach(b => b.classList.remove('btn-primary'));
+        packageButtons.forEach(b => b.classList.add('btn-outline-primary'));
+        this.classList.remove('btn-outline-primary');
+        this.classList.add('btn-primary');
+
+        // Uncheck all services first
+        document.querySelectorAll('.service-checkbox').forEach(cb => cb.checked = false);
+
+        // Check services in the selected package
+        const servicesToCheck = packageOptions[selectedPackage] || [];
+        document.querySelectorAll('.service-checkbox').forEach(cb => {
+            if (servicesToCheck.includes(cb.id.replace('service-', ''))) {
+                cb.checked = true;
+            }
+        });
+
+        // Update summary
+        updateSummary();
+    });
+});
+
+
+
+
+
 </script>
-
-
-
-
 
 {% endblock %}

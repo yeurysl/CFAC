@@ -1188,73 +1188,54 @@ def view_customer(customer_id):
 from pymongo import MongoClient
 import os
 
+from bson import ObjectId
+
+from bson import ObjectId
+
+from bson import ObjectId
+
+from bson import ObjectId
+
 @admin_bp.route("/create", methods=["GET"])
 @login_required
 @admin_required
 def create_order_page():
-
-    print("\n" + "=" * 120)
-    print("🟢 ENTERED /admin/create")
-    print("➡️ METHOD:", request.method)
-
-    # -------------------------------
-    # CONNECT TO MONGO
-    # -------------------------------
     mongo_uri = os.getenv("MONGODB_URI")
-    print("🔐 Mongo URI loaded:", bool(mongo_uri))
-
     if not mongo_uri:
-        print("❌ MONGODB_URI NOT FOUND")
         abort(500)
 
     client = MongoClient(mongo_uri)
-    print("🧠 MongoClient created")
-
-    # ⚠️ CHANGE DB NAME IF NEEDED
     db = client["cfacdb"]
-    print("🗄 Connected to database:", db.name)
-
-    # -------------------------------
-    # COLLECTIONS
-    # -------------------------------
     users_col = db.users
     services_col = db.services
 
-    print("📂 Users collection:", users_col.name)
-    print("📂 Services collection:", services_col.name)
-
     # -------------------------------
-    # FETCH USERS
+    # FETCH CUSTOMERS ONLY
     # -------------------------------
-    print("\n👥 FETCHING USERS...")
-    users = list(users_col.find({}))
-    print(f"👥 TOTAL USERS FOUND: {len(users)}")
-
-    for i, user in enumerate(users, start=1):
-        print(f"\n--- USER #{i} ---")
-        for k, v in user.items():
-            print(f"{k}: {v}")
+    customers = []
+    for user in users_col.find({"user_type": "customer"}):
+        user_copy = user.copy()
+        user_copy["id"] = str(user_copy["_id"])
+        user_copy["display_name"] = user_copy.get("full_name") or user_copy.get("email") or "Unknown"
+        for v in user_copy.get("vehicles", []):
+            v["vehicle_size"] = v.get("vehicle_size", "")
+            v["label"] = v.get("label", "Unnamed Vehicle")
+        customers.append(user_copy)
 
     # -------------------------------
     # FETCH SERVICES
     # -------------------------------
-    print("\n🧼 FETCHING SERVICES...")
-    services = list(services_col.find({}))
-    print(f"🧼 TOTAL SERVICES FOUND: {len(services)}")
+    services = []
+    for service in services_col.find({}):
+        service_copy = service.copy()
+        service_copy["_id"] = str(service_copy["_id"])
+        services.append(service_copy)
 
-    for i, service in enumerate(services, start=1):
-        print(f"\n--- SERVICE #{i} ---")
-        for k, v in service.items():
-            print(f"{k}: {v}")
-
-    print("\n✅ DATABASE CONNECTION + READ CONFIRMED")
-    print("=" * 120 + "\n")
-
-    return render_template("admin/create_order.html")
-
-
-
-
+    return render_template(
+        "admin/create_order.html",
+        customers=customers,
+        services=services
+    )
 
 
 from extensions import csrf  
