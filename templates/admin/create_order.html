@@ -2,141 +2,95 @@
 {% block content %}
 <div class="container mt-4">
 
-    <form method="POST" action="{{ url_for('admin.create_order_page') }}">
-        <!-- Customer Info -->
-        <h3>Customer</h3>
-        <div class="mb-3">
-            <label for="customer_id" class="form-label">Customer</label>
-            <select class="form-select" id="customer_id" name="customer_id" required>
-                <option value="">-- Select a customer --</option>
-                {% for customer in customers %}
-                    <option value="{{ customer._id }}"
-                        data-vehicles='{{ customer.vehicles | tojson | safe }}'>
-                        {{ customer.full_name }}
-                        {% if customer.email %} — {{ customer.email }}{% endif %}
-                        {% if customer.phone %} — {{ customer.phone }}{% endif %}
-                    </option>
-                {% endfor %}
-            </select>
-        </div>
+<form method="POST" action="{{ url_for('admin.create_order_page') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-        <!-- Vehicle Info -->
-        <div class="mb-3">
-            <label for="vehicle_select" class="form-label">Vehicle</label>
-            <select id="vehicle_select" name="vehicle_id" class="form-select" required>
-                <option value="">-- Select a vehicle --</option>
-                <!-- Options will populate based on selected customer -->
-            </select>
-        </div>
+    <!-- Customer -->
+    <h3>Customer</h3>
+    <div class="mb-3">
+        <label class="form-label">Customer</label>
+        <select class="form-select" id="customer_id" name="customer_id" required>
+            <option value="">-- Select customer --</option>
+            {% for customer in customers %}
+                <option
+                    value="{{ customer._id }}"
+                    data-vehicles='{{ customer.vehicles | tojson | safe }}'>
+                    {{ customer.full_name }}
+                    {% if customer.email %} — {{ customer.email }}{% endif %}
+                    {% if customer.phone %} — {{ customer.phone }}{% endif %}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
 
-        <!-- Packages -->
-        <div class="mb-3">
-            <label>Packages</label>
-            <div id="packages_container">
-                {% for package in packages %}
-                    <div>
-                        <input type="checkbox" class="package_checkbox" id="package_{{ loop.index0 }}" data-services='{{ package.serviceKeys | tojson | safe }}'>
-                        <label for="package_{{ loop.index0 }}">{{ package.name }}</label>
-                    </div>
-                {% endfor %}
-            </div>
-        </div>
+    <!-- Vehicle -->
+    <div class="mb-3">
+        <label class="form-label">Vehicle</label>
+        <select id="vehicle_select" name="vehicle_id" class="form-select" required>
+            <option value="">-- Select vehicle --</option>
+        </select>
+    </div>
 
-        <!-- Services -->
-        <div class="mb-3">
-            <label>Services</label>
-            <div id="services_container">
-                {% for service in services %}
-                    <div>
-                        <input type="checkbox" class="service_checkbox" id="service_{{ service.key }}" data-key="{{ service.key }}" data-prices='{{ service.priceByVehicleSize | tojson | safe }}'>
-                        <label for="service_{{ service.key }}">{{ service.label }} ({{ service.category }})</label>
-                    </div>
-                {% endfor %}
-            </div>
+    <!-- Services -->
+    <div class="mb-3">
+        <label>Services</label>
+        <div id="services_container">
+            {% for service in services %}
+                <div>
+                    <input
+                        type="checkbox"
+                        class="service_checkbox"
+                        data-key="{{ service.key }}"
+                        data-prices='{{ service.price_by_vehicle_size | tojson | safe }}'
+                    >
+                    {{ service.label }} ({{ service.category }})
+                </div>
+            {% endfor %}
         </div>
+    </div>
 
-        <!-- Summary -->
-        <div class="mb-3">
-            <p>Total Cost: $<span id="total_cost">0.00</span></p>
-            <p>Estimated Time: <span id="total_time">0 min</span></p>
-        </div>
+    <!-- Hidden computed values -->
+    <input type="hidden" name="services" id="services_input">
+    <input type="hidden" name="total_cost" id="total_cost_input">
+    <input type="hidden" name="estimated_minutes" id="total_time_input">
 
-        <button type="submit" class="btn btn-primary">Create Order</button>
-    </form>
+    <!-- Summary -->
+    <div class="mb-3">
+        <p>Total Cost: $<span id="total_cost">0.00</span></p>
+        <p>Estimated Time: <span id="total_time">0 min</span></p>
+    </div>
+
+    <button class="btn btn-primary">Create Order</button>
+</form>
 </div>
 
+
+
+
 <script>
-const customerSelect = document.getElementById('customer_id');
-const vehicleSelect = document.getElementById('vehicle_select');
-const serviceCheckboxes = document.querySelectorAll('.service_checkbox');
-const packageCheckboxes = document.querySelectorAll('.package_checkbox');
-const totalCostEl = document.getElementById('total_cost');
-const totalTimeEl = document.getElementById('total_time');
+const customerSelect = document.getElementById("customer_id");
+const vehicleSelect = document.getElementById("vehicle_select");
 
-// Populate vehicles dynamically when customer changes
-customerSelect.addEventListener('change', () => {
+customerSelect.addEventListener("change", () => {
+    vehicleSelect.innerHTML = '<option value="">-- Select vehicle --</option>';
+
     const selectedOption = customerSelect.selectedOptions[0];
-    const vehicles = JSON.parse(selectedOption.dataset.vehicles || '[]');
+    if (!selectedOption) return;
 
-    vehicleSelect.innerHTML = '<option value="">-- Select a vehicle --</option>';
+    const vehicles = JSON.parse(selectedOption.dataset.vehicles || "[]");
 
-    vehicles.forEach(v => {
-        const option = document.createElement('option');
-        option.value = v._id || v.id;
-        option.textContent = v.label ? `${v.label} (${v.vehicle_size || 'Unknown'})` : v.vehicle_size;
-        vehicleSelect.appendChild(option);
-    });
-
-    // Reset services/packages when changing customer
-    serviceCheckboxes.forEach(cb => cb.checked = false);
-    packageCheckboxes.forEach(cb => cb.checked = false);
-    updateSummary();
-});
-
-// Update summary when vehicle changes
-vehicleSelect.addEventListener('change', updateSummary);
-
-// Services change updates summary
-serviceCheckboxes.forEach(cb => cb.addEventListener('change', updateSummary));
-
-// Packages toggle services
-packageCheckboxes.forEach(cb => {
-    cb.addEventListener('change', () => {
-        const services = JSON.parse(cb.dataset.services || '[]');
-        services.forEach(key => {
-            const serviceCb = document.getElementById('service_' + key);
-            if (serviceCb) serviceCb.checked = cb.checked;
-        });
-        updateSummary();
+    vehicles.forEach(vehicle => {
+        const opt = document.createElement("option");
+        opt.value = vehicle._id;
+        opt.textContent = `${vehicle.year} ${vehicle.make} ${vehicle.model} (${vehicle.size})`;
+        opt.dataset.size = vehicle.size;
+        vehicleSelect.appendChild(opt);
     });
 });
-
-// Reactive summary calculation
-function updateSummary() {
-    const vehicleId = vehicleSelect.value;
-    let totalCost = 0;
-    let totalMinutes = 0;
-
-    if (!vehicleId) {
-        totalCostEl.textContent = '0.00';
-        totalTimeEl.textContent = '0 min';
-        return;
-    }
-
-    serviceCheckboxes.forEach(cb => {
-        if (cb.checked) {
-            const prices = JSON.parse(cb.dataset.prices || '{}');
-            const priceData = prices[vehicleId] || Object.values(prices)[0];
-            if (priceData) {
-                totalCost += priceData.price || 0;
-                const timeParts = (priceData.completionTime || '0').match(/\d+/g) || [0];
-                totalMinutes += parseInt(timeParts[0]);
-            }
-        }
-    });
-
-    totalCostEl.textContent = totalCost.toFixed(2);
-    totalTimeEl.textContent = totalMinutes + ' min';
-}
 </script>
+
+
+
+
+
 {% endblock %}

@@ -1183,68 +1183,76 @@ def view_customer(customer_id):
 
 
 
+
+
+from pymongo import MongoClient
+import os
+
 @admin_bp.route("/create", methods=["GET"])
 @login_required
 @admin_required
 def create_order_page():
-    db = current_app.config.get("MONGO_CLIENT")
-    if db is None:
-        flash("Database not configured", "danger")
-        return redirect(url_for("admin.admin_main"))
 
-    users_collection = db.users
-    customers_cursor = users_collection.find(
-        {"user_type": "customer"},
-        {
-            "full_name": 1,
-            "email": 1,
-            "phone": 1,
-            "vehicles": 1
-        }
-    ).sort("full_name", 1)
-    customers = list(customers_cursor)
+    print("\n" + "=" * 120)
+    print("🟢 ENTERED /admin/create")
+    print("➡️ METHOD:", request.method)
 
-    # Example services structure (like your ServiceData in Swift)
-    services = [
-        {"key": "exterior_handwash", "label": "Exterior Handwash", "category": "Exterior", "priceByVehicleSize": {"sedan_4_door": {"price": 50, "completionTime": "30 minutes"}}},
-        {"key": "bug_tar_removal", "label": "Bug & Tar Removal", "category": "Exterior", "priceByVehicleSize": {"sedan_4_door": {"price": 30, "completionTime": "20 minutes"}}},
-        {"key": "interior_plastics_dry_detail", "label": "Interior Plastics Dry Detail", "category": "Interior", "priceByVehicleSize": {"sedan_4_door": {"price": 40, "completionTime": "25 minutes"}}},
-        # add all your services here
-        {"key": "truck_bed", "label": "Truck Bed Detail", "category": "Exterior", "priceByVehicleSize": {"truck_2_seater": {"price": 35, "completionTime": "15 minutes"}}}
-    ]
+    # -------------------------------
+    # CONNECT TO MONGO
+    # -------------------------------
+    mongo_uri = os.getenv("MONGODB_URI")
+    print("🔐 Mongo URI loaded:", bool(mongo_uri))
 
-    packages = [
-        {"name": "Full Exterior", "serviceKeys": ["exterior_handwash", "bug_tar_removal"]},
-        {"name": "Full Interior", "serviceKeys": ["interior_plastics_dry_detail"]},
-    ]
+    if not mongo_uri:
+        print("❌ MONGODB_URI NOT FOUND")
+        abort(500)
 
-    vehicle_sizes = [
-        "Coupe (2-Seater)", "Hatchback (2-Door)", "Hatchback (4-Door)",
-        "Minivan (6-Seater)", "Sedan (2-Door)", "Sedan (4-Seater)",
-        "SUV (4-Seater)", "SUV (6-Seater)", "Truck (2-Seater)", "Truck (4-Seater)"
-    ]
+    client = MongoClient(mongo_uri)
+    print("🧠 MongoClient created")
 
-    vehicle_size_mapping = {
-        "Coupe (2-Seater)": "coupe_2_seater",
-        "Hatchback (2-Door)": "hatch_2_door",
-        "Hatchback (4-Door)": "hatch_4_door",
-        "Minivan (6-Seater)": "minivan_6_seater",
-        "Sedan (2-Door)": "sedan_2_door",
-        "Sedan (4-Seater)": "sedan_4_door",
-        "SUV (4-Seater)": "suv_4_seater",
-        "SUV (6-Seater)": "suv_6_seater",
-        "Truck (2-Seater)": "truck_2_seater",
-        "Truck (4-Seater)": "truck_4_seater"
-    }
+    # ⚠️ CHANGE DB NAME IF NEEDED
+    db = client["cfacdb"]
+    print("🗄 Connected to database:", db.name)
 
-    return render_template(
-        "admin/create_order.html",
-        customers=customers,
-        services=services,
-        packages=packages,
-        vehicle_sizes=vehicle_sizes,
-        vehicle_size_mapping=vehicle_size_mapping
-    )
+    # -------------------------------
+    # COLLECTIONS
+    # -------------------------------
+    users_col = db.users
+    services_col = db.services
+
+    print("📂 Users collection:", users_col.name)
+    print("📂 Services collection:", services_col.name)
+
+    # -------------------------------
+    # FETCH USERS
+    # -------------------------------
+    print("\n👥 FETCHING USERS...")
+    users = list(users_col.find({}))
+    print(f"👥 TOTAL USERS FOUND: {len(users)}")
+
+    for i, user in enumerate(users, start=1):
+        print(f"\n--- USER #{i} ---")
+        for k, v in user.items():
+            print(f"{k}: {v}")
+
+    # -------------------------------
+    # FETCH SERVICES
+    # -------------------------------
+    print("\n🧼 FETCHING SERVICES...")
+    services = list(services_col.find({}))
+    print(f"🧼 TOTAL SERVICES FOUND: {len(services)}")
+
+    for i, service in enumerate(services, start=1):
+        print(f"\n--- SERVICE #{i} ---")
+        for k, v in service.items():
+            print(f"{k}: {v}")
+
+    print("\n✅ DATABASE CONNECTION + READ CONFIRMED")
+    print("=" * 120 + "\n")
+
+    return render_template("admin/create_order.html")
+
+
 
 
 
