@@ -26,31 +26,73 @@
             </select>
         </div>
 
-<!-- PACKAGE SELECTOR -->
-<div class="mb-4">
-    <label class="form-label fw-bold">Select a Package (optional)</label>
-    <div id="package-bubbles" class="d-flex flex-wrap gap-2">
-        <button type="button" class="btn btn-outline-primary package-btn" data-package="full_exterior">Full Exterior</button>
-        <button type="button" class="btn btn-outline-primary package-btn" data-package="full_interior">Full Interior</button>
-        <button type="button" class="btn btn-outline-primary package-btn" data-package="floors">Floors</button>
-        <button type="button" class="btn btn-outline-primary package-btn" data-package="carpets">Carpets</button>
-    </div>
-</div>
-
-
+        <!-- PACKAGE SELECTOR as BUBBLES -->
+        <div class="mb-4">
+            <label class="form-label fw-bold">Select a Package (optional)</label>
+            <div id="package-bubbles" class="d-flex flex-wrap gap-2">
+                <button type="button" class="btn btn-outline-primary package-btn" data-package="full_exterior">Full Exterior</button>
+                <button type="button" class="btn btn-outline-primary package-btn" data-package="full_interior">Full Interior</button>
+                <button type="button" class="btn btn-outline-primary package-btn" data-package="floors">Floors</button>
+                <button type="button" class="btn btn-outline-primary package-btn" data-package="carpets">Carpets</button>
+            </div>
+        </div>
 
         <!-- Services -->
         <h2 class="mt-4">Available Services</h2>
-        <div id="services-list" class="row row-cols-1 row-cols-md-2 g-3"></div>
+        <div id="services-list" class="mb-4">
+            <!-- Interior Services -->
+            <h4 class="mt-3">Interior</h4>
+            <div id="interior-services" class="list-group mb-3"></div>
+
+            <!-- Exterior Services -->
+            <h4 class="mt-3">Exterior</h4>
+            <div id="exterior-services" class="list-group mb-3"></div>
+
+            <!-- Extra Services -->
+            <h4 class="mt-3">Extra Services</h4>
+            <div id="extra-services" class="list-group mb-3">
+                {% for extra in extra_services %}
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <div class="form-check">
+                        <input class="form-check-input service-checkbox me-2" type="checkbox" name="services[]" 
+                               value="{{ extra.key }}" id="service-{{ extra.key }}" data-price="{{ extra.price }}" data-label="{{ extra.label }}">
+                        <label class="form-check-label fw-bold mb-0" for="service-{{ extra.key }}">{{ extra.label }}</label>
+                    </div>
+                    <span>${{ extra.price }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
 
         <!-- SUMMARY SECTION -->
-        <h2 class="mt-5">Order Summary</h2>
-        <div id="order-summary" class="card p-3 bg-light">
-            <p><strong>Customer:</strong> <span id="summary-customer">-</span></p>
-            <p><strong>Vehicle:</strong> <span id="summary-vehicle">-</span></p>
-            <p><strong>Selected Services:</strong></p>
-            <ul id="summary-services"></ul>
-            <p><strong>Total Price:</strong> $<span id="summary-total">0.00</span></p>
+        <div class="mb-3 border p-3">
+            <h4>Summary</h4>
+            <div class="d-flex justify-content-between">
+                <span>Customer:</span>
+                <span id="summary-customer">-</span>
+            </div>
+            <div class="d-flex justify-content-between">
+                <span>Vehicle:</span>
+                <span id="summary-vehicle">-</span>
+            </div>
+            <div class="mt-2">Services:</div>
+            <ul id="summary-services" class="mb-2"></ul>
+            <div class="d-flex justify-content-between">
+                <span>Services Total:</span>
+                <span id="summary-total">$0.00</span>
+            </div>
+            <div class="d-flex justify-content-between">
+                <span>Fee:</span>
+                <span id="summary-fee">$0.00</span>
+            </div>
+            <div class="d-flex justify-content-between">
+                <span>Travel Fee:</span>
+                <span id="summary-travel">$0.00</span>
+            </div>
+            <div class="d-flex justify-content-between fw-bold mt-2">
+                <span>Final Price:</span>
+                <span id="summary-final">$0.00</span>
+            </div>
         </div>
 
         <button type="submit" class="btn btn-primary mt-4">Create Order</button>
@@ -60,152 +102,141 @@
 <script>
 const customerSelect = document.getElementById('customer');
 const vehicleSelect = document.getElementById('vehicle');
-const servicesListDiv = document.getElementById('services-list');
+const interiorServicesDiv = document.getElementById('interior-services');
+const exteriorServicesDiv = document.getElementById('exterior-services');
 
-// Summary elements
+// SUMMARY ELEMENTS
 const summaryCustomer = document.getElementById('summary-customer');
 const summaryVehicle = document.getElementById('summary-vehicle');
 const summaryServices = document.getElementById('summary-services');
 const summaryTotal = document.getElementById('summary-total');
-
-// Services data from Flask
-const servicesData = {{ services | tojson }};
+const summaryFee = document.getElementById('summary-fee');
+const summaryTravel = document.getElementById('summary-travel');
+const summaryFinal = document.getElementById('summary-final');
 
 let selectedCustomerName = '';
-let selectedVehicleSize = '';
 let selectedVehicleLabel = '';
+let selectedVehicleSize = '';
 
-// Populate vehicles when customer is selected
-customerSelect.addEventListener('change', function() {
-    const selectedOption = this.options[this.selectedIndex];
+const servicesData = {{ services | tojson }};
+
+const packageOptions = {
+    "full_exterior": ["exterior_handwash","bug_tar_removal","tire_rim_detail"],
+    "full_interior": ["interior_plastics_dry_detail","interior_plastics_wet_detail","seats_dry_detail","seats_wet_detail","seats_shampoo"],
+    "floors": ["floors_dry_detail","floors_wet_detail"],
+    "carpets": ["carpet_dry_detail","carpet_wet_detail"]
+};
+
+// Populate vehicles when customer changes
+customerSelect.addEventListener('change', () => {
+    const selectedOption = customerSelect.options[customerSelect.selectedIndex];
     const vehicles = JSON.parse(selectedOption.dataset.vehicles || '[]');
     selectedCustomerName = selectedOption.dataset.name;
 
-    // Update summary
     summaryCustomer.textContent = selectedCustomerName;
     summaryVehicle.textContent = '-';
     summaryServices.innerHTML = '';
-    summaryTotal.textContent = '0.00';
+    summaryTotal.textContent = '$0.00';
+    summaryFee.textContent = '$0.00';
+    summaryTravel.textContent = '$0.00';
+    summaryFinal.textContent = '$0.00';
 
-    // Clear vehicle dropdown
     vehicleSelect.innerHTML = '<option value="" disabled selected>-- Choose a Vehicle --</option>';
-    servicesListDiv.innerHTML = '';
+    interiorServicesDiv.innerHTML = '';
+    exteriorServicesDiv.innerHTML = '';
 
-    // Populate vehicles
     vehicles.forEach(v => {
         const opt = document.createElement('option');
-        opt.value = v.vehicle_size;  // vehicle_size used for price lookup
-        opt.textContent = v.label + ' (' + v.vehicle_size.replace(/_/g, ' ') + ')';
+        opt.value = v.vehicle_size;
         opt.dataset.label = v.label;
+        opt.textContent = `${v.label} (${v.vehicle_size.replace(/_/g,' ')})`;
         vehicleSelect.appendChild(opt);
     });
 });
 
-// Display services compatible with vehicle
-vehicleSelect.addEventListener('change', function() {
-    selectedVehicleSize = this.value;
-    selectedVehicleLabel = this.options[this.selectedIndex].dataset.label;
+// Display services for selected vehicle
+vehicleSelect.addEventListener('change', () => {
+    selectedVehicleSize = vehicleSelect.value;
+    selectedVehicleLabel = vehicleSelect.options[vehicleSelect.selectedIndex].dataset.label;
 
-    // Update summary
     summaryVehicle.textContent = selectedVehicleLabel;
-    summaryServices.innerHTML = '';
-    summaryTotal.textContent = '0.00';
-
-    servicesListDiv.innerHTML = '';
+    interiorServicesDiv.innerHTML = '';
+    exteriorServicesDiv.innerHTML = '';
 
     servicesData.forEach(service => {
         if (!service.active) return;
         const priceInfo = service.price_by_vehicle_size[selectedVehicleSize];
-        if (priceInfo) {
-            const divCol = document.createElement('div');
-            divCol.className = 'col';
+        if (!priceInfo) return;
 
-            const card = document.createElement('div');
-            card.className = 'card h-100 shadow-sm';
-
-            const cardBody = document.createElement('div');
-            cardBody.className = 'card-body';
-
-            cardBody.innerHTML = `
-                <div class="form-check">
-                    <input class="form-check-input service-checkbox" type="checkbox" name="services[]" value="${service._id}" id="service-${service._id}" data-price="${priceInfo.price}" data-label="${service.label}">
-                    <label class="form-check-label fw-bold" for="service-${service._id}">
-                        ${service.label} (${service.category})
-                    </label>
-                </div>
-                <p class="mb-0 mt-2">Price: $${priceInfo.price} - ${priceInfo.completion_time}</p>
-            `;
-
-            card.appendChild(cardBody);
-            divCol.appendChild(card);
-            servicesListDiv.appendChild(divCol);
-        }
+        const li = document.createElement('div');
+        li.className = 'list-group-item d-flex justify-content-between align-items-center';
+        li.innerHTML = `
+            <div class="form-check">
+                <input class="form-check-input service-checkbox me-2" type="checkbox" name="services[]" 
+                       value="${service.key}" id="service-${service.key}" 
+                       data-price="${priceInfo.price}" data-label="${service.label}">
+                <label class="form-check-label fw-bold mb-0" for="service-${service.key}">
+                    ${service.label}
+                </label>
+            </div>
+            <span>$${priceInfo.price}</span>
+        `;
+        if (service.category.toLowerCase() === 'interior') interiorServicesDiv.appendChild(li);
+        else exteriorServicesDiv.appendChild(li);
     });
 
-    // Add event listeners to checkboxes for summary update
-    const checkboxes = document.querySelectorAll('.service-checkbox');
-    checkboxes.forEach(cb => {
-        cb.addEventListener('change', updateSummary);
+    document.querySelectorAll('.service-checkbox').forEach(cb => cb.addEventListener('change', updateSummary));
+});
+
+// Package buttons
+document.querySelectorAll('.package-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        this.classList.toggle('btn-primary');
+        this.classList.toggle('btn-outline-primary');
+
+        const activePackages = Array.from(document.querySelectorAll('.package-btn'))
+            .filter(b => b.classList.contains('btn-primary'))
+            .map(b => b.dataset.package);
+
+        document.querySelectorAll('.service-checkbox').forEach(cb => cb.checked = false);
+
+        let mergedServices = [];
+        activePackages.forEach(pkg => mergedServices = mergedServices.concat(packageOptions[pkg] || []));
+
+        document.querySelectorAll('.service-checkbox').forEach(cb => {
+            if (mergedServices.includes(cb.id.replace('service-',''))) cb.checked = true;
+        });
+
+        updateSummary();
     });
 });
 
-// Update the summary section
+// Update summary totals
 function updateSummary() {
     const selected = document.querySelectorAll('.service-checkbox:checked');
     summaryServices.innerHTML = '';
     let total = 0;
     selected.forEach(cb => {
         const li = document.createElement('li');
-        li.textContent = cb.dataset.label + ' - $' + cb.dataset.price;
+        li.textContent = `${cb.dataset.label} - $${cb.dataset.price}`;
         summaryServices.appendChild(li);
         total += parseFloat(cb.dataset.price);
     });
-    summaryTotal.textContent = total.toFixed(2);
+    summaryTotal.textContent = `$${total.toFixed(2)}`;
+
+    // Fee logic
+    const fee = total > 0 ? total / 0.55 - total : 0;
+    summaryFee.textContent = `$${fee.toFixed(2)}`;
+
+    // Travel fee
+    let travel = 0;
+    const finalPrice = Math.ceil(total / 0.55);
+    if (finalPrice < 90) travel = 25;
+    else if (finalPrice >= 90 && finalPrice < 100) travel = 15;
+    summaryTravel.textContent = `$${travel.toFixed(2)}`;
+
+    summaryFinal.textContent = `$${(finalPrice + travel).toFixed(2)}`;
 }
-
-
-
-
-
-// PACKAGE DEFINITIONS
-const packageOptions = {
-    "full_exterior": ["exterior_handwash", "bug_tar_removal", "tire_rim_detail"],
-    "full_interior": ["interior_plastics_dry_detail", "interior_plastics_wet_detail", "seats_dry_detail", "seats_wet_detail", "seats_shampoo"],
-    "floors": ["floors_dry_detail", "floors_wet_detail"],
-    "carpets": ["carpet_dry_detail", "carpet_wet_detail"]
-};
-
-const packageButtons = document.querySelectorAll('.package-btn');
-
-packageButtons.forEach(btn => {
-    btn.addEventListener('click', function() {
-        const selectedPackage = this.dataset.package;
-
-        // Highlight the selected bubble
-        packageButtons.forEach(b => b.classList.remove('btn-primary'));
-        packageButtons.forEach(b => b.classList.add('btn-outline-primary'));
-        this.classList.remove('btn-outline-primary');
-        this.classList.add('btn-primary');
-
-        // Uncheck all services first
-        document.querySelectorAll('.service-checkbox').forEach(cb => cb.checked = false);
-
-        // Check services in the selected package
-        const servicesToCheck = packageOptions[selectedPackage] || [];
-        document.querySelectorAll('.service-checkbox').forEach(cb => {
-            if (servicesToCheck.includes(cb.id.replace('service-', ''))) {
-                cb.checked = true;
-            }
-        });
-
-        // Update summary
-        updateSummary();
-    });
-});
-
-
-
-
 
 </script>
 
