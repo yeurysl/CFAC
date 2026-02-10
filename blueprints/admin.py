@@ -1189,28 +1189,173 @@ from pymongo import MongoClient
 import os
 
 from bson import ObjectId
+from notis import send_payment_links, notify_admins_new_order, notify_salesperson_new_order_push
 
-from bson import ObjectId
+import stripe
 
-from bson import ObjectId
-
-from bson import ObjectId
-
-@admin_bp.route("/create", methods=["GET"])
+@admin_bp.route("/create", methods=["GET", "POST"])
 @login_required
 @admin_required
 def create_order_page():
-    mongo_uri = os.getenv("MONGODB_URI")
-    if not mongo_uri:
-        abort(500)
+    users_col = current_app.config["USERS_COLLECTION"]
+    services_col = current_app.config["SERVICES_COLLECTION"]
+    orders_col = current_app.config["ORDERS_COLLECTION"]
+   
+    # -------------------------------
+    # HANDLE FORM SUBMIT
+    # -------------------------------
+    if request.method == "POST":
+        print("\n" + "="*60)
+        print("🔥 CREATE ORDER POST RECEIVED")
+        print("="*60)
 
-    client = MongoClient(mongo_uri)
-    db = client["cfacdb"]
-    users_col = db.users
-    services_col = db.services
+        form = request.form
+        selected_services = form.getlist("services[]")
+
+        try:
+            final_price_float = float(form.get("final_price", 0))
+        except Exception as e:
+            print("❌ ERROR converting final_price:", e)
+            final_price_float = 0
+
+        # -------------------------------
+        # CALCULATE TRAVEL FEE
+        # (<90 → $25, 90–100 → $15, ≥100 → $0)
+        # -------------------------------
+        if final_price_float < 90:
+            travel_fee = 25.0
+        elif 90 <= final_price_float < 100:
+            travel_fee = 15.0
+        else:
+            travel_fee = 0.0
+
+        # -------------------------------
+        # BUILD ORDER DOCUMENT
+        # -------------------------------
+        order_data = {
+            "customer_id": ObjectId(form["customer_id"]),
+            "vehicle_label": form["vehicle_label"],
+            "services": selected_services,
+            "final_price": final_price_float,
+            "travel_fee": travel_fee,
+            "created_by": "admin",
+            "is_guest": False,
+            "payment_status": "Pending",
+            "setup_status": "creating",  # will update to 'ready' after Stripe/email
+            "creation_date": datetime.utcnow(),
+            "updated_date": datetime.utcnow()
+        }
+
+        print("\n--- FINAL ORDER DATA TO INSERT ---")
+        print(order_data)
+        print("="*60 + "\n")
+
+        # Insert into DB first to get the order ID
+        insert_result = orders_col.insert_one(order_data)
+        order_id = str(insert_result.inserted_id)
+
+        # -------------------------------
+        # STRIPE PAYMENT INTENTS
+        # -------------------------------
+        try:
+            stripe.api_key = current_app.config["STRIPE_SECRET_KEY"]
+
+            downpayment_amount = int(final_price_float * 100 * 0.40)  # 40% down
+            remaining_amount = int(final_price_float * 100 * 0.60)    # 60% remaining
+
+            # Create PaymentIntents
+            downpayment_intent = stripe.PaymentIntent.create(
+                amount=downpayment_amount,
+                currency="usd",
+                payment_method_types=["card"],
+                metadata={"order_id": order_id, "payment_type": "downpayment"}
+            )
+            remaining_intent = stripe.PaymentIntent.create(
+                amount=remaining_amount,
+                currency="usd",
+                payment_method_types=["card"],
+                metadata={"order_id": order_id, "payment_type": "remaining_balance"},
+                capture_method="manual"
+            )
+
+            # Checkout Sessions
+      
+            success_url = url_for('admin.admin_main', _external=True)  # full URL to home/admin page
+            cancel_url = url_for('admin.admin_main', _external=True)   # you can reuse same page
+
+
+
+            downpayment_checkout_session = stripe.checkout.Session.create(
+                payment_method_types=["card"],
+                line_items=[{
+                    "price_data": {
+                        "currency": "usd",
+                        "product_data": {"name": f"Down Payment for Order #{order_id}"},
+                        "unit_amount": downpayment_amount,
+                    },
+                    "quantity": 1,
+                }],
+                customer_email=form.get("guest_email"),
+                mode="payment",  # required
+                success_url=success_url,
+                cancel_url=cancel_url
+            )
+
+            remaining_checkout_session = stripe.checkout.Session.create(
+                payment_method_types=["card"],
+                line_items=[{
+                    "price_data": {
+                        "currency": "usd",
+                        "product_data": {"name": f"Remaining Balance for Order #{order_id}"},
+                        "unit_amount": remaining_amount,
+                    },
+                    "quantity": 1,
+                }],
+                customer_email=form.get("guest_email"),
+                mode="payment",  # required
+                success_url=success_url,
+                cancel_url=cancel_url
+            )
+
+
+
+            # Update order with Stripe info
+            orders_col.update_one(
+                {"_id": ObjectId(order_id)},
+                {"$set": {
+                    "payment_intent_downpayment": downpayment_intent.id,
+                    "client_secret_downpayment": downpayment_intent.client_secret,
+                    "payment_intent_remaining_balance": remaining_intent.id,
+                    "client_secret_remaining_balance": remaining_intent.client_secret,
+                    "downpayment_checkout_url": downpayment_checkout_session.url,
+                    "remaining_balance_checkout_url": remaining_checkout_session.url,
+                    "setup_status": "ready",
+                    "updated_date": datetime.utcnow()
+                }}
+            )
+
+            # -------------------------------
+            # SEND EMAIL & NOTIFICATIONS
+            # -------------------------------
+            from notis import send_payment_links, notify_admins_new_order, notify_salesperson_new_order_push
+
+            send_payment_links(order_id)
+            notify_admins_new_order(order_id)
+            notify_salesperson_new_order_push(order_id)
+
+            flash(f"Order {order_id} created successfully!", "success")
+            return redirect(url_for("admin.create_order_page"))
+
+        except Exception as e:
+            orders_col.update_one(
+                {"_id": ObjectId(order_id)},
+                {"$set": {"setup_status": "failed", "setup_error": str(e)}}
+            )
+            flash(f"Error setting up Stripe / notifications: {e}", "danger")
+            return redirect(url_for("admin.create_order_page"))
 
     # -------------------------------
-    # FETCH CUSTOMERS ONLY
+    # FETCH CUSTOMERS
     # -------------------------------
     customers = []
     for user in users_col.find({"user_type": "customer"}):
@@ -1227,15 +1372,18 @@ def create_order_page():
     # -------------------------------
     services = []
     for service in services_col.find({}):
-        service_copy = service.copy()
-        service_copy["_id"] = str(service_copy["_id"])
-        services.append(service_copy)
+        s = service.copy()
+        s["_id"] = str(s["_id"])
+        services.append(s)
 
     return render_template(
         "admin/create_order.html",
         customers=customers,
-        services=services
+        services=services,
+        extra_services=[]
     )
+
+
 
 
 from extensions import csrf  

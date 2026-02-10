@@ -90,6 +90,7 @@ def create_app():
     # Collections (used throughout routes + notis.py)
     app.config["USERS_COLLECTION"] = db.users
     app.config["ORDERS_COLLECTION"] = db.orders
+    app.config["SERVICES_COLLECTION"] = db.services
     app.config["DEVICE_TOKENS_COLLECTION"] = db.device_tokens
 
     init_db(app)

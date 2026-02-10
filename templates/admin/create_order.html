@@ -4,7 +4,11 @@
 <div class="container mt-5">
     <h1 class="mb-4">Create Order</h1>
 
-    <form action="/admin/create_order" method="POST">
+    <form action="{{ url_for('admin.create_order_page') }}" method="POST">
+
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="final_price" id="final_price_input">
+
         <!-- Customer Dropdown -->
         <div class="mb-3">
             <label for="customer" class="form-label">Select Customer</label>
@@ -237,6 +241,26 @@ function updateSummary() {
 
     summaryFinal.textContent = `$${(finalPrice + travel).toFixed(2)}`;
 }
+
+
+
+
+
+
+
+document.querySelector("form").addEventListener("submit", function () {
+    updateSummary(); // make sure totals are calculated
+
+    const finalText = document.getElementById("summary-final").textContent;
+    const numericValue = finalText.replace("$", "");
+
+    document.getElementById("final_price_input").value = numericValue;
+
+    console.log("Submitting final_price:", numericValue);
+});
+
+
+
 
 </script>
 
