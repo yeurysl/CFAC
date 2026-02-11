@@ -1200,70 +1200,87 @@ def create_order_page():
     users_col = current_app.config["USERS_COLLECTION"]
     services_col = current_app.config["SERVICES_COLLECTION"]
     orders_col = current_app.config["ORDERS_COLLECTION"]
-   
+
     # -------------------------------
     # HANDLE FORM SUBMIT
     # -------------------------------
     if request.method == "POST":
-        print("\n" + "="*60)
-        print("🔥 CREATE ORDER POST RECEIVED")
-        print("="*60)
-
         form = request.form
         selected_services = form.getlist("services[]")
 
+        # Parse pricing
         try:
             final_price_float = float(form.get("final_price", 0))
-        except Exception as e:
-            print("❌ ERROR converting final_price:", e)
-            final_price_float = 0
+            services_total = float(form.get("services_total", 0))
+            fee = float(form.get("fee", 0))
+            travel_fee = float(form.get("travel_fee", 0))
+        except Exception:
+            final_price_float = services_total = fee = travel_fee = 0
 
-        # -------------------------------
-        # CALCULATE TRAVEL FEE
-        # (<90 → $25, 90–100 → $15, ≥100 → $0)
-        # -------------------------------
-        if final_price_float < 90:
-            travel_fee = 25.0
-        elif 90 <= final_price_float < 100:
-            travel_fee = 15.0
-        else:
-            travel_fee = 0.0
+        # Fetch customer
+        customer = users_col.find_one({"_id": ObjectId(form["customer_id"])})
+        if not customer:
+            flash("Customer not found!", "danger")
+            return redirect(url_for("admin.create_order_page"))
 
-        # -------------------------------
-        # BUILD ORDER DOCUMENT
-        # -------------------------------
+        # Grab address directly
+        guest_address = customer.get("guest_address", {})
+
+        # Build order document
         order_data = {
             "customer_id": ObjectId(form["customer_id"]),
-            "vehicle_label": form["vehicle_label"],
-            "services": selected_services,
-            "final_price": final_price_float,
+            "vehicle_size": form.get("vehicle_label"),
+            "selectedServices": selected_services,
+            "status": "ordered",
+            "payment_time": "pay_now",
+            "payment_status": "Unpaid",
+            "technician": "unassigned",
+            "salesperson": "admin",
+            "services_total": services_total,
             "travel_fee": travel_fee,
-            "created_by": "admin",
+            "fee": fee,
+            "final_price": final_price_float,
+            "guest_name": customer.get("full_name", ""),
+            "guest_email": customer.get("email", ""),
+            "guest_phone_number": customer.get("phone_number", ""),
+            "guest_address": {
+                "street_address": guest_address.get("street_address", ""),
+                "city": guest_address.get("city", ""),
+                "zip_code": guest_address.get("zip_code", ""),
+                "unit_apt": guest_address.get("unit_apt", ""),
+                "country": guest_address.get("country", "United States")
+            },
             "is_guest": False,
-            "payment_status": "Pending",
-            "setup_status": "creating",  # will update to 'ready' after Stripe/email
+            "setup_status": "ready",
+            "has_downpayment_collected": "no",
             "creation_date": datetime.utcnow(),
-            "updated_date": datetime.utcnow()
+            "updated_date": datetime.utcnow(),
         }
 
+    
+    
         print("\n--- FINAL ORDER DATA TO INSERT ---")
         print(order_data)
         print("="*60 + "\n")
 
-        # Insert into DB first to get the order ID
+        # -------------------------------
+        # INSERT ORDER
+        # -------------------------------
         insert_result = orders_col.insert_one(order_data)
         order_id = str(insert_result.inserted_id)
 
         # -------------------------------
         # STRIPE PAYMENT INTENTS
         # -------------------------------
+
+        customer_email = customer.get("email", "")
+
         try:
             stripe.api_key = current_app.config["STRIPE_SECRET_KEY"]
 
             downpayment_amount = int(final_price_float * 100 * 0.40)  # 40% down
             remaining_amount = int(final_price_float * 100 * 0.60)    # 60% remaining
 
-            # Create PaymentIntents
             downpayment_intent = stripe.PaymentIntent.create(
                 amount=downpayment_amount,
                 currency="usd",
@@ -1278,12 +1295,8 @@ def create_order_page():
                 capture_method="manual"
             )
 
-            # Checkout Sessions
-      
-            success_url = url_for('admin.admin_main', _external=True)  # full URL to home/admin page
-            cancel_url = url_for('admin.admin_main', _external=True)   # you can reuse same page
-
-
+            success_url = url_for('admin.admin_main', _external=True)
+            cancel_url = url_for('admin.admin_main', _external=True)
 
             downpayment_checkout_session = stripe.checkout.Session.create(
                 payment_method_types=["card"],
@@ -1295,8 +1308,8 @@ def create_order_page():
                     },
                     "quantity": 1,
                 }],
-                customer_email=form.get("guest_email"),
-                mode="payment",  # required
+                customer_email=customer_email,
+                mode="payment",
                 success_url=success_url,
                 cancel_url=cancel_url
             )
@@ -1311,15 +1324,12 @@ def create_order_page():
                     },
                     "quantity": 1,
                 }],
-                customer_email=form.get("guest_email"),
-                mode="payment",  # required
+                customer_email=customer_email,
+                mode="payment",
                 success_url=success_url,
                 cancel_url=cancel_url
             )
 
-
-
-            # Update order with Stripe info
             orders_col.update_one(
                 {"_id": ObjectId(order_id)},
                 {"$set": {
@@ -1338,7 +1348,6 @@ def create_order_page():
             # SEND EMAIL & NOTIFICATIONS
             # -------------------------------
             from notis import send_payment_links, notify_admins_new_order, notify_salesperson_new_order_push
-
             send_payment_links(order_id)
             notify_admins_new_order(order_id)
             notify_salesperson_new_order_push(order_id)
@@ -1355,16 +1364,25 @@ def create_order_page():
             return redirect(url_for("admin.create_order_page"))
 
     # -------------------------------
-    # FETCH CUSTOMERS
+    # GET: FETCH CUSTOMERS
     # -------------------------------
     customers = []
     for user in users_col.find({"user_type": "customer"}):
         user_copy = user.copy()
         user_copy["id"] = str(user_copy["_id"])
         user_copy["display_name"] = user_copy.get("full_name") or user_copy.get("email") or "Unknown"
+
+        # Attach address for frontend if needed
+        user_copy["street_address"] = user_copy.get("street_address", "")
+        user_copy["city"] = user_copy.get("city", "")
+        user_copy["zip_code"] = user_copy.get("zip_code", "")
+        user_copy["unit_apt"] = user_copy.get("unit_apt", "")
+
+        # Vehicles
         for v in user_copy.get("vehicles", []):
             v["vehicle_size"] = v.get("vehicle_size", "")
             v["label"] = v.get("label", "Unnamed Vehicle")
+
         customers.append(user_copy)
 
     # -------------------------------
@@ -1382,7 +1400,6 @@ def create_order_page():
         services=services,
         extra_services=[]
     )
-
 
 
 

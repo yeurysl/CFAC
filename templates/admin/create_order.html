@@ -8,6 +8,12 @@
 
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="final_price" id="final_price_input">
+    <input type="hidden" name="services_total" id="services_total_input">
+    <input type="hidden" name="fee" id="fee_input">
+    <input type="hidden" name="travel_fee" id="travel_fee_input">
+    <input type="hidden" name="street_address" id="street_address_input">
+
+
 
         <!-- Customer Dropdown -->
         <div class="mb-3">
@@ -103,6 +109,10 @@
     </form>
 </div>
 
+
+
+
+
 <script>
 const customerSelect = document.getElementById('customer');
 const vehicleSelect = document.getElementById('vehicle');
@@ -118,6 +128,12 @@ const summaryFee = document.getElementById('summary-fee');
 const summaryTravel = document.getElementById('summary-travel');
 const summaryFinal = document.getElementById('summary-final');
 
+// GLOBAL TOTAL VARIABLES (important fix)
+let total = 0;
+let fee = 0;
+let travel = 0;
+let finalPrice = 0;
+
 let selectedCustomerName = '';
 let selectedVehicleLabel = '';
 let selectedVehicleSize = '';
@@ -131,7 +147,7 @@ const packageOptions = {
     "carpets": ["carpet_dry_detail","carpet_wet_detail"]
 };
 
-// Populate vehicles when customer changes
+// Populate vehicles
 customerSelect.addEventListener('change', () => {
     const selectedOption = customerSelect.options[customerSelect.selectedIndex];
     const vehicles = JSON.parse(selectedOption.dataset.vehicles || '[]');
@@ -158,7 +174,7 @@ customerSelect.addEventListener('change', () => {
     });
 });
 
-// Display services for selected vehicle
+// Display services
 vehicleSelect.addEventListener('change', () => {
     selectedVehicleSize = vehicleSelect.value;
     selectedVehicleLabel = vehicleSelect.options[vehicleSelect.selectedIndex].dataset.label;
@@ -176,23 +192,39 @@ vehicleSelect.addEventListener('change', () => {
         li.className = 'list-group-item d-flex justify-content-between align-items-center';
         li.innerHTML = `
             <div class="form-check">
-                <input class="form-check-input service-checkbox me-2" type="checkbox" name="services[]" 
-                       value="${service.key}" id="service-${service.key}" 
-                       data-price="${priceInfo.price}" data-label="${service.label}">
-                <label class="form-check-label fw-bold mb-0" for="service-${service.key}">
+                <input class="form-check-input service-checkbox me-2"
+                       type="checkbox"
+                       name="services[]"
+                       value="${service.key}"
+                       id="service-${service.key}"
+                       data-price="${priceInfo.price}"
+                       data-label="${service.label}">
+                <label class="form-check-label fw-bold mb-0"
+                       for="service-${service.key}">
                     ${service.label}
                 </label>
             </div>
             <span>$${priceInfo.price}</span>
         `;
-        if (service.category.toLowerCase() === 'interior') interiorServicesDiv.appendChild(li);
-        else exteriorServicesDiv.appendChild(li);
+
+        if (service.category.toLowerCase() === 'interior')
+            interiorServicesDiv.appendChild(li);
+        else
+            exteriorServicesDiv.appendChild(li);
     });
 
-    document.querySelectorAll('.service-checkbox').forEach(cb => cb.addEventListener('change', updateSummary));
+
+    document.getElementById("street_address_input").value = selectedOption.dataset.street || '';
+    document.getElementById("city_input").value = selectedOption.dataset.city || '';
+    document.getElementById("zip_code_input").value = selectedOption.dataset.zip || '';
+    document.getElementById("unit_apt_input").value = selectedOption.dataset.unit || '';
+
+
+    document.querySelectorAll('.service-checkbox')
+        .forEach(cb => cb.addEventListener('change', updateSummary));
 });
 
-// Package buttons
+// Package logic
 document.querySelectorAll('.package-btn').forEach(btn => {
     btn.addEventListener('click', function() {
         this.classList.toggle('btn-primary');
@@ -202,66 +234,80 @@ document.querySelectorAll('.package-btn').forEach(btn => {
             .filter(b => b.classList.contains('btn-primary'))
             .map(b => b.dataset.package);
 
-        document.querySelectorAll('.service-checkbox').forEach(cb => cb.checked = false);
+        document.querySelectorAll('.service-checkbox')
+            .forEach(cb => cb.checked = false);
 
         let mergedServices = [];
-        activePackages.forEach(pkg => mergedServices = mergedServices.concat(packageOptions[pkg] || []));
+        activePackages.forEach(pkg => {
+            mergedServices = mergedServices.concat(packageOptions[pkg] || []);
+        });
 
         document.querySelectorAll('.service-checkbox').forEach(cb => {
-            if (mergedServices.includes(cb.id.replace('service-',''))) cb.checked = true;
+            if (mergedServices.includes(cb.id.replace('service-','')))
+                cb.checked = true;
         });
 
         updateSummary();
     });
 });
 
-// Update summary totals
+// MAIN CALCULATION FUNCTION
 function updateSummary() {
+
     const selected = document.querySelectorAll('.service-checkbox:checked');
     summaryServices.innerHTML = '';
-    let total = 0;
+
+    total = 0;
+
     selected.forEach(cb => {
         const li = document.createElement('li');
         li.textContent = `${cb.dataset.label} - $${cb.dataset.price}`;
         summaryServices.appendChild(li);
         total += parseFloat(cb.dataset.price);
     });
+
     summaryTotal.textContent = `$${total.toFixed(2)}`;
 
-    // Fee logic
-    const fee = total > 0 ? total / 0.55 - total : 0;
+    // Fee logic (45% company cut logic)
+    fee = total > 0 ? (total / 0.55) - total : 0;
     summaryFee.textContent = `$${fee.toFixed(2)}`;
 
-    // Travel fee
-    let travel = 0;
-    const finalPrice = Math.ceil(total / 0.55);
-    if (finalPrice < 90) travel = 25;
+    // Base price before travel
+    finalPrice = total > 0 ? Math.ceil(total / 0.55) : 0;
+
+    // Travel fee logic
+    travel = 0;
+    if (finalPrice < 90 && finalPrice > 0) travel = 25;
     else if (finalPrice >= 90 && finalPrice < 100) travel = 15;
+
     summaryTravel.textContent = `$${travel.toFixed(2)}`;
 
-    summaryFinal.textContent = `$${(finalPrice + travel).toFixed(2)}`;
+    const finalWithTravel = finalPrice + travel;
+    summaryFinal.textContent = `$${finalWithTravel.toFixed(2)}`;
 }
 
-
-
-
-
-
-
+// FORM SUBMIT
 document.querySelector("form").addEventListener("submit", function () {
-    updateSummary(); // make sure totals are calculated
 
-    const finalText = document.getElementById("summary-final").textContent;
-    const numericValue = finalText.replace("$", "");
+    updateSummary(); // ensure values are fresh
 
-    document.getElementById("final_price_input").value = numericValue;
+    const finalText = summaryFinal.textContent.replace("$", "");
 
-    console.log("Submitting final_price:", numericValue);
+    document.getElementById("final_price_input").value = finalText;
+    document.getElementById("services_total_input").value = total.toFixed(2);
+    document.getElementById("fee_input").value = fee.toFixed(2);
+    document.getElementById("travel_fee_input").value = travel.toFixed(2);
+
+    console.log("Submitting:");
+    console.log("services_total:", total.toFixed(2));
+    console.log("fee:", fee.toFixed(2));
+    console.log("travel_fee:", travel.toFixed(2));
+    console.log("final_price:", finalText);
 });
-
-
-
-
 </script>
+
+
+
+
 
 {% endblock %}
