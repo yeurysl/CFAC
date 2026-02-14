@@ -214,12 +214,24 @@ def view_order(order_id):
             else:
                 order['salesperson_name'] = 'Not Assigned'
         else:
-            # For customer orders
-            user_record = users_collection.find_one({'email': order.get('user')})
-            order['user_email'] = user_record.get('email', 'Unknown') if user_record else 'Unknown'
-            order['user_name'] = user_record.get('name', 'N/A') if user_record else 'N/A'
-            order['user_phone'] = user_record.get('phone_number', 'N/A') if user_record else 'N/A'
-            order['user_address'] = user_record.get('address', {}) if user_record else {}
+        # For customer orders (non-guest)
+            customer_id = order.get('customer_id')
+
+            if customer_id:
+                try:
+                    customer = users_collection.find_one({'_id': ObjectId(customer_id)})
+
+                    if customer:
+                        order['customer_email'] = customer.get('email', 'Unknown')
+                        order['customer_name'] = customer.get('full_name', 'Unknown')
+                        order['customer_phone'] = customer.get('phone_number', 'N/A')
+                        order['customer_address'] = customer.get('guest_address', {})
+                    else:
+                        order['customer_email'] = 'Unknown'
+                except Exception:
+                    order['customer_email'] = 'Unknown'
+            else:
+                order['customer_email'] = 'Unknown'
 
         technician_id = order.get('technician')
         if technician_id:
@@ -230,13 +242,13 @@ def view_order(order_id):
                     order['technician_email'] = technician_user.get('email', 'Unknown')
                 else:
                     order['technician_name'] = 'Unknown'
-                    order['technician_name'] = 'Unknown'
+                    order['technician_email'] = 'Unknown'
             except Exception:
                 order['technician_name'] = 'Unknown'
-                order['technician_name'] = 'Unknown'
+                order['technician_email'] = 'Unknown'
         else:
             order['technician_name'] = 'Not Scheduled'
-            order['technician_name'] = ''
+            order['technician_email'] = ''
 
         for date_field in ['creation_date', 'service_date']:
             if isinstance(order.get(date_field), str):

@@ -57,8 +57,8 @@
             {% else %}
                 <p>
                     <strong>Customer:</strong>
-                    {% if order.user_email %}
-                        {{ order.user_email }} (ID: {{ order.user }})
+                    {% if order.customer_email %}
+                        {{ order.customer_email }} (ID: {{ order.customer_id }})
                     {% else %}
                         N/A
                     {% endif %}
