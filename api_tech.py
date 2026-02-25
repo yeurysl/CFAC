@@ -796,5 +796,64 @@ def start_scheduler(app):
 from postmark_client import is_valid_email
 
 
-from .extensions import bcrypt
+from extensions import bcrypt
 
+
+
+
+@api_tech_bp.route('/tech/register', methods=['POST'])
+def register_tech_user():
+
+    data = request.get_json() or {}
+
+    email = (data.get("email") or "").strip().lower()
+    username = (data.get("username") or "").strip()
+    password = (data.get("password") or "").strip()
+    full_name = (data.get("full_name") or "").strip()
+    phone = (data.get("phone") or "").strip()
+
+    errors = {}
+
+    if not email or not is_valid_email(email):
+        errors["email"] = "Valid email is required."
+
+    if not full_name:
+        errors["full_name"] = "Full name is required."
+
+    if not password or len(password) < 8:
+        errors["password"] = "Password must be at least 8 characters."
+
+    if errors:
+        return jsonify({"ok": False, "errors": errors}), 400
+
+    db = current_app.config["MONGO_CLIENT"]
+    users = db.users
+    users_to_approve = db.users_to_approve
+
+    if users.find_one({"email": email}) or users_to_approve.find_one({"email": email}):
+        return jsonify({
+            "ok": False,
+            "error": "email_in_use",
+            "message": "Email already exists or is pending approval."
+        }), 409
+
+    hashed_pw = bcrypt.generate_password_hash(password).decode("utf-8")
+
+    tech_doc = {
+        "email": email,
+        "username": username or email,
+        "password": hashed_pw,
+        "full_name": full_name,
+        "phone": phone,
+        "user_type": "tech",
+        "approved": False,
+        "creation_date": datetime.utcnow(),
+        "updated_date": datetime.utcnow()
+    }
+
+    users_to_approve.insert_one(tech_doc)
+
+    return jsonify({
+        "ok": True,
+        "message": "Tech account submitted for approval."
+    }), 201
