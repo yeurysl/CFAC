@@ -1460,4 +1460,18 @@ def update_customer(customer_id):
             "street_address": request.form.get("street_address", "").strip(),
             "city": request.form.get("city", "").strip(),
             "zip_code": request.form.get("zip_code", "").strip(),
-            "countr
+            "country": request.form.get("country", "").strip()
+        }
+    }
+
+    # Update the customer in the database
+    users.update_one(
+        {"_id": ObjectId(customer_id), "user_type": "customer"},
+        {"$set": update_data}
+    )
+
+    flash("Customer updated successfully", "success")
+    return redirect(url_for("admin.view_customer", customer_id=customer_id))
+
+
+
