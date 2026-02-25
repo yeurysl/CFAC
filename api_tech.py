@@ -801,7 +801,7 @@ from extensions import bcrypt
 
 
 
-@api_tech_bp.route('/tech/register', methods=['POST'])
+@api_tech_bp.route('/register', methods=['POST'])
 def register_tech_user():
 
     data = request.get_json() or {}
