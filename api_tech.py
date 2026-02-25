@@ -797,20 +797,26 @@ from postmark_client import is_valid_email
 
 
 from extensions import bcrypt
-
+import logging
 
 
 
 @api_tech_bp.route('/register', methods=['POST'])
 def register_tech_user():
+    logger = current_app.logger
 
-    data = request.get_json() or {}
+    logger.info("🔵 /api/tech/register hit")
+
+    data = request.get_json(silent=True) or {}
+    logger.info(f"Incoming JSON: {data}")
 
     email = (data.get("email") or "").strip().lower()
     username = (data.get("username") or "").strip()
     password = (data.get("password") or "").strip()
     full_name = (data.get("full_name") or "").strip()
     phone = (data.get("phone") or "").strip()
+
+    logger.info(f"Parsed email={email}, username={username}, full_name={full_name}")
 
     errors = {}
 
@@ -824,19 +830,28 @@ def register_tech_user():
         errors["password"] = "Password must be at least 8 characters."
 
     if errors:
+        logger.warning(f"Validation errors: {errors}")
         return jsonify({"ok": False, "errors": errors}), 400
 
     db = current_app.config["MONGO_CLIENT"]
     users = db.users
     users_to_approve = db.users_to_approve
 
-    if users.find_one({"email": email}) or users_to_approve.find_one({"email": email}):
+    existing_user = users.find_one({"email": email})
+    existing_pending = users_to_approve.find_one({"email": email})
+
+    logger.info(f"Existing approved user: {bool(existing_user)}")
+    logger.info(f"Existing pending user: {bool(existing_pending)}")
+
+    if existing_user or existing_pending:
+        logger.warning("⚠️ Email already exists or pending approval.")
         return jsonify({
             "ok": False,
             "error": "email_in_use",
             "message": "Email already exists or is pending approval."
         }), 409
 
+    logger.info("Generating password hash")
     hashed_pw = bcrypt.generate_password_hash(password).decode("utf-8")
 
     tech_doc = {
@@ -851,7 +866,10 @@ def register_tech_user():
         "updated_date": datetime.utcnow()
     }
 
+    logger.info("Inserting into users_to_approve collection")
     users_to_approve.insert_one(tech_doc)
+
+    logger.info("✅ Tech registration submitted successfully")
 
     return jsonify({
         "ok": True,
