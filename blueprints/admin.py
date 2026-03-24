@@ -1205,6 +1205,17 @@ from notis import send_payment_links, notify_admins_new_order, notify_salesperso
 
 import stripe
 
+
+@admin_bp.route('/manual_payment_success')
+def manual_payment_success():
+    order_id = request.args.get('order_id')
+    return render_template('manual_payment_success.html', order_id=order_id)
+
+
+
+
+
+
 @admin_bp.route("/create", methods=["GET", "POST"])
 @login_required
 @admin_required
@@ -1307,7 +1318,7 @@ def create_order_page():
                 capture_method="manual"
             )
 
-            success_url = url_for('core.manual_payment_success', _external=True) + f"?order_id={order_id}"
+            success_url = url_for('admin.manual_payment_success', _external=True) + f"?order_id={order_id}"
             cancel_url = url_for('core.collecting_payments', _external=True)
 
             downpayment_checkout_session = stripe.checkout.Session.create(
