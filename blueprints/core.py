@@ -247,7 +247,7 @@ def refund_policy():
 @core_bp.route('/manual_payment_success')
 def manual_payment_success():
     order_id = request.args.get('order_id')
-    return render_template('payments/manual_payment_success.html', order_id=order_id)
+    return render_template('manual_payment_success.html', order_id=order_id)
 
 
 
