@@ -1307,8 +1307,8 @@ def create_order_page():
                 capture_method="manual"
             )
 
-            success_url = url_for('collecting.manual_payment_success', _external=True) + f"?order_id={order_id}"
-            cancel_url = url_for('collecting.collecting_payments', _external=True)
+            success_url = url_for('core.manual_payment_success', _external=True) + f"?order_id={order_id}"
+            cancel_url = url_for('core.collecting_payments', _external=True)
 
             downpayment_checkout_session = stripe.checkout.Session.create(
                 payment_method_types=["card"],

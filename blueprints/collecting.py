@@ -238,14 +238,6 @@ def collect_payment(order_id):
 
 
 
-@collecting_bp.route('/manual_payment_success')
-def manual_payment_success():
-    order_id = request.args.get('order_id')
-    return render_template('payments/manual_payment_success.html', order_id=order_id)
-
-
-
-
 @collecting_bp.route('/stripe_webhook', methods=['POST'])
 def stripe_webhook():
     """
@@ -361,4 +353,6 @@ def update_order(order_id):
     else:
         flash('Payment not successful.', 'danger')
 
-    return redirect(url_for('collecting.coll
+    return redirect(url_for('collecting.collecting_payments'))
+
+
