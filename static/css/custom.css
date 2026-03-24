@@ -1,0 +1,720 @@
+/* static/css/custom.css */
+
+/* Reset body and html margins and paddings */
+body, html {
+  margin: 0;
+  padding: 0;
+}
+/* ---- fancy buy-now button ---- */
+/* ---------------- Buy-Now (matches other btn-* styles) -------------- */
+.buy-now-btn{
+  display:inline-block;
+  width:100%;
+  padding:15px 75px;                 /* same as .btn-primary */
+  font-weight:600;
+  font-size:1rem;
+  color:#ffffff;
+  background-color:#07173d;          /* same navy */
+  border:1px solid #07173d;
+  border-radius:2px;                 /* same sharp corner */
+  text-transform:uppercase;
+  transition:background-color .15s ease,
+             box-shadow .15s ease;
+}
+
+
+
+
+/* black primary-style button */
+.btn-black {
+  display: inline-block;
+  padding: 15px 75px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #ffffff;
+  background-color: #000000;
+  border: 1px solid #000000;
+  border-radius: 3%;
+  text-transform: uppercase;
+  transition: background-color .15s ease, box-shadow .15s ease;
+}
+
+.btn-black:hover {
+  background-color: #303030;      /* stays black on hover */
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  color: #ffffff;
+}
+
+
+
+
+
+.buy-now-btn:hover{
+  background-color:#4e5f8a;          /* mimic .btn-product-view-details:hover */
+  box-shadow:0 4px 8px rgba(0,0,0,.20);
+  color:#ffffff;
+}
+
+.modal-backdrop { z-index: 2000; }
+.modal           { z-index: 2005; }
+
+.buy-now-btn:active{
+  background-color:#0b0b22;          /* slightly darker when pressed */
+  box-shadow:0 2px 4px rgba(0,0,0,.25);
+}
+
+
+/* Navbar Styling */
+.custom-navbar {
+  background-color: #07173d; /* Change this to your preferred color */
+}
+.custom-navbar .nav-link {
+  color: white !important; /* Ensure the text color is white */
+}
+
+.custom-navbar .nav-link:hover {
+  color: lightgray; /* Optional: Add a hover effect */
+}
+.custom-navbar .navbar-toggler-icon {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath stroke='rgba%28255, 255, 255, 1%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M1 2h14M1 8h14M1 14h14'/%3E%3C/svg%3E") !important;
+}
+
+/* Button Styles */
+.btn-product-view-details {
+  background-color: #07173d; /* Custom background color */
+  border-color: #07173d;      /* Custom border color */
+  color: #ffffff;             /* Custom text color */
+  border-radius: 2px;
+}
+
+.btn-product-view-details:hover {
+  color: #ffffff;  
+  background-color: #4e5f8a; /* Darker shade on hover */
+  border-color: #0a1d4f;
+}
+
+.btn-book-now {
+  background-color: #0b5f2a; /* Custom background color */
+  border-color: #0b5f2a;      /* Custom border color */
+  color: #ffffff;             /* Custom text color */
+  border-radius: 2px;
+}
+
+.btn-book-now:hover {
+  background-color: #89988b;  /* Darker green on hover */
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2); /* Slight shadow for hover effect */
+}
+
+.btn-primary {
+  border-radius: 3%;
+  background-color: #07173d; 
+  border: 1px solid #07173d; 
+  padding: 15px 75px;
+}
+
+.btn-secondary{
+  border-radius: 3%;
+}
+
+/* Product Buttons */
+.product-buttons {
+  display: flex;
+  justify-content: center; /* Centers the buttons */
+  gap: 26px; /* Adds space between buttons */
+}
+
+.product-buttons .btn {
+  min-width: 120px; /* Consistent button widths */
+}
+
+/* Container Fluid */
+.container-fluid {
+  margin: 0;
+  width: 100%;
+}
+
+/* Full Width Image */
+.full-width-image {
+  width: 100%;
+  height: auto;
+  display: block;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black 5%, black 85%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, black 8%, black 95%, transparent);
+}
+
+/* Custom HR */
+.custom-hr {
+   border: none;
+   height: 2px; /* Adjust the thickness */
+   background-color: #ffffff; /* Preferred color */
+   width: 50%; /* Adjust the width as needed */
+   margin: 20px auto; /* Centers the line and adds vertical spacing */
+}
+
+/* Call Now Button */
+.call-now-btn {
+  font-size: .8rem;  /* Make the text bigger */
+  padding: 15px 60px;  /* Increase padding for a larger button */
+  font-weight: bold;
+  color: #ffffff;  /* Set the text color to white */
+  border-radius: 3%;
+  background-color: #07173d; 
+  border: 1px solid #07173d;
+  text-align: center;  /* Center-align text within the button */
+  display: inline-block;
+}
+
+.phone-number {
+  font-size: 1.5rem;  /* Slightly smaller font size for the phone number */
+  display: block;  /* Ensures the phone number appears below the main text */
+}
+
+/* Card Header Orders */
+.card-header-orders {
+  background-color: #07173d; 
+}
+
+/* Form Wrapper */
+.form-wrapper {
+  max-width: 500px; /* Control the width of the form */
+  padding: 18px; /* Optional: Add padding around the form */
+  border: 1px solid #ffffff; /* Optional: Add a border */
+  border-radius: 8px; /* Rounded corners */
+  background-color: #ffffff; /* Light background color */
+}
+
+.form-control {
+  border-radius: 1%;
+}
+
+.card-header .btn {
+  display: block;
+  text-align: left;
+  width: auto; /* Adjust width as needed */
+  position: absolute;
+  right: 0; /* Align to the right */
+  top: 50%; /* Center vertically in the card header */
+  transform: translateY(-50%);
+}
+
+.card, .card-header {
+  border-radius: 2px; /* Sharper look */
+}
+
+.collapse {
+  border-radius: 2px;
+}
+
+#infoAccordion {
+  max-width: 75%; /* Make it narrower */
+  margin: auto; /* Center the accordion */
+}
+
+.card-header, .card-body {
+  padding: 13px; /* More compact look */
+}
+
+.card-header h2, .card-body {
+  font-size: 20px; /* Smaller font size */
+}
+
+/* Black Dropdown */
+.black-dropdown {
+  background-color:#0a1b37!important;
+  color: white !important;
+  border: none;
+  border-radius: 2px;
+}
+
+.black-dropdown:hover,
+.black-dropdown:focus {
+  background-color: #0b0b22 !important;
+  color: white !important;
+}
+
+/* Modal Styling */
+.modal {
+  display: none; /* Hidden by default */
+  position: fixed; /* Stay in place */
+  z-index: 1000; /* Sit on top */
+  left: 0;
+  top: 0;
+  width: 100%; /* Full width */
+  height: 100%; /* Full height */
+  overflow: auto; /* Enable scroll if needed */
+  background-color: rgba(0,0,0,0.5); /* Black w/ opacity */
+}
+
+.modal-content {
+  background-color: #fefefe;
+  margin: 10% auto; /* 10% from the top and centered */
+  padding: 20px;
+  border: 1px solid #888;
+  width: 80%; /* Could be more or less, depending on screen size */
+  max-width: 600px;
+  border-radius: 8px;
+}
+
+.close {
+  color: #aaa;
+  float: right;
+  font-size: 28px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.close:hover,
+.close:focus {
+  color: black;
+  text-decoration: none;
+}
+
+.list-group-item {
+  cursor: pointer;
+}
+
+.service-text {
+  font-size: 1.5rem; /* Adjust as needed */
+}
+
+/* Loading Overlay */
+#loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.8); /* Semi-transparent background */
+  display: none; /* Hidden by default */
+  justify-content: center;
+  align-items: center;
+  z-index: 9999; /* Ensure it's on top */
+}
+
+.spinner-border {
+  width: 3rem;
+  height: 3rem;
+}
+
+/* Dropdown Menu */
+.dropdown-menu {
+  padding: 15px; /* Ensure enough padding */
+}
+
+/* Responsive Dropdown Images */
+.dropdown-menu a img {
+  display: block;
+  margin: 0 auto;
+}
+
+/* Footer Styling */
+/* Custom Footer Styling */
+.custom-footer {
+  background-color: #0a1b37; /* Desired background color */
+  border-top: 5px dashed #07173d; /* Desired border color and thickness */
+  color: #fff; /* Text color */
+  width: 100%; /* Full width */
+  padding: 0; /* Remove all padding */
+  margin: 0; /* Remove all margin */
+}
+
+/* Control vertical spacing using margins */
+.custom-footer p {
+}
+
+.custom-footer .mt-2 {
+
+}
+
+/* Adjust social media icon sizes and spacing */
+.custom-footer a i {
+  font-size: 1.5rem; /* Adjust icon size */
+}
+
+@media (max-width: 768px) {
+  .custom-footer a i {
+      font-size: 1.2rem; /* Smaller icons on tablets */
+  }
+}
+
+@media (max-width: 480px) {
+  .custom-footer a i {
+      font-size: 1rem; /* Even smaller icons on mobile */
+  }
+}
+
+
+/* Carousel Indicators Styling */
+.carousel-indicators button {
+  background-color: #000;
+  opacity: 0.5;
+}
+
+.carousel-indicators .active {
+  background-color: #000;
+  opacity: 1;
+}
+
+/* Optional: Hover effect for indicators */
+.carousel-indicators button:hover {
+  opacity: 0.8;
+}
+
+/* Default styles for larger screens */
+.custom-arrow {
+  max-width: 100%; /* Adjust as needed */
+}
+
+.gobiz-image {
+  max-width: 100%; /* Adjust as needed */
+}
+
+/* Styles for small screens (e.g., width < 576px) */
+@media (max-width: 575.98px) {
+  .custom-arrow {
+    max-width: 180px; /* Adjust the size as needed */
+  }
+
+  .gobiz-image {
+    max-width: 170px; /* Adjust the size as needed */
+  }
+}
+
+/* Remove default link styles for images */
+/* Ensure the image transitions smoothly */
+.clickable-image {
+  transition: opacity 0.3s ease;
+}
+
+/* Change opacity when the parent <a> is hovered */
+a:hover .clickable-image {
+  opacity: 0.5; /* Slightly reduce opacity on hover */
+  
+}
+
+
+
+
+.carousel-inner img {
+  display: block;     /* ensure block so margin auto can center */
+  margin: 0 auto;     /* center the image horizontally */
+  width: 80%;         /* or any percentage you like */
+  height: auto;       /* keep aspect ratio */
+  object-fit: contain; /* ensures NO cropping (optional) */
+}
+
+/* For large screens (≥ 992px in Bootstrap) */
+@media (min-width: 992px) {
+  .arrow-section-wrapper {
+    max-width: 900px; /* or any narrower width you want */
+    margin: 0 auto;   /* center it horizontally */
+    padding: 0 15px;  /* optional padding to keep a bit of a margin */
+  }
+}
+
+/* By default, fill the container */
+.carousel-inner img {
+  width: 500px;
+  height: auto;
+  height: auto;
+  display: block;
+}
+
+@media (max-width: 600px) {
+  .carousel-inner img {
+    max-width: 340px;
+  }
+}
+
+
+/* In your custom.css or a <style> block */
+
+/* Smooth transitions */
+.review-photo {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Hover effect: slightly enlarge and add a shadow */
+.review-photo:hover {
+  transform: scale(.90); /* scales the image to 105% */
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25); /* subtle shadow */
+}
+
+
+
+
+/* In your custom.css or a <style> block */
+
+/* By default (desktop and up): max width = 300px */
+.my-responsive-video {
+  max-width: 900px;
+  width: 100%; /* so it scales down if container is smaller */
+  height: auto;
+  display: block;
+  margin: 0 auto; /* center horizontally */
+}
+
+/* On smaller screens (up to 768px wide): max width = 130px */
+@media (max-width: 768px) {
+  .my-responsive-video {
+    max-width: 500px;
+  }
+}
+
+/* By default (desktop and up): max width = 300px */
+.our-work-image {
+  max-width: 600px;
+  width: 100%; /* so it scales down if container is smaller */
+  height: auto;
+  display: block;
+  margin: 0 auto; /* center horizontally */
+}
+
+/* On smaller screens (up to 768px wide): max width = 130px */
+@media (max-width: 768px) {
+  .our-work-image {
+    max-width:360px;
+  }
+}
+
+
+.my-igtxt-image {
+  max-width: 600px;
+  width: 100%;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+}
+
+@media (max-width: 768px) {
+  .my-igtxt-image {
+    max-width: 530px;
+  }
+}
+
+
+/* Our Work style already, e.g., 300px desktop, 130px mobile or whatever you had */
+.checked-ig-image {
+  max-width: 600px;
+  width: 100%;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+}
+@media (max-width: 768px) {
+  .our-work-image {
+    max-width: 360px;
+  }
+}
+
+
+.carousel-inner {
+  position: relative;
+}
+
+.carousel-inner .carousel-item h3 {
+  position: absolute;
+  text-align: center;
+  width: 100%;
+  /* Additional styling as desired */
+}
+
+
+.order-status-bar {
+  display: flex;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.status-step {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 10px;
+  background-color: #f8f8f8;
+  transition: background 0.3s ease;
+  cursor: pointer;
+}
+
+.status-step:not(:last-child) {
+  border-right: 1px solid #ccc;
+}
+
+/* For non-completed status, you might have a different active state if desired */
+.status-step.active {
+  background: linear-gradient(90deg, #777777, #464646);
+  color: #fff;
+}
+
+/* Custom gradient for the large completed status bar */
+.status-step.completed-active {
+  background: linear-gradient(20deg, #cbcbcb, #303030); /* A warm sunset gradient */
+  color: #fff;
+  font-weight: 600;
+}
+
+
+.custom-track-orders {
+  background: linear-gradient(90deg, #007bff, #071c32);
+  border: none;
+  color: #fff;
+  padding: 12px 24px;
+  font-size: 1.2rem;
+  border-radius: 30px;
+  text-decoration: none;
+  transition: background 0.3s ease, transform 0.2s ease;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.custom-track-orders:hover {
+  color: #fff;
+  background: linear-gradient(135deg, #0056b3, #003f7f);
+  transform: translateY(-2px);
+}
+
+.payment-status-bar {
+  display: flex;
+  width: 250px;  /* Fixed width for a compact look */
+  border: 1px solid #e0e0e0; /* Light border */
+  border-radius: 8px;
+  overflow: hidden;
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.payment-status-step {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px;
+  background-color: #f9f9f9;
+  color: #555;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.payment-status-step.active {
+  background: linear-gradient(180deg, #20284b, #406bcf); /* Elegant blue gradient */
+  color: #fff;
+  font-weight: 600;
+}
+
+.payment-status-step:not(:last-child) {
+  border-right: 1px solid #e0e0e0;
+}
+
+.header-datetime {
+  font-size: 1.25rem;  /* Adjust size as needed */
+  font-weight: bold;
+}
+
+
+
+
+
+.view-order-bar {
+  background: #fff;
+  color: #000000 !important;
+  display: flex;
+  justify-content: center;
+  width: 250px;  /* Fixed width for a compact look */
+  border: 1px solid #e0e0e0; /* Light border */
+  overflow: hidden;
+  font-size: 0.9rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-radius: 5px;
+  padding: 10px;
+  text-align: center;
+  margin-top: 40px;
+  cursor: pointer;
+}
+
+.view-order-bar a {
+  color: #000000;
+  text-decoration: none;
+  font-weight: bold;
+  display: block; /* Ensures the link fills the container */
+}
+.order-card {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+.btn-navy {
+  background-color: #07173d;
+  border-color: #07173d;
+  color: #fff;
+}
+
+.btn-navy:hover, 
+.btn-navy:focus {
+  background-color: #07173d; /* a slightly darker navy */
+  border-color: #07173d;
+  color: #fff;
+}
+
+.overlay-text {
+  position: absolute;
+  bottom: 150px;
+  left: 130px;
+  color: white;
+  font-size: 2.5rem;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 900;
+  background-color: transparent; /* or just remove this line */
+  padding: 5px 10px; /* remove or adjust if you want less spacing */
+}
+
+
+
+
+
+
+
+
+
+/* For small screens (up to 576px) */
+@media (max-width: 576px) {
+  .overlay-text {
+    bottom: 50px;
+    left: 20px;
+    font-size: 2rem;
+  }
+}
+
+/* For medium screens (577px to 991px) */
+@media (min-width: 577px) and (max-width: 991px) {
+  .overlay-text {
+    bottom: 130px;
+    left: 100px;
+    font-size: 2.3rem;
+  }
+}
+
+/* For large screens (992px and up) */
+@media (min-width: 992px) {
+  .overlay-text {
+    bottom: 100px;
+    left: 290px;
+    font-size: 2.5rem;
+  }
+}
+
+.final-price-box {
+  background: #07173d;
+  color: #ffffff;
+  padding: 15px;
+  font-size: 1.5rem;
+  font-weight: bold;
+  border-radius: 10px;
+  display: inline-block;
+  min-width: 150px;
+}

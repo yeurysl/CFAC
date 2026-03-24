@@ -1,0 +1,23 @@
+Dear Technician,
+
+A new order has been scheduled.
+
+Order Details:
+- Order ID: {{ order['_id'] }}
+- Customer Name: {{ guest_name }}
+- Customer Email: {{ guest_email }}
+- Customer Phone Number: {{ guest_phone }}
+- Service Date: {{ order['service_date'].strftime('%B %d, %Y at %I:%M %p') }}
+- Total Amount: {{ order['total'] | currency }}
+
+Products Ordered:
+{% for product in products %}
+- {{ product['name'] }} - {{ product['price'] | currency }}
+{% endfor %}
+
+Please check the tech dashboard for more details.
+
+Best regards,
+CFAC AutoCare System
+
+© {{ current_year }} CFAC AutoCare

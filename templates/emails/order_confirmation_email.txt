@@ -1,0 +1,24 @@
+Thank you for your order!
+
+Hi {{ user.name }},
+
+We have received your order placed on {{ order['order_date'].strftime('%B %d, %Y at %I:%M %p') }}.
+
+Scheduled Service Date: {{ order['service_date'].strftime('%B %d, %Y at %I:%M %p') }}
+
+Order Details:
+{% for product in products %}
+- {{ product['name'] }}: ${{ "%.2f"|format(product['price']) }}
+{% endfor %}
+
+Total: ${{ "%.2f"|format(order['total']) }}
+
+We will see you on your scheduled service date!
+
+Thank you for choosing our services!
+
+----------------------------------------
+If you have any questions, feel free to email support@cfautocare.biz.
+
+Best regards,
+Central Florida Auto Care Team

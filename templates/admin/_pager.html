@@ -1,0 +1,24 @@
+{# reusable pager, expects: page, total_pages, endpoint #}
+
+<nav aria-label="Pages">
+  <ul class="pagination justify-content-center my-3">
+
+    <li class="page-item {{ 'disabled' if page == 1 }}">
+      <a class="page-link"
+         href="{{ url_for(endpoint, page=page-1) }}"
+         tabindex="-1">« Prev</a>
+    </li>
+
+    {% for p in range(1, total_pages + 1) %}
+      <li class="page-item {{ 'active' if p == page }}">
+        <a class="page-link"
+           href="{{ url_for(endpoint, page=p) }}">{{ p }}</a>
+      </li>
+    {% endfor %}
+
+    <li class="page-item {{ 'disabled' if page == total_pages }}">
+      <a class="page-link"
+         href="{{ url_for(endpoint, page=page+1) }}">Next »</a>
+    </li>
+  </ul>
+</nav>

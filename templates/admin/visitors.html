@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="mb-3">Visitors ({{ total_visitors }})</h1>
+
+<table class="table table-sm table-hover align-middle">
+  <thead class="table-light">
+    <tr>
+      <th>#</th>
+      <th>First&nbsp;visit</th>
+      <th>Last&nbsp;visit</th>
+      <th>Hits</th>
+      <th>IP (last)</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for v in rows %}
+    <tr>
+      <td>{{ loop.index + (page-1)*40 }}</td>
+      <td>{{ v.first_seen | format_datetime_with_suffix }}</td>
+      <td>{{ v.last_seen  | format_datetime_with_suffix }}</td>
+      <td>{{ v.hits }}</td>
+      <td>{{ v.ip }}</td>
+      <td>
+        <button class="btn btn-sm btn-primary"
+                data-vuid="{{ v.visitor }}"
+                data-bs-toggle="modal"
+                data-bs-target="#hitsModal">
+          View hits
+        </button>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+{% include 'admin/_pager.html' %}
+
+<!-- bootstrap-5 modal -->
+<div class="modal fade" id="hitsModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Visitor hits</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center">
+        <div class="spinner-border" role="status"></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.getElementById('hitsModal').addEventListener('show.bs.modal', (ev) => {
+  const btn  = ev.relatedTarget;
+  const vuid = btn.getAttribute('data-vuid');
+  const body = ev.target.querySelector('.modal-body');
+  body.innerHTML = '<div class="spinner-border" role="status"></div>';
+
+  fetch(`/admin/visitors/${vuid}/hits`)
+    .then(r => r.text())
+    .then(html => body.innerHTML = html)
+    .catch(err => body.innerHTML = `<div class="text-danger">Error: ${err}</div>`);
+});
+</script>
+{% endblock %}

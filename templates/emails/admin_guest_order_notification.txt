@@ -1,0 +1,28 @@
+Dear Admin,
+
+A new guest order has been scheduled by {{ salesperson_name }}.
+
+Order Details:
+- Order ID: {{ order['_id'] }}
+- Guest Name: {{ order['guest_name'] }}
+- Guest Email: {{ order.get('guest_email', 'N/A') }}
+- Guest Phone Number: {{ order.get('guest_phone_number', 'N/A') }}
+- Service Date: {{ order['service_date'].strftime('%B %d, %Y at %I:%M %p') }}
+- Total Amount: {{ order['total'] | currency }}
+
+Products Ordered:
+{% for product in products %}
+- {{ product['name'] }} - {{ product['price'] | currency }}
+{% endfor %}
+
+
+
+
+
+
+Please log in to the admin dashboard to view more details.
+
+Best regards,
+Your CFAC System
+
+© {{ current_year }} CFAC AutoCare

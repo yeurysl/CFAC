@@ -1,0 +1,76 @@
+<!-- payment_success.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Payment Success - Your Order Details</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f9;
+      color: #333;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background-color: #fff;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    h1 {
+      color: #07173d;
+      text-align: center;
+    }
+    .order-details {
+      margin: 20px 0;
+    }
+    .order-details p {
+      margin: 8px 0;
+    }
+    .btn {
+      background-color: #07173d;
+      color: #fff;
+      padding: 10px 20px;
+      text-decoration: none;
+      border-radius: 5px;
+      display: inline-block;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Payment Successful!</h1>
+    <p>Thank you for your payment. Here are your order details:</p>
+
+    <div class="order-details">
+      <p><strong>Order ID:</strong> {{ order._id }}</p>
+      <p><strong>Order Date:</strong> 
+         {% if order.creation_date %}
+           {{ order.creation_date | format_date_with_suffix }}
+         {% else %}
+           N/A
+         {% endif %}
+      </p>
+      <p><strong>Service Date:</strong> 
+         {% if order.service_date %}
+           {{ order.service_date | format_datetime_with_suffix }}
+         {% else %}
+           N/A
+         {% endif %}
+      </p>
+      <p><strong>Location:</strong> {{ order.guest_address.street_address }}, {{ order.guest_address.city }}, {{ order.guest_address.country }}</p>
+      <!-- Additional details as needed -->
+    </div>
+    <h1>Track your order</h1>
+
+
+    <p>If you'd like to track your order create an account and login and check your "My Orders" page.</p>
+    <a href="/customer/login" class="btn">Create an Account</a>
+  </div>
+</body>
+</html>

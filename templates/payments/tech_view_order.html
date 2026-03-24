@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+
+{% block title %}View Order{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="mb-4">Order Details</h1>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <strong>Order ID:</strong> {{ order._id }}
+        </div>
+        <div class="card-body">
+
+            <h5 class="card-title mt-4">Customer Information</h5>
+            <p class="card-text"><strong>Name:</strong> {{ order.guest_name or order.user_name or 'N/A' }}</p>
+            <p class="card-text"><strong>Email:</strong> {{ order.guest_email or 'N/A' }}</p>
+            <p class="card-text"><strong>Phone Number:</strong> {{ order.guest_phone_number or 'N/A' }}</p>
+
+            <h5 class="card-title mt-4 ">Service Details</h5>
+            <p class="card-text"><strong>Service Date and Time:</strong> 
+                {% if order.service_date %}
+                {{ order.service_date.strftime('%B %d, %Y at %I:%M %p') }}
+                {% else %}
+                    N/A
+                {% endif %}
+            </p>
+
+
+
+
+            {% if order.full_address %}
+            <p>
+                <strong>Address:</strong> {{ order.full_address }}
+            </p>
+            <p>
+                <strong>Directions:</strong>
+                <a href="https://www.google.com/maps/search/?api=1&query={{ order.full_address | urlencode }}" target="_blank">Google Maps</a> |
+                <a href="http://maps.apple.com/?address={{ order.full_address | urlencode }}" target="_blank">Apple Maps</a>
+            </p>
+        {% else %}
+            <p><strong>Address:</strong> Not provided</p>
+        {% endif %}
+
+
+
+
+
+
+            
+            <h5 class="card-title mt-4">Order Details</h5>
+            <p class="card-text"><strong>Payment Time:</strong> {{ order.payment_time.replace('_', ' ').title() }}</p>
+            <p class="card-text"><strong>Payment Status:</strong> {{ order.payment_status }}</p>
+            <p class="card-text"><strong>Order Status:</strong> {{ order.status }}</p>
+        </div>
+    </div>
+
+ <!-- Services in the Order -->
+<div class="card mb-4">
+    <div class="card-header">
+       <strong>Services</strong> 
+    </div>
+    <div class="card-body">
+        {% if order.services %}
+            <ul class="list-group">
+                {% for service in order.services %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        {{ service.label }}
+                        <span>${{ '%.2f'|format(service.price) }}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>No services associated with this order.</p>
+        {% endif %}
+    </div>
+</div>
+
+
+    <a href="{{ url_for('tech.my_schedule') }}" class="btn btn-secondary">Back to My Schedule</a>
+</div>
+{% endblock %}

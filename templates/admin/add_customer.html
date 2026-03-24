@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h2>Add Customer</h2>
+    <form method="POST">
+        {{ form.hidden_tag() }}
+
+        <!-- ================= CUSTOMER INFO ================= -->
+        <div class="mb-3">
+            {{ form.full_name.label }}<br>
+            {{ form.full_name(class="form-control") }}
+        </div>
+        <div class="mb-3">
+            {{ form.email.label }}<br>
+            {{ form.email(class="form-control") }}
+        </div>
+        <div class="mb-3">
+            {{ form.phone.label }}<br>
+            {{ form.phone(class="form-control") }}
+        </div>
+        <div class="mb-3">
+            <strong>Address</strong><br>
+            {{ form.street_address(class="form-control mb-2", placeholder="Street") }}
+            {{ form.city(class="form-control mb-2", placeholder="City") }}
+            {{ form.zip_code(class="form-control mb-2", placeholder="ZIP") }}
+            {{ form.country(class="form-control", placeholder="Country") }}
+        </div>
+
+        <!-- ================= VEHICLE ================= -->
+        <div id="vehicles-wrapper">
+            <h5>Vehicles</h5>
+            <div class="row mb-2 vehicle-row">
+                <div class="col-md-6">
+                    <input type="text" name="vehicle_label" class="form-control" placeholder="Vehicle Label">
+                </div>
+                <div class="col-md-6">
+                    <select name="vehicle_size" class="form-select">
+                        <option value="">Select size</option>
+                        {% for size in VEHICLE_SIZES %}
+                            <option value="{{ size }}">{{ size | replace("_", " ") | title }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <button type="button" class="btn btn-sm btn-secondary mb-3" id="add-vehicle-btn">Add Vehicle</button>
+        <br>
+        <button type="submit" class="btn btn-primary">Add Customer</button>
+    </form>
+</div>
+
+<!-- ================= JS FOR ADDING VEHICLES ================= -->
+<script>
+document.getElementById("add-vehicle-btn").addEventListener("click", function() {
+    const wrapper = document.getElementById("vehicles-wrapper");
+    const newRow = document.createElement("div");
+    newRow.classList.add("row", "mb-2", "vehicle-row");
+    newRow.innerHTML = `
+        <div class="col-md-6">
+            <input type="text" name="vehicle_label" class="form-control" placeholder="Vehicle Label">
+        </div>
+        <div class="col-md-6">
+            <select name="vehicle_size" class="form-select">
+                <option value="">Select size</option>
+                {% for size in VEHICLE_SIZES %}
+                    <option value="{{ size }}">{{ size | replace("_", " ") | title }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    `;
+    wrapper.appendChild(newRow);
+});
+</script>
+{% endblock %}

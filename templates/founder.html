@@ -1,0 +1,142 @@
+
+
+{% extends "base.html" %}
+
+{# <-- override the header block with nothing #}
+{% block header %}{% endblock %}
+
+{% block content %}
+  <div class="d-flex flex-column align-items-center py-5">
+
+    <!-- Founder Image -->
+    <img
+      src="{{ url_for('static', filename='creatives/ryspic.JPG') }}"
+      alt="Founder photo"
+      class="img-fluid mb-4"
+      style="max-width: 300px;"
+    >
+
+    <!-- Mission Heading -->
+    <h1 class="mb-3 text-center">My Mission</h1>
+
+    <!-- Mission Text -->
+    <p class="text-center mb-4" style="max-width: 600px; line-height:1.6;">
+      As a software engineer, my mission is to help automate the labor force
+      to free humanity from the burden of survival-based work. I believe
+      that when basic needs like food, hygiene, and stability are no longer
+      a daily concern, we unlock our full potential to pursue knowledge,
+      creativity, and meaningful innovation. I build tools and systems that
+      aim to eliminate inefficiency, reduce human struggle, and move us
+      closer to a future where technology empowers us to focus on what
+      truly matters.
+    </p>
+
+  </div>
+  <!-- ── On Humanity Section ── -->
+  <div class="container text-center mb-5" style="max-width: 700px;">
+    <h2 class="mb-3">On Humanity</h2>
+    <p style="line-height:1.6;">
+      Human beings are wonderfully complex—power dynamics, ego, and competing goals
+      often cloud our best intentions and slow progress. By lifting the weight of
+      survival-based labor from every neighbor, we can refocus on empathy,
+      collaboration, and the creative spark that drives true innovation.
+    </p>
+  </div>
+
+  <!-- ── Our Operations Section ── -->
+  <div class="container text-center mb-5" style="max-width: 700px;">
+    <h2 class="mb-3">Our Operations</h2>
+    <p style="line-height:1.6;">
+      Behind the scenes, nearly every step—from booking and ordering to routing
+      and follow-up—is automated, optimized, and fully tracked. You’ll get
+      instant confirmations, real‑time updates, and transparent records of
+      every service milestone. That means faster turnarounds, fewer surprises,
+      and the peace of mind of knowing exactly where your job stands at all times.
+    </p>
+  </div>
+
+
+
+  <div class="container px-4 text-center my-5">
+    <a href="{{ url_for('core.about') }}" class="btn btn-black btn-lg">
+      Learn more about our company
+    </a>
+  </div>
+  
+  
+
+
+<!-- CTA WRAPPER – keeps the 1.5 rem side-padding but also centres children -->
+<div class="w-100 px-4 d-flex flex-column align-items-center">
+
+  <!-- CTA 1 – Help our cause -->
+  <a
+    href="https://lora-8a2978bae34d.herokuapp.com/"
+    target="_blank"
+    class="d-flex align-items-center gap-4 my-3 mx-auto justify-content-center"  {# mx-auto centres the <a>; justify-content-centre centres icon+text #}
+    style="border:2px solid #000;
+           padding:15px 20px;
+           max-width:450px;          /* limit width on large screens */
+           text-decoration:none;
+           color:#000;"
+  >
+    <img
+      src="{{ url_for('static', filename='creatives/loracologo.svg') }}"
+      alt="Help Icon"
+      style="height:70px;"
+    >
+    <span style="font-size:18px; font-weight:600;">
+      Want to help our cause?
+    </span>
+  </a>
+
+  <!-- CTA 2 – Car maintenance -->
+  <a
+    href="https://cfautocare.biz/"
+    target="_blank"
+    class="d-flex align-items-center gap-4 my-3 mx-auto justify-content-center"
+    style="border:2px solid #000;
+           padding:15px 20px;
+           max-width:450px;
+           text-decoration:none;
+           color:#000;"
+  >
+    <img
+      src="{{ url_for('static', filename='creatives/cfautologo.svg') }}"
+      alt="Car Maintenance Icon"
+      style="height:70px;"
+    >
+    <span style="font-size:18px; font-weight:600;">
+      Need car maintenance?
+    </span>
+  </a>
+
+  <!-- CTA 3 – Shop equipment -->
+  <a
+    href="https://cfautocare.biz/shop"
+    target="_blank"
+    class="d-flex align-items-center gap-4 my-3 mx-auto justify-content-center"
+    style="border:2px solid #000;
+           padding:15px 20px;
+           max-width:450px;
+           text-decoration:none;
+           color:#000;"
+  >
+  
+    <span style="font-size:18px; font-weight:600;">
+      Shop pro-grade detailing equipment
+    </span>
+  </a>
+
+</div>
+
+
+
+
+
+  {% block footer %}{% endblock %}
+{% endblock %}
+
+
+
+

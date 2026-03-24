@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Order Confirmation</title>
+    <style>
+        /* General Styles */
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            width: 100%;
+            background-color: #f4f4f4;
+            padding: 20px 0;
+        }
+        .email-wrapper {
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 3px rgba(0,0,0,0.1);
+        }
+        .header {
+            background-color: #07173d; /* Brand Color */
+            padding: 20px;
+            text-align: center;
+            color: #ffffff;
+        }
+        .header img {
+            max-width: 150px;
+            height: auto;
+        }
+        .content {
+            padding: 20px;
+            color: #333333;
+        }
+        .content h2 {
+            color: #07173d;
+            margin-top: 0;
+        }
+        .content p {
+            line-height: 1.6;
+        }
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            margin: 20px 0;
+            background-color: #163351; /* Button Color */
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 2px;
+        }
+        .order-details, .services-ordered {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        .order-details th, .order-details td,
+        .services-ordered th, .services-ordered td {
+            border: 1px solid #dddddd;
+            padding: 10px;
+            text-align: left;
+        }
+        .order-details th, .services-ordered th {
+            background-color: #f8f8f8;
+        }
+        .footer {
+            background-color: #f1f1f1;
+            padding: 15px;
+            text-align: center;
+            font-size: 12px;
+            color: #666666;
+        }
+        a {
+            color: #163351;
+            text-decoration: none;
+        }
+        /* Responsive Styles */
+        @media only screen and (max-width: 600px) {
+            .email-wrapper {
+                width: 100% !important;
+            }
+            .header, .content, .footer {
+                padding: 15px;
+            }
+            .button {
+                width: 100%;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <table class="email-wrapper" cellpadding="0" cellspacing="0">
+            <!-- Header -->
+            <tr>
+                <td class="header">
+                    <img src="https://cfautocare.biz/static/creatives/Logo.png" alt="CFAC Logo" style="max-width: 150px; height: auto;">
+                    <h1 style="margin: 10px 0 0 0;">Thank You for Your Order!</h1>
+                </td>
+            </tr>
+            <!-- Body Content -->
+            <tr>
+                <td class="content">
+                    <p>Dear {{ order.guest_name }},</p>
+
+                    <p>Thank you for placing an order with Central Florida Auto Care (CFAC). We are excited to assist you with your automotive needs. Below are the details of your order:</p>
+
+                    <!-- Order Details -->
+                    <h2>Order Details</h2>
+                    <table class="order-details">
+                        <tr>
+                            <th>Order ID</th>
+                            <td>{{ order._id }}</td>
+                        </tr>
+                      
+                        <tr>
+                            <th>Service Date</th>
+                            <td>{{ order.service_date.strftime('%B %d, %Y at %I:%M %p') }}</td>
+                        </tr>
+                        <tr>
+                            <th>Total Amount</th>
+                            <td>${{ "%.2f"|format(order.total) }}</td>
+                        </tr>
+                        <tr>
+                            <th>Status</th>
+                            <td>{{ order.status.capitalize() }}</td>
+                        </tr>
+                    </table>
+
+                    <!-- Delivery Address -->
+                    <h2>Address</h2>
+                    <p>
+                        {{ order.guest_address.street_address }}<br>
+                        {% if order.guest_address.unit_apt %}
+                            {{ order.guest_address.unit_apt }}<br>
+                        {% endif %}
+                        {{ order.guest_address.city }}, {{ order.guest_address.country }} {{ order.guest_address.zip_code }}
+                    </p>
+
+                  
+
+                    <!-- Contact Information -->
+                    <p>If you have any questions or need further assistance, please contact your salesperson <strong>{{ salesperson_name }}</strong> at <strong>{{ salesperson_phone_number }}</strong>, or reach out to us at <a href="mailto:support@cfautocare.biz">support@cfautocare.biz</a>.</p>
+
+                    <p>We appreciate your business and look forward to serving you!</p>
+
+                    <p>Best regards,<br>
+
+                         <!-- Footer -->
+            <tr>
+                <td class="footer">
+                    &copy; {{ current_year }} Centralfloridaautocare LLC. All rights reserved.
+                </td>
+            </tr>
+          

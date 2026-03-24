@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Sales Profile{% endblock %}
+{% block content %}
+<div class="container my-5 text-center">
+  <!-- Circular profile picture container -->
+  <img 
+    src="{{ user.profile_picture or url_for('static', filename='creatives/user.png') }}" 
+    alt="{{ user.name }}" 
+    class="rounded-circle mb-3" 
+    style="width: 150px; height: 150px; object-fit: cover;"
+  >
+  <!-- User Name -->
+  <h1>{{ user.full_name }}</h1>
+
+</div>
+{% endblock %}
