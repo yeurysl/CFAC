@@ -106,7 +106,7 @@ def send_postmark_email(subject, to_email, from_email, text_body, html_body=None
     
     try:
         response = postmark_client.emails.send(
-            From=from_email,
+            from_email = "CFAC <yeurys@cfautocare.biz>",
             To=to_email,
             Subject=subject,
             TextBody=text_body,
