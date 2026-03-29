@@ -238,10 +238,17 @@ def collect_payment(order_id):
 
 
 
+from flask import request, current_app
+from bson.objectid import ObjectId
+import stripe
+from notis import notify_techs_new_order  # your push/email notifier
+
+STRIPE_WEBHOOK_SECRET = current_app.config.get('STRIPE_WEBHOOK_SECRET')
+
 @collecting_bp.route('/stripe_webhook', methods=['POST'])
 def stripe_webhook():
     """
-    Endpoint to handle Stripe webhook events.
+    Stripe webhook to handle payment events and notify techs on successful payments.
     """
     payload = request.data
     sig_header = request.headers.get('Stripe-Signature')
@@ -256,10 +263,15 @@ def stripe_webhook():
     orders_collection = current_app.config['ORDERS_COLLECTION']
     event_type = event.get('type', '')
 
+    # -----------------------------
+    # Payment succeeded
+    # -----------------------------
     if event_type == 'payment_intent.succeeded':
         payment_intent = event['data']['object']
         order_id = payment_intent['metadata'].get('order_id')
+
         if order_id:
+            # 1️⃣ Update payment status
             orders_collection.update_one(
                 {'_id': ObjectId(order_id)},
                 {'$set': {
@@ -270,9 +282,24 @@ def stripe_webhook():
             current_app.logger.info(
                 f"PaymentIntent {payment_intent['id']} succeeded for Order {order_id}"
             )
+
+            # 2️⃣ Fetch the full order
+            order = orders_collection.find_one({'_id': ObjectId(order_id)})
+            if order:
+                try:
+                    # 3️⃣ Notify techs via push/email
+                    notify_techs_new_order(order)
+                    current_app.logger.info(f"Techs notified for Order {order_id}")
+                except Exception as e:
+                    current_app.logger.error(f"Failed to notify techs for Order {order_id}: {e}")
+
+    # -----------------------------
+    # Payment failed
+    # -----------------------------
     elif event_type == 'payment_intent.payment_failed':
         payment_intent = event['data']['object']
         order_id = payment_intent['metadata'].get('order_id')
+
         if order_id:
             orders_collection.update_one(
                 {'_id': ObjectId(order_id)},
@@ -284,9 +311,11 @@ def stripe_webhook():
             current_app.logger.info(
                 f"PaymentIntent {payment_intent['id']} failed for Order {order_id}"
             )
-    # ... handle other event types as needed
+
+    # Add any other event types as needed
 
     return '', 200
+
 
 
 @collecting_bp.route('/create_payment_intent', methods=['POST'])
