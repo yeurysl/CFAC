@@ -1319,8 +1319,7 @@ def create_order_page():
             )
 
             success_url = url_for('admin.manual_payment_success', _external=True) + f"?order_id={order_id}"
-            cancel_url = url_for('core.collecting_payments', _external=True)
-
+            cancel_url = url_for('core.home', _external=True)
             downpayment_checkout_session = stripe.checkout.Session.create(
                 payment_method_types=["card"],
                 line_items=[{
