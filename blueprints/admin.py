@@ -991,7 +991,7 @@ def send_credentials(user_email=None, user_phone=None, password=None):
     if user_email:
         postmark_client = PostmarkClient(server_token=os.environ.get("POSTMARK_SERVER_TOKEN"))
         postmark_client.emails.send(
-            From=os.environ.get("POSTMARK_SENDER_EMAIL"),
+            From="CFAC <yeurys@cfautocare.biz>",
             To=user_email,
             Subject="Your New Account Credentials",
             TextBody=f"Your account has been created.\n\nPassword: {password}"
