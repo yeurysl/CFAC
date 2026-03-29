@@ -44,7 +44,11 @@ def send_tech_notification_email(order, selected_services):
             logger.info(f"Preparing to send email to Technician: {tech_email}")
 
             subject = "Tech Notif: New Job Available"
-            sender_email = os.getenv('POSTMARK_SENDER_EMAIL')  # Ensure this matches your verified sender
+            sender_email = "CFAC <yeurys@cfautocare.biz>"
+
+
+
+            
 
             # Render the email body using HTML and plain-text templates
             html_body = render_template(
@@ -106,7 +110,7 @@ def send_postmark_email(subject, to_email, from_email, text_body, html_body=None
     
     try:
         response = postmark_client.emails.send(
-            from_email = "CFAC <yeurys@cfautocare.biz>",
+            From=from_email,
             To=to_email,
             Subject=subject,
             TextBody=text_body,
