@@ -1209,7 +1209,7 @@ import stripe
 @admin_bp.route('/manual_payment_success')
 def manual_payment_success():
     order_id = request.args.get('order_id')
-    return render_template('manual_payment_success.html', order_id=order_id)
+    return render_template('payment_success.html', order_id=order_id)
 
 
 
